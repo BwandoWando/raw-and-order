@@ -46,7 +46,7 @@ from my_agent.llm.capabilities import (
 )
 from my_agent.llm.context import ExifContextFormatter
 from my_agent.llm.factory import create_chat_model
-from my_agent.llm.prompts import load_prompt
+from my_agent.llm.prompts import render_prompt
 from my_agent.media.capture_date import (
     CaptureDateResolver,
     DateValidator,
@@ -63,6 +63,7 @@ from my_agent.media.previews import DatedPreviewLayout, JpegPreviewStore
 from my_agent.media.raw import RawpyDecoder
 from my_agent.media.routing import ExtensionRoutingDecoder
 from my_agent.pipeline import PhotoPipeline
+from my_agent.schemas.annotation import annotation_schema
 
 CAPABILITY_CHECK_TIMEOUT_S = 10.0
 
@@ -131,7 +132,7 @@ class Application:
             decode=DecodeNode(decoder, preview_store),
             perceptual_hash=PerceptualHashNode(DHasher(), preview_store),
             annotate=AnnotateNode(
-                build_annotator(s.llm),
+                build_annotator(s.llm, s.max_tags),
                 preview_store,
                 ExifContextFormatter(s.send_exif_to_llm, include_gps=not s.redact_gps),
             ),
@@ -193,11 +194,16 @@ class ExifRereadApplication:
         return ExifRereader(store, reader)
 
 
-def build_annotator(llm: LLMSettings) -> LLMAnnotator:
-    """Create the chat model and wrap it in an :class:`LLMAnnotator`."""
+def build_annotator(llm: LLMSettings, max_tags: int) -> LLMAnnotator:
+    """Create the chat model and wrap it in an :class:`LLMAnnotator`.
+
+    ``max_tags`` sets both the prompt's wording and the schema's limit, so
+    the two can never disagree.
+    """
     return LLMAnnotator(
         create_chat_model(llm),
-        load_prompt("annotate_system"),
+        render_prompt("annotate_system", max_tags=max_tags),
+        output_schema=annotation_schema(max_tags),
         max_retries=llm.max_retries,
         max_output_fix_attempts=llm.max_output_fix_attempts,
     )

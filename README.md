@@ -137,6 +137,7 @@ All settings come from environment variables or `.env`
 | `CHECKPOINT_DB_PATH` | `data/checkpoints.db` | LangGraph checkpoints (separate DB) |
 | `MAX_PHOTOS_PER_RUN` | `500` | Process at most this many photos per run, first by path; the rest wait for the next run (1–5000; `--max-photos`) |
 | `CHUNK_SIZE` | `25` | Photos processed and saved together; an interruption loses at most one chunk (1–5000; `--chunk-size`) |
+| `MAX_TAGS` | `20` | Most tags the LLM may give one photo (1–50); sets both the prompt and the validation |
 | `SEND_EXIF_TO_LLM` | `true` | Send camera metadata as context |
 | `REDACT_GPS` | `true` | Never send GPS coordinates to the LLM |
 

@@ -50,6 +50,7 @@ class LLMAnnotator:
     Args:
         chat_model: A vision-capable chat model.
         system_prompt: Instructions for the model.
+        output_schema: Schema the model must fill (e.g. with the tag limit).
         max_retries: Attempts for transient provider errors.
         max_output_fix_attempts: Attempts to get schema-valid output.
     """
@@ -58,12 +59,13 @@ class LLMAnnotator:
         self,
         chat_model: BaseChatModel,
         system_prompt: str,
+        output_schema: type[Annotation] = Annotation,
         max_retries: int = 3,
         max_output_fix_attempts: int = 2,
     ) -> None:
         self._system_prompt = system_prompt
         self._max_output_fix_attempts = max_output_fix_attempts
-        self._runnable = self._build_runnable(chat_model, max_retries)
+        self._runnable = self._build_runnable(chat_model, output_schema, max_retries)
 
     def annotate(self, image_jpeg: bytes, context: str | None) -> Annotation:
         """Return an annotation, asking the model to fix invalid output.
@@ -90,13 +92,13 @@ class LLMAnnotator:
             raise ModelUnavailableError(f"LLM request failed: {exc}") from exc
         if not isinstance(result, Annotation):
             raise OutputParserException(f"Expected Annotation, got {type(result)}")
-        return result
+        return Annotation.model_validate(result.model_dump())  # plain, storable type
 
     @staticmethod
     def _build_runnable(
-        chat_model: BaseChatModel, max_retries: int
+        chat_model: BaseChatModel, output_schema: type[Annotation], max_retries: int
     ) -> Runnable[list[BaseMessage], Any]:
-        structured = chat_model.with_structured_output(Annotation)
+        structured = chat_model.with_structured_output(output_schema)
         retryable = transient_errors()
         if not retryable or max_retries <= 1:
             return structured

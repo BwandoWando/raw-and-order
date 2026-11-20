@@ -15,6 +15,7 @@ from pydantic import (
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 from my_agent.exceptions import ConfigurationError
+from my_agent.schemas.annotation import DEFAULT_MAX_TAGS, MAX_TAGS_LIMIT
 from my_agent.schemas.exif import DateSource
 
 DEFAULT_RAW_EXTENSIONS = frozenset(
@@ -100,6 +101,12 @@ class Settings(BaseSettings):
         ge=1,
         le=MAX_PHOTOS_HARD_LIMIT,
         description="Photos processed and saved together; limits interrupted work.",
+    )
+    max_tags: int = Field(
+        default=DEFAULT_MAX_TAGS,
+        ge=1,
+        le=MAX_TAGS_LIMIT,
+        description="Most tags the LLM may give one photo.",
     )
     send_exif_to_llm: bool = True
     redact_gps: bool = True
