@@ -15,6 +15,8 @@ class PhotoRecord(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     path: Path
+    sha256: str | None = None
+    dhash: str | None = None
     exif: ExifData
     annotation: Annotation
     preview_path: Path

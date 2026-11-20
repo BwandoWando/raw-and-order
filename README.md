@@ -71,6 +71,7 @@ For Ollama, pull a vision model first, e.g. `ollama pull llama3.2-vision`.
 my-agent check                      # config valid, model reachable, supports images
 my-agent process /path/to/raws      # process new files
 my-agent process /path/to/raws --reprocess
+my-agent process /path/to/raws --max-photos 1500   # one-off higher limit (max 2000)
 ```
 
 ## Configuration
@@ -85,6 +86,7 @@ All settings come from environment variables or `.env`
 | `LLM__API_KEY` | - | Required for OpenAI / Anthropic |
 | `DATABASE_URL` | `sqlite:///data/app.db` | App database (managed by Alembic) |
 | `CHECKPOINT_DB_PATH` | `data/checkpoints.db` | LangGraph checkpoints (separate DB) |
+| `MAX_PHOTOS_PER_RUN` | `500` | Stop before processing if more photos need work (1–2000; override per run with `--max-photos`) |
 | `SEND_EXIF_TO_LLM` | `true` | Send camera metadata as context |
 | `REDACT_GPS` | `true` | Never send GPS coordinates to the LLM |
 

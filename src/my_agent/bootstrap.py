@@ -17,10 +17,14 @@ from my_agent.db.session import create_db_engine, create_session_factory
 from my_agent.graph.builder import PhotoGraph, PipelineNodes, build_graph
 from my_agent.graph.nodes import (
     AnnotateNode,
+    BatchLimitNode,
     DecodeNode,
     DiscoverNode,
     ExtractExifNode,
+    FingerprintNode,
+    PerceptualHashNode,
     PersistNode,
+    SkipUnchangedNode,
 )
 from my_agent.llm.annotator import LLMAnnotator
 from my_agent.llm.capabilities import (
@@ -40,6 +44,7 @@ from my_agent.media.capture_date import (
 from my_agent.media.discovery import FileSystemDiscoverer
 from my_agent.media.exif import PyExifToolReader
 from my_agent.media.exif_mapping import ExifMapper
+from my_agent.media.hashing import DHasher, Sha256FileHasher
 from my_agent.media.heif import enable_heif_support
 from my_agent.media.pairing import RawPairFilter
 from my_agent.media.pillow_decoder import PillowDecoder
@@ -102,11 +107,13 @@ class Application:
         )
         discoverer = FileSystemDiscoverer(s.raw_extensions | s.image_extensions)
         nodes = PipelineNodes(
-            discover=DiscoverNode(
-                discoverer, RawPairFilter(s.raw_extensions), repository
-            ),
+            discover=DiscoverNode(discoverer, RawPairFilter(s.raw_extensions)),
+            fingerprint=FingerprintNode(Sha256FileHasher()),
+            skip_unchanged=SkipUnchangedNode(repository),
+            check_limit=BatchLimitNode(),
             extract_exif=ExtractExifNode(exif_reader),
             decode=DecodeNode(decoder, preview_store),
+            perceptual_hash=PerceptualHashNode(DHasher(), preview_store),
             annotate=AnnotateNode(
                 build_annotator(s.llm),
                 preview_store,

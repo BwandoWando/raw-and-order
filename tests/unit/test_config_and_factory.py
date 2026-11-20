@@ -76,3 +76,17 @@ def test_default_date_source_order() -> None:
         DateSource.EXIF_CREATE,
         DateSource.FILENAME,
     ]
+
+
+def test_max_photos_per_run_defaults_to_500() -> None:
+    assert Settings(_env_file=None).max_photos_per_run == 500
+
+
+@pytest.mark.parametrize("value", ["0", "2001"])
+def test_max_photos_per_run_outside_range_is_rejected(
+    monkeypatch: pytest.MonkeyPatch, value: str
+) -> None:
+    monkeypatch.setenv("MAX_PHOTOS_PER_RUN", value)
+
+    with pytest.raises(ValidationError, match="max_photos_per_run"):
+        Settings(_env_file=None)

@@ -24,6 +24,7 @@ class RunSummary(BaseModel):
     run_id: str
     discovered: int
     skipped_pairs: int
+    unchanged: int
     saved: int
     failed: list[FailedFile]
 
@@ -34,6 +35,7 @@ def summarise(run_id: str, state: GraphState) -> RunSummary:
         run_id=run_id,
         discovered=len(state.items),
         skipped_pairs=len(state.skipped_pairs),
+        unchanged=len(state.unchanged),
         saved=sum(item.saved for item in state.items),
         failed=[
             FailedFile(path=item.path, error=item.error)
@@ -62,10 +64,21 @@ class PhotoPipeline:
         self._graph = graph
         self._run_id_factory = run_id_factory
 
-    def run(self, source_dir: Path, reprocess: bool = False) -> RunSummary:
-        """Process every new photo in ``source_dir``."""
+    def run(
+        self,
+        source_dir: Path,
+        reprocess: bool = False,
+        max_photos: int | None = None,
+    ) -> RunSummary:
+        """Process every new or changed photo in ``source_dir``.
+
+        Raises:
+            BatchLimitExceededError: If more than ``max_photos`` need processing.
+        """
         run_id = self._run_id_factory()
         config: RunnableConfig = {"configurable": {"thread_id": run_id}}
-        initial = GraphState(source_dir=source_dir, reprocess=reprocess)
+        initial = GraphState(
+            source_dir=source_dir, reprocess=reprocess, max_photos=max_photos
+        )
         result = self._graph.invoke(initial, config)
         return summarise(run_id, GraphState.model_validate(result))

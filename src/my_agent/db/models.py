@@ -15,6 +15,9 @@ class PhotoRow(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     path: Mapped[str] = mapped_column(String(1024), unique=True, index=True)
+    # Not unique: identical copies in different folders each get a row.
+    sha256: Mapped[str | None] = mapped_column(String(64), index=True)
+    dhash: Mapped[str | None] = mapped_column(String(16), index=True)
     preview_path: Mapped[str] = mapped_column(String(1024))
 
     # EXIF

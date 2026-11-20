@@ -47,6 +47,8 @@ class PersistNode:
             raise ValueError(f"{item.path} is incomplete; earlier steps must run first")
         return PhotoRecord(
             path=item.path,
+            sha256=item.sha256,
+            dhash=item.dhash,
             exif=item.exif,
             annotation=item.annotation,
             preview_path=item.preview_path,

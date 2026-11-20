@@ -23,6 +23,9 @@ DEFAULT_RAW_EXTENSIONS = frozenset(
 DEFAULT_IMAGE_EXTENSIONS = frozenset(
     {".jpg", ".jpeg", ".png", ".tif", ".tiff", ".webp", ".heic", ".heif"}
 )
+DEFAULT_MAX_PHOTOS_PER_RUN = 500
+MAX_PHOTOS_HARD_LIMIT = 2000
+
 DEFAULT_DATE_SOURCES = (
     DateSource.EXIF_ORIGINAL,
     DateSource.XMP,
@@ -84,6 +87,12 @@ class Settings(BaseSettings):
     date_sources: Annotated[list[DateSource], NoDecode] = Field(
         default_factory=lambda: list(DEFAULT_DATE_SOURCES),
         description="Capture-date sources in order, e.g. exif_original,xmp.",
+    )
+    max_photos_per_run: int = Field(
+        default=DEFAULT_MAX_PHOTOS_PER_RUN,
+        ge=1,
+        le=MAX_PHOTOS_HARD_LIMIT,
+        description="Refuse to start if more photos than this need processing.",
     )
     send_exif_to_llm: bool = True
     redact_gps: bool = True

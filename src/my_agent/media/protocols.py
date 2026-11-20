@@ -17,6 +17,22 @@ class PhotoDiscoverer(Protocol):
         ...
 
 
+class FileHasher(Protocol):
+    """Computes an exact fingerprint of a file's bytes."""
+
+    def hash_file(self, path: Path) -> str:
+        """Return the hex digest of ``path``."""
+        ...
+
+
+class PerceptualHasher(Protocol):
+    """Computes a hash of what an image looks like."""
+
+    def hash_image_bytes(self, data: bytes) -> str:
+        """Return the perceptual hash of an encoded image."""
+        ...
+
+
 class ExifReader(Protocol):
     """Reads EXIF metadata from a file."""
 

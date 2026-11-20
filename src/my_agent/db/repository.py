@@ -28,6 +28,10 @@ class PhotoRepository(Protocol):
         """Return the paths of all stored photos."""
         ...
 
+    def known_fingerprints(self) -> dict[Path, str | None]:
+        """Return each stored photo's path and SHA-256."""
+        ...
+
 
 class SqlAlchemyPhotoRepository:
     """:class:`PhotoRepository` backed by SQLAlchemy.
@@ -76,6 +80,19 @@ class SqlAlchemyPhotoRepository:
                 return {Path(p) for p in session.scalars(select(PhotoRow.path))}
         except SQLAlchemyError as exc:
             raise PersistenceError(f"Could not list stored photos: {exc}") from exc
+
+    def known_fingerprints(self) -> dict[Path, str | None]:
+        """Return each stored photo's path and SHA-256.
+
+        Raises:
+            PersistenceError: If the query fails.
+        """
+        query = select(PhotoRow.path, PhotoRow.sha256)
+        try:
+            with self._session_factory() as session:
+                return {Path(path): sha for path, sha in session.execute(query)}
+        except SQLAlchemyError as exc:
+            raise PersistenceError(f"Could not list fingerprints: {exc}") from exc
 
     @staticmethod
     def _find_row(session: Session, path: Path) -> PhotoRow | None:

@@ -16,6 +16,8 @@ def apply_record(row: PhotoRow, record: PhotoRecord) -> PhotoRow:
     """Copy every field of ``record`` onto ``row`` and return it."""
     exif, annotation, gps = record.exif, record.annotation, record.exif.gps
     row.path = str(record.path)
+    row.sha256 = record.sha256
+    row.dhash = record.dhash
     row.preview_path = str(record.preview_path)
     row.make = exif.make
     row.model = exif.model
@@ -46,6 +48,8 @@ def to_record(row: PhotoRow) -> PhotoRecord:
     """Build a :class:`PhotoRecord` from a database row."""
     return PhotoRecord(
         path=Path(row.path),
+        sha256=row.sha256,
+        dhash=row.dhash,
         preview_path=Path(row.preview_path),
         exif=_to_exif(row),
         annotation=Annotation(
