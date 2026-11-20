@@ -9,6 +9,7 @@ from langchain_core.runnables import RunnableConfig
 from pydantic import BaseModel
 
 from my_agent.config import MAX_PHOTOS_HARD_LIMIT
+from my_agent.exceptions import FatalRunError, RunAbortedError
 from my_agent.graph.builder import PhotoGraph, planning_steps, steps_per_chunk
 from my_agent.graph.state import FileFailure, GraphState
 
@@ -102,5 +103,17 @@ class PhotoPipeline:
             max_photos=max_photos,
             chunk_size=chunk_size,
         )
-        result = self._graph.invoke(initial, config)
+        try:
+            result = self._graph.invoke(initial, config)
+        except FatalRunError as exc:
+            raise RunAbortedError(exc, saved=self._saved_so_far(config)) from exc
         return summarise(run_id, GraphState.model_validate(result))
+
+    def _saved_so_far(self, config: RunnableConfig) -> int | None:
+        """Photos saved by finished chunks, from the last checkpoint."""
+        try:
+            snapshot = self._graph.get_state(config)
+        except ValueError:  # no checkpointer configured
+            return None
+        saved = snapshot.values.get("saved_count") if snapshot.values else None
+        return saved if isinstance(saved, int) else 0

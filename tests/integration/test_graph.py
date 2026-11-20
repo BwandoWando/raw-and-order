@@ -8,6 +8,12 @@ from langgraph.checkpoint.memory import InMemorySaver
 
 from my_agent.db.failure_repository import SqlAlchemyFailureRepository
 from my_agent.db.repository import SqlAlchemyPhotoRepository
+from my_agent.exceptions import (
+    ModelRejectedError,
+    ModelUnavailableError,
+    RunAbortedError,
+    TooManyFailuresError,
+)
 from my_agent.graph.builder import PipelineNodes, build_graph
 from my_agent.graph.nodes import (
     AnnotateNode,
@@ -43,6 +49,7 @@ def _pipeline(
     annotator: FakeAnnotator,
     fail_exif_for: tuple[str, ...] = (),
     fail_hash_for: tuple[str, ...] = (),
+    max_consecutive_failures: int = 0,
 ) -> PhotoPipeline:
     previews = JpegPreviewStore(tmp_path / "previews", DatedPreviewLayout(), max_px=32)
     nodes = PipelineNodes(
@@ -58,7 +65,12 @@ def _pipeline(
         extract_exif=ExtractExifNode(FakeExifReader(exif, fail_for=fail_exif_for)),
         decode=DecodeNode(FakeImageDecoder(), previews),
         perceptual_hash=PerceptualHashNode(DHasher(), previews),
-        annotate=AnnotateNode(annotator, previews, ExifContextFormatter()),
+        annotate=AnnotateNode(
+            annotator,
+            previews,
+            ExifContextFormatter(),
+            max_consecutive_failures=max_consecutive_failures,
+        ),
         persist=PersistNode(repository, annotated_by="fake:model"),
         log_failures=LogFailuresNode(failures),
         record_chunk=RecordChunkNode(),
@@ -584,3 +596,102 @@ def test_reprocess_includes_failures(
 
     assert (summary.selected, summary.saved) == (2, 2)
     assert failures.failures_under(photos) == []
+
+
+# --- stop the run when the model is unavailable ----------------------------------
+
+
+def test_missing_model_stops_the_run_without_logging_failures(
+    tmp_path: Path,
+    repository: SqlAlchemyPhotoRepository,
+    failures: SqlAlchemyFailureRepository,
+    sample_exif: ExifData,
+) -> None:
+    photos = _make_distinct(tmp_path / "in", *(f"p{i}.nef" for i in range(5)))
+    outage = ModelUnavailableError("model 'gemma3:27b' not found (HTTP 404)")
+    annotator = FakeAnnotator(errors={3: outage})  # dies during chunk 2
+
+    with pytest.raises(RunAbortedError) as caught:
+        _pipeline(tmp_path, repository, failures, sample_exif, annotator).run(
+            photos, chunk_size=2
+        )
+
+    assert caught.value.saved == 2
+    assert caught.value.cause is outage
+    assert _names(repository) == ["p0.nef", "p1.nef"]
+    assert failures.failures_under(photos) == []  # no photo blamed
+    assert len(annotator.calls) == 3  # stopped at once, not 5 calls
+
+    summary = _pipeline(
+        tmp_path, repository, failures, sample_exif, FakeAnnotator()
+    ).run(photos, chunk_size=2)
+    assert (summary.unchanged, summary.saved, summary.failed) == (2, 3, [])
+
+
+def test_rejected_image_is_logged_and_the_run_continues(
+    tmp_path: Path,
+    repository: SqlAlchemyPhotoRepository,
+    failures: SqlAlchemyFailureRepository,
+    sample_exif: ExifData,
+) -> None:
+    photos = _make_distinct(tmp_path / "in", "a.nef", "b.nef", "c.nef")
+    annotator = FakeAnnotator(errors={2: ModelRejectedError("rejected (HTTP 400)")})
+
+    summary = _pipeline(tmp_path, repository, failures, sample_exif, annotator).run(
+        photos
+    )
+
+    assert summary.saved == 2
+    assert [f.path.name for f in summary.failed] == ["b.nef"]
+    [logged] = failures.failures_under(photos)
+    assert (logged.path.name, logged.error_type) == ("b.nef", "ModelRejectedError")
+
+
+def test_too_many_failures_in_a_row_stops_the_run(
+    tmp_path: Path,
+    repository: SqlAlchemyPhotoRepository,
+    failures: SqlAlchemyFailureRepository,
+    sample_exif: ExifData,
+) -> None:
+    photos = _make_distinct(tmp_path / "in", *(f"p{i}.nef" for i in range(6)))
+    annotator = FakeAnnotator(always=ModelRejectedError("rejected (HTTP 400)"))
+
+    with pytest.raises(RunAbortedError) as caught:
+        _pipeline(
+            tmp_path,
+            repository,
+            failures,
+            sample_exif,
+            annotator,
+            max_consecutive_failures=3,
+        ).run(photos, chunk_size=2)
+
+    assert isinstance(caught.value.cause, TooManyFailuresError)
+    assert "3 photos in a row" in str(caught.value)
+    assert len(annotator.calls) == 3  # stopped at the 3rd failure, mid-chunk
+    # chunk 1 finished normally, so its 2 failures were logged; chunk 2 was not
+    assert len(failures.failures_under(photos)) == 2
+
+
+def test_a_success_resets_the_failure_streak(
+    tmp_path: Path,
+    repository: SqlAlchemyPhotoRepository,
+    failures: SqlAlchemyFailureRepository,
+    sample_exif: ExifData,
+) -> None:
+    photos = _make_distinct(tmp_path / "in", *(f"p{i}.nef" for i in range(6)))
+    rejected = ModelRejectedError("rejected")
+    annotator = FakeAnnotator(
+        errors={1: rejected, 2: rejected, 4: rejected, 5: rejected}
+    )
+
+    summary = _pipeline(
+        tmp_path,
+        repository,
+        failures,
+        sample_exif,
+        annotator,
+        max_consecutive_failures=3,
+    ).run(photos, chunk_size=2)
+
+    assert (summary.saved, len(summary.failed)) == (2, 4)  # never 3 in a row

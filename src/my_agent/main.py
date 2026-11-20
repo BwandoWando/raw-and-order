@@ -9,7 +9,7 @@ import typer
 
 from my_agent.bootstrap import Application, ExifRereadApplication, check_model
 from my_agent.config import MAX_PHOTOS_HARD_LIMIT, Settings, load_settings
-from my_agent.exceptions import MyAgentError
+from my_agent.exceptions import ModelUnavailableError, MyAgentError, RunAbortedError
 from my_agent.exif_reread import RereadSummary
 from my_agent.logging_config import configure_logging
 from my_agent.pipeline import RunSummary
@@ -95,6 +95,8 @@ def process(
         if not skip_model_check:
             check_model(settings.llm)
         summary = _run(settings, source_dir, reprocess, reprocess_failed, limit, chunk)
+    except RunAbortedError as exc:
+        _stop_aborted(exc, settings)
     except MyAgentError as exc:
         _fail(exc)
     _print_summary(summary)
@@ -206,6 +208,25 @@ def _print_summary(summary: RunSummary) -> None:
         typer.echo(f"{summary.deferred} photos are left; run again to continue.")
     if summary.previously_failed:
         typer.echo("Retry previously failed photos with --reprocess-failed.")
+
+
+def _stop_aborted(exc: RunAbortedError, settings: Settings) -> NoReturn:
+    typer.echo(f"Stopped: {exc}", err=True)
+    saved = "Photos" if exc.saved is None else f"{exc.saved} photo(s)"
+    typer.echo(
+        f"{saved} saved before this are kept; nothing from the interrupted "
+        "chunk was logged as failed.",
+        err=True,
+    )
+    if isinstance(exc.cause, ModelUnavailableError):
+        hint = (
+            f"`ollama list` / `ollama pull {settings.llm.model}`"
+            if settings.llm.provider == "ollama"
+            else "your API key, model name and provider status"
+        )
+        typer.echo(f"Check {hint}, then `my-agent check`.", err=True)
+    typer.echo("Run the same command again to continue.", err=True)
+    raise typer.Exit(code=1) from exc
 
 
 def _fail(exc: MyAgentError) -> NoReturn:

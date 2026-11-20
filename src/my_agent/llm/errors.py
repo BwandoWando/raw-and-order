@@ -50,3 +50,32 @@ def _resolve(spec: dict[str, tuple[str, ...]]) -> tuple[type[Exception], ...]:
             continue
         found.extend(getattr(module, name) for name in names if hasattr(module, name))
     return tuple(found)
+
+
+# HTTP statuses that mean "the model/provider is unusable", not "this image".
+UNAVAILABLE_STATUSES = frozenset({401, 403, 404, 408, 429})
+SERVER_ERROR_MIN = 500
+CLIENT_ERROR_MIN = 400
+
+
+def status_code(exc: BaseException) -> int | None:
+    """Return the HTTP status attached to a provider/client error, if any."""
+    status = getattr(exc, "status_code", None)
+    if status is None:
+        status = getattr(getattr(exc, "response", None), "status_code", None)
+    return status if isinstance(status, int) else None
+
+
+def is_unavailable(exc: BaseException) -> bool:
+    """True if ``exc`` means the LLM cannot be used at all (stop the run).
+
+    No status (connection refused, DNS, timeout), auth errors, model not
+    found, rate limits and server errors (after retries) are outages. Other
+    4xx are about the request itself, i.e. this image.
+    """
+    status = status_code(exc)
+    if status is None:
+        return True
+    if status in UNAVAILABLE_STATUSES or status >= SERVER_ERROR_MIN:
+        return True
+    return status < CLIENT_ERROR_MIN  # odd 1xx/2xx/3xx: treat as outage

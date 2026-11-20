@@ -63,23 +63,33 @@ class FakeImageDecoder:
 class FakeAnnotator:
     """Returns a fixed annotation and records what it was given.
 
-    ``crash_on_call`` simulates the run dying (not a per-file domain error)
-    on that call number, e.g. to test what an interruption keeps.
+    ``crash_on_call`` simulates the run dying (not a domain error) on that
+    call; ``errors`` raises the given exception on those call numbers;
+    ``always`` raises on every call.
     """
 
     def __init__(
         self,
         annotation: Annotation = SAMPLE_ANNOTATION,
         crash_on_call: int | None = None,
+        errors: dict[int, Exception] | None = None,
+        always: Exception | None = None,
     ) -> None:
         self._annotation = annotation
         self._crash_on_call = crash_on_call
+        self._errors = errors or {}
+        self._always = always
         self.calls: list[tuple[bytes, str | None]] = []
 
     def annotate(self, image_jpeg: bytes, context: str | None) -> Annotation:
         self.calls.append((image_jpeg, context))
-        if self._crash_on_call == len(self.calls):
+        call = len(self.calls)
+        if self._crash_on_call == call:
             raise RuntimeError("simulated crash")
+        if self._always is not None:
+            raise self._always
+        if call in self._errors:
+            raise self._errors[call]
         return self._annotation
 
 

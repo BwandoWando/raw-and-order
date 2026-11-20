@@ -80,6 +80,9 @@ class GraphState(BaseModel):
     chunk_index: int = 0
     chunk_total: int = 0
     saved_count: int = 0
+    consecutive_annotate_failures: int = Field(
+        default=0, description="Annotation failures in a row, across chunks."
+    )
     failures: list[FileFailure] = Field(default_factory=list)
     skipped_pairs: list[Path] = Field(
         default_factory=list,

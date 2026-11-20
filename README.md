@@ -61,7 +61,13 @@ continues. Later runs skip logged failures, unless the file's contents changed
 (then it is retried automatically). `--reprocess-failed` retries only the
 logged failures under the folder that still exist (missing ones are removed
 from the log); `--max-photos` and chunking still apply. A photo that succeeds
-is removed from the log. Files already in the database are skipped unless `--reprocess`.
+is removed from the log.
+
+**Outages stop the run:** if the LLM is unavailable (model not found, server
+unreachable, bad API key, still rate-limited or failing after retries), the run
+stops at once with one message and exit code 1. No photo is logged as failed;
+photos saved in earlier chunks are kept, and running the same command again
+continues. Errors about one image (e.g. HTTP 400/413) are still logged per photo. Files already in the database are skipped unless `--reprocess`.
 
 ## Requirements
 
@@ -137,6 +143,7 @@ All settings come from environment variables or `.env`
 | `CHECKPOINT_DB_PATH` | `data/checkpoints.db` | LangGraph checkpoints (separate DB) |
 | `MAX_PHOTOS_PER_RUN` | `500` | Process at most this many photos per run, first by path; the rest wait for the next run (1–5000; `--max-photos`) |
 | `CHUNK_SIZE` | `25` | Photos processed and saved together; an interruption loses at most one chunk (1–5000; `--chunk-size`) |
+| `MAX_CONSECUTIVE_FAILURES` | `10` | Stop a run after this many annotation failures in a row (`0` = never) |
 | `MAX_TAGS` | `20` | Most tags the LLM may give one photo (1–50); sets both the prompt and the validation |
 | `SEND_EXIF_TO_LLM` | `true` | Send camera metadata as context |
 | `REDACT_GPS` | `true` | Never send GPS coordinates to the LLM |

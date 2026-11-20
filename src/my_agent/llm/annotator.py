@@ -10,8 +10,17 @@ from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
 from langchain_core.runnables import Runnable
 from pydantic import ValidationError
 
-from my_agent.exceptions import InvalidModelOutputError, ModelUnavailableError
-from my_agent.llm.errors import provider_errors, transient_errors
+from my_agent.exceptions import (
+    InvalidModelOutputError,
+    ModelRejectedError,
+    ModelUnavailableError,
+)
+from my_agent.llm.errors import (
+    is_unavailable,
+    provider_errors,
+    status_code,
+    transient_errors,
+)
 from my_agent.schemas.annotation import Annotation
 
 logger = logging.getLogger(__name__)
@@ -89,7 +98,7 @@ class LLMAnnotator:
         try:
             result = self._runnable.invoke(messages)
         except provider_errors() as exc:
-            raise ModelUnavailableError(f"LLM request failed: {exc}") from exc
+            raise _classify(exc) from exc
         if not isinstance(result, Annotation):
             raise OutputParserException(f"Expected Annotation, got {type(result)}")
         return Annotation.model_validate(result.model_dump())  # plain, storable type
@@ -107,6 +116,16 @@ class LLMAnnotator:
             stop_after_attempt=max_retries,
             wait_exponential_jitter=True,
         )
+
+
+def _classify(exc: Exception) -> ModelUnavailableError | ModelRejectedError:
+    """Outage (stops the run) or a rejection of this image (logged per photo)."""
+    status = status_code(exc)
+    text = str(exc)
+    suffix = f" (HTTP {status})" if status and str(status) not in text else ""
+    if is_unavailable(exc):
+        return ModelUnavailableError(f"the LLM is unavailable - {text}{suffix}")
+    return ModelRejectedError(f"the LLM rejected this image - {text}{suffix}")
 
 
 def _correction_message(error: Exception) -> HumanMessage:

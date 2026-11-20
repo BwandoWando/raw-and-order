@@ -102,6 +102,12 @@ class Settings(BaseSettings):
         le=MAX_PHOTOS_HARD_LIMIT,
         description="Photos processed and saved together; limits interrupted work.",
     )
+    max_consecutive_failures: int = Field(
+        default=10,
+        ge=0,
+        description="Stop a run after this many annotation failures in a row "
+        "(0 = never).",
+    )
     max_tags: int = Field(
         default=DEFAULT_MAX_TAGS,
         ge=1,

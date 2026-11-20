@@ -135,6 +135,7 @@ class Application:
                 build_annotator(s.llm, s.max_tags),
                 preview_store,
                 ExifContextFormatter(s.send_exif_to_llm, include_gps=not s.redact_gps),
+                max_consecutive_failures=s.max_consecutive_failures,
             ),
             persist=PersistNode(repository, annotated_by=s.llm.label),
             log_failures=LogFailuresNode(failures),

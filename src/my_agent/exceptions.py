@@ -11,6 +11,14 @@ class MyAgentError(Exception):
     """Base class for all application errors."""
 
 
+class FatalRunError(MyAgentError):
+    """Marker: the whole run must stop (a setup problem, not a bad photo).
+
+    Per-photo error handling re-raises these instead of logging the photo as
+    failed, so photos are not blamed for an outage.
+    """
+
+
 class ConfigurationError(MyAgentError):
     """Settings are invalid or a required external tool is unavailable."""
 
@@ -51,8 +59,25 @@ class AnnotationError(MyAgentError):
     """The LLM could not annotate an image."""
 
 
-class ModelUnavailableError(AnnotationError):
-    """The LLM provider could not be reached or rejected the request."""
+class ModelUnavailableError(AnnotationError, FatalRunError):
+    """The LLM cannot be used at all: unreachable, model missing, bad key..."""
+
+
+class ModelRejectedError(AnnotationError):
+    """The LLM refused this particular image (e.g. HTTP 400/413); logged per photo."""
+
+
+class TooManyFailuresError(FatalRunError):
+    """Too many photos in a row failed annotation; something is likely wrong."""
+
+
+class RunAbortedError(MyAgentError):
+    """The run stopped early because of a :class:`FatalRunError`."""
+
+    def __init__(self, cause: FatalRunError, saved: int | None) -> None:
+        super().__init__(str(cause))
+        self.cause = cause
+        self.saved = saved
 
 
 class InvalidModelOutputError(AnnotationError):

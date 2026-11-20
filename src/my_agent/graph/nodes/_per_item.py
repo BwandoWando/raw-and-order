@@ -3,7 +3,7 @@
 import logging
 from collections.abc import Callable
 
-from my_agent.exceptions import MyAgentError
+from my_agent.exceptions import FatalRunError, MyAgentError
 from my_agent.graph.state import FileError, PhotoItem, Stage
 
 logger = logging.getLogger(__name__)
@@ -15,7 +15,9 @@ def apply_step(items: list[PhotoItem], stage: Stage, step: ItemStep) -> list[Pho
     """Apply ``step`` to each healthy item; record domain errors on the item.
 
     Items that already failed pass through unchanged. Only
-    :class:`MyAgentError` is caught, so programming errors still surface.
+    :class:`MyAgentError` is caught, so programming errors still surface, and
+    :class:`FatalRunError` (e.g. the model is missing) stops the whole run
+    instead of being blamed on one photo.
     """
     return [_run_one(item, stage, step) if item.is_ok else item for item in items]
 
@@ -23,6 +25,8 @@ def apply_step(items: list[PhotoItem], stage: Stage, step: ItemStep) -> list[Pho
 def _run_one(item: PhotoItem, stage: Stage, step: ItemStep) -> PhotoItem:
     try:
         return step(item)
+    except FatalRunError:
+        raise
     except MyAgentError as exc:
         logger.warning("%s failed for %s: %s", stage, item.path, exc)
         error = FileError(stage=stage, error_type=type(exc).__name__, message=str(exc))
