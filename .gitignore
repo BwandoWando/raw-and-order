@@ -43,3 +43,6 @@ build/
 .idea/
 .DS_Store
 *.log
+
+# Local archives (e.g. data-archive-*.tar.gz)
+*.tar.gz
