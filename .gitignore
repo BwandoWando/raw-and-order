@@ -46,3 +46,6 @@ build/
 
 # Local archives (e.g. data-archive-*.tar.gz)
 *.tar.gz
+
+# Streamlit agent skills (environment-specific symlinks; recreate with `streamlit skills`)
+.agents/skills/developing-with-streamlit
