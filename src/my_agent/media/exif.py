@@ -6,7 +6,7 @@ from types import TracebackType
 from typing import Any, Self
 
 import exiftool
-from exiftool.exceptions import ExifToolException
+from exiftool.exceptions import ExifToolException, ExifToolVersionError
 
 from my_agent.exceptions import ConfigurationError, ExifReadError
 from my_agent.media.exif_mapping import map_exif
@@ -15,6 +15,11 @@ from my_agent.schemas.exif import ExifData
 logger = logging.getLogger(__name__)
 
 EXIFTOOL_ARGS = ["-G", "-n"]
+MIN_EXIFTOOL_VERSION = "12.15"  # required by pyexiftool
+INSTALL_HINT = (
+    "Install a current release from https://exiftool.org "
+    "(distro packages on older Ubuntu releases are too old)."
+)
 
 
 class PyExifToolReader:
@@ -47,17 +52,20 @@ class PyExifToolReader:
         """Start the exiftool process.
 
         Raises:
-            ConfigurationError: If exiftool is not installed.
+            ConfigurationError: If exiftool is missing or too old.
         """
         try:
             helper = exiftool.ExifToolHelper(
                 executable=self._executable, common_args=EXIFTOOL_ARGS
             )
-            helper.run()
         except FileNotFoundError as exc:
+            raise ConfigurationError(f"exiftool not found. {INSTALL_HINT}") from exc
+        try:
+            helper.run()
+        except ExifToolVersionError as exc:
             raise ConfigurationError(
-                "exiftool not found. Install it, e.g. "
-                "`sudo apt install libimage-exiftool-perl`."
+                f"exiftool {MIN_EXIFTOOL_VERSION}+ is required "
+                f"(check with `exiftool -ver`). {INSTALL_HINT}"
             ) from exc
         self._helper = helper
 

@@ -14,7 +14,14 @@ continues. Files already in the database are skipped unless `--reprocess`.
 ## Requirements
 
 - Python 3.11+
-- [exiftool](https://exiftool.org/): `sudo apt install libimage-exiftool-perl`
+- [exiftool](https://exiftool.org/) **12.15 or newer** (`exiftool -ver`). Ubuntu 20.04's
+  apt package is 11.88, which is too old. Install a current release without sudo:
+  ```bash
+  V=$(curl -fsS https://exiftool.org/ver.txt)
+  curl -fsSL "https://github.com/exiftool/exiftool/archive/refs/tags/$V.tar.gz" \
+    | tar -xz -C ~/.local/opt
+  ln -sf ~/.local/opt/exiftool-$V/exiftool ~/.local/bin/exiftool
+  ```
 - An LLM: a local [Ollama](https://ollama.com/) vision model, or an OpenAI or
   Anthropic API key
 
