@@ -1,0 +1,65 @@
+"""Stats tab: headline numbers and simple breakdowns."""
+
+from collections.abc import Callable
+
+import altair as alt
+import streamlit as st
+
+from my_agent.schemas.query import CountRow
+from my_agent.ui import services
+from my_agent.ui.charts import columns_by_month, horizontal_bars, rows_frame, theme_for
+
+TOP_LENSES = 10
+UNKNOWN = "Unknown"
+
+
+def render_stats() -> None:
+    """Draw the metrics row and the three breakdown charts."""
+    summary = services.stats()
+    failed = len(services.failures())
+    a, b, c, d = st.columns(4)
+    a.metric("Photos", summary.total)
+    b.metric("With GPS", summary.with_gps)
+    c.metric("With people", summary.with_people)
+    d.metric("Logged failures", failed)
+    if summary.total == 0:
+        st.info("No photos yet.")
+        return
+
+    theme = theme_for(getattr(st.context.theme, "type", None))
+    _section(
+        "Photos by scene", summary.by_scene, lambda rows: horizontal_bars(rows, theme)
+    )
+    lenses = summary.by_lens[:TOP_LENSES]
+    _section(
+        f"Photos by lens (top {TOP_LENSES})",
+        lenses,
+        lambda rows: horizontal_bars(rows, theme),
+    )
+    dated = [row for row in summary.by_month if row.label != UNKNOWN]
+    undated = sum(row.count for row in summary.by_month if row.label == UNKNOWN)
+    _section(
+        "Photos by capture month", dated, lambda rows: columns_by_month(rows, theme)
+    )
+    if undated:
+        st.caption(
+            f"{undated} photo(s) have no capture date and are not shown by month."
+        )
+
+
+def _section(
+    title: str,
+    rows: list[CountRow],
+    chart: Callable[[list[CountRow]], alt.LayerChart],
+) -> None:
+    st.subheader(title, divider="gray")
+    if not rows:
+        st.caption("No data.")
+        return
+    st.altair_chart(chart(rows), width="stretch", theme=None)
+    with st.expander("Show as table"):
+        st.dataframe(
+            rows_frame(rows).rename(columns={"label": "Name", "count": "Photos"}),
+            hide_index=True,
+            width="stretch",
+        )

@@ -28,7 +28,8 @@ ollama = ["langchain-ollama>=0.2"]
 openai = ["langchain-openai>=0.2"]
 anthropic = ["langchain-anthropic>=0.3"]
 heic = ["pillow-heif>=0.16"]
-all = ["my-agent[ollama,openai,anthropic,heic]"]
+ui = ["streamlit>=1.40"]
+all = ["my-agent[ollama,openai,anthropic,heic,ui]"]
 dev = [
     "mypy>=1.10",
     "pre-commit>=3.7",
@@ -75,6 +76,8 @@ convention = "google"
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["D"]
 "migrations/**" = ["D"]
+"src/my_agent/ui/**" = ["RUF001"]  # × and – are deliberate typography in UI text
+"tests/**/test_ui*.py" = ["D", "RUF001"]
 
 # --------------------------------------------------------------------------- mypy
 [tool.mypy]
@@ -84,7 +87,7 @@ plugins = ["pydantic.mypy"]
 mypy_path = "src"
 
 [[tool.mypy.overrides]]
-module = ["rawpy.*", "rawpy", "exiftool.*", "exiftool"]
+module = ["rawpy.*", "rawpy", "exiftool.*", "exiftool", "pandas", "pandas.*"]
 ignore_missing_imports = true
 
 # --------------------------------------------------------------------------- pytest

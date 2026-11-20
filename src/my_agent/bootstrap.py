@@ -5,6 +5,7 @@ Everything else receives its dependencies through constructors.
 
 import sqlite3
 from contextlib import ExitStack
+from dataclasses import dataclass
 from types import TracebackType
 from typing import Self
 
@@ -12,7 +13,11 @@ import httpx
 from langgraph.checkpoint.sqlite import SqliteSaver
 
 from my_agent.config import LLMProvider, LLMSettings, Settings
-from my_agent.db.failure_repository import SqlAlchemyFailureRepository
+from my_agent.db.catalog import PhotoCatalog, SqlAlchemyPhotoCatalog
+from my_agent.db.failure_repository import (
+    FailureRepository,
+    SqlAlchemyFailureRepository,
+)
 from my_agent.db.repository import SqlAlchemyPhotoRepository
 from my_agent.db.session import create_db_engine, create_session_factory
 from my_agent.graph.builder import PhotoGraph, PipelineNodes, build_graph
@@ -171,3 +176,23 @@ def check_model(llm: LLMSettings) -> None:
 
 def _ensure_vision(checker: CapabilityChecker, model: str) -> None:
     checker.ensure_vision_support(model)
+
+
+@dataclass(frozen=True)
+class UiServices:
+    """Read-only services the Streamlit UI needs."""
+
+    catalog: PhotoCatalog
+    failures: FailureRepository
+
+
+def build_ui_services(settings: Settings) -> UiServices:
+    """Build the UI's read-only services from settings.
+
+    The engine lives as long as the UI process; Streamlit caches the result.
+    """
+    session_factory = create_session_factory(create_db_engine(settings.database_url))
+    return UiServices(
+        catalog=SqlAlchemyPhotoCatalog(session_factory),
+        failures=SqlAlchemyFailureRepository(session_factory),
+    )

@@ -47,6 +47,24 @@
             "console": "integratedTerminal",
             "env": {"PYTHONNOUSERSITE": "1"},
             "justMyCode": false
+        },
+        {
+            "name": "Streamlit UI",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "streamlit",
+            "args": [
+                "run", "src/my_agent/ui/app.py",
+                "--server.address", "localhost",
+                "--browser.gatherUsageStats", "false",
+                "--client.toolbarMode", "minimal",
+                "--server.runOnSave", "true"
+            ],
+            "cwd": "${workspaceFolder}",
+            "envFile": "${workspaceFolder}/.env",
+            "console": "integratedTerminal",
+            "env": {"PYTHONNOUSERSITE": "1"},
+            "justMyCode": true
         }
     ],
     "inputs": [

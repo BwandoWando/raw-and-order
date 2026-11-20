@@ -1,0 +1,15 @@
+# Used when running `streamlit run src/my_agent/ui/app.py` from the project root.
+# `my-agent ui` passes the same settings on the command line.
+
+[server]
+# Only this computer can open the UI (Streamlit's default listens on all
+# network interfaces, which would expose your photos and GPS locations).
+address = "localhost"
+
+[client]
+# Hide the "Deploy" button: this app is for local use only.
+toolbarMode = "minimal"
+
+[browser]
+# Streamlit sends usage statistics unless this is off.
+gatherUsageStats = false

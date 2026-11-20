@@ -87,6 +87,27 @@ my-agent process /path/to/raws --max-photos 1500   # up to 1500 photos this run 
 my-agent process /path/to/raws --chunk-size 10     # save every 10 photos
 ```
 
+## Photo browser (Streamlit)
+
+```bash
+pip install -e ".[ui]"     # once
+my-agent ui                # opens http://localhost:8501
+my-agent ui --port 8600 --no-open-browser
+```
+
+- **Gallery:** thumbnail grid (24 / 48 / 72 / 96 per page), sorted by capture or
+  processing date. **Details** shows the large preview, description, tags,
+  camera and lens settings, a map when the photo has GPS, its SHA-256 and dHash,
+  and similar photos (dHash distance ≤ 10).
+- **Filters** (sidebar): text search over descriptions and tags, scene, tags
+  (all of), people, camera, lens, capture-date range, GPS only, annotating model.
+- **Failures:** the `processing_failures` log, filterable by stage.
+- **Stats:** totals and photos by scene, lens and capture month.
+
+The UI only reads the database, so it is safe to keep open during a processing
+run (press **Refresh data** to see new photos). It listens on `localhost` only
+and Streamlit's usage statistics are turned off (see `.streamlit/config.toml`).
+
 ## Configuration
 
 All settings come from environment variables or `.env`

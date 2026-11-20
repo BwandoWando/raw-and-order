@@ -41,6 +41,10 @@ class FailureRepository(Protocol):
         """Return logged failures inside ``folder``, sorted by path."""
         ...
 
+    def all_failures(self) -> list[FailureRecord]:
+        """Return every logged failure, most recent first."""
+        ...
+
 
 class SqlAlchemyFailureRepository:
     """:class:`FailureRepository` backed by SQLAlchemy.
@@ -122,6 +126,19 @@ class SqlAlchemyFailureRepository:
         except SQLAlchemyError as exc:
             raise PersistenceError(f"Could not list failures: {exc}") from exc
         return [r for r in records if r.path.is_relative_to(folder)]
+
+    def all_failures(self) -> list[FailureRecord]:
+        """Return every logged failure, most recent first.
+
+        Raises:
+            PersistenceError: If the query fails.
+        """
+        query = select(FailureRow).order_by(FailureRow.last_failed_at.desc())
+        try:
+            with self._session_factory() as session:
+                return [_to_record(row) for row in session.scalars(query)]
+        except SQLAlchemyError as exc:
+            raise PersistenceError(f"Could not list failures: {exc}") from exc
 
     @staticmethod
     def _find_row(session: Session, path: Path) -> FailureRow | None:

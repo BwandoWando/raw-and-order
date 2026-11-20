@@ -1,6 +1,7 @@
 """Command-line entry point."""
 
 import logging
+import subprocess
 from pathlib import Path
 from typing import Annotated, NoReturn
 
@@ -11,6 +12,7 @@ from my_agent.config import MAX_PHOTOS_HARD_LIMIT, Settings, load_settings
 from my_agent.exceptions import MyAgentError
 from my_agent.logging_config import configure_logging
 from my_agent.pipeline import RunSummary
+from my_agent.ui.launcher import streamlit_command
 
 logger = logging.getLogger(__name__)
 
@@ -87,6 +89,25 @@ def check() -> None:
     except MyAgentError as exc:
         _fail(exc)
     typer.echo(f"OK: {settings.llm.label} is reachable and supports images.")
+
+
+@app.command()
+def ui(
+    port: Annotated[int, typer.Option(min=1024, max=65535, help="Local port.")] = 8501,
+    open_browser: Annotated[
+        bool, typer.Option(help="Open the UI in your browser.")
+    ] = True,
+) -> None:
+    """Open the photo browser (Streamlit) on http://localhost:PORT."""
+    configure_logging("INFO")
+    try:
+        command = streamlit_command(port, open_browser=open_browser)
+    except MyAgentError as exc:
+        _fail(exc)
+    typer.echo(
+        f"Starting the photo browser on http://localhost:{port} (Ctrl+C to stop)"
+    )
+    raise typer.Exit(code=subprocess.call(command))
 
 
 def _startup() -> Settings:
