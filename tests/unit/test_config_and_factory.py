@@ -1,7 +1,7 @@
 import pytest
 from pydantic import SecretStr, ValidationError
 
-from my_agent.config import LLMProvider, LLMSettings, Settings
+from my_agent.config import MAX_PHOTOS_HARD_LIMIT, LLMProvider, LLMSettings, Settings
 from my_agent.llm.factory import build_model_kwargs, create_chat_model
 from my_agent.schemas import DateSource
 
@@ -82,7 +82,7 @@ def test_max_photos_per_run_defaults_to_500() -> None:
     assert Settings(_env_file=None).max_photos_per_run == 500
 
 
-@pytest.mark.parametrize("value", ["0", "2001"])
+@pytest.mark.parametrize("value", ["0", str(MAX_PHOTOS_HARD_LIMIT + 1)])
 def test_max_photos_per_run_outside_range_is_rejected(
     monkeypatch: pytest.MonkeyPatch, value: str
 ) -> None:
@@ -96,7 +96,7 @@ def test_chunk_size_defaults_to_25() -> None:
     assert Settings(_env_file=None).chunk_size == 25
 
 
-@pytest.mark.parametrize("value", ["0", "2001"])
+@pytest.mark.parametrize("value", ["0", str(MAX_PHOTOS_HARD_LIMIT + 1)])
 def test_chunk_size_outside_range_is_rejected(
     monkeypatch: pytest.MonkeyPatch, value: str
 ) -> None:

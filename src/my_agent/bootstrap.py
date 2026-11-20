@@ -20,6 +20,7 @@ from my_agent.db.failure_repository import (
 )
 from my_agent.db.repository import SqlAlchemyPhotoRepository
 from my_agent.db.session import create_db_engine, create_session_factory
+from my_agent.exif_reread import ExifRereader
 from my_agent.graph.builder import PhotoGraph, PipelineNodes, build_graph
 from my_agent.graph.nodes import (
     AnnotateNode,
@@ -148,6 +149,48 @@ class Application:
         connection = sqlite3.connect(path, check_same_thread=False)
         self._stack.callback(connection.close)
         return SqliteSaver(connection)
+
+
+class ExifRereadApplication:
+    """Owns the resources for ``--reread-exif``: database and exiftool only.
+
+    No LLM is built, so no model or API key is needed.
+
+    Args:
+        settings: Validated application settings.
+    """
+
+    def __init__(self, settings: Settings) -> None:
+        self._settings = settings
+        self._stack = ExitStack()
+        self.rereader: ExifRereader | None = None
+
+    def __enter__(self) -> Self:
+        try:
+            self.rereader = self._build()
+        except BaseException:
+            self._stack.close()
+            raise
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        tb: TracebackType | None,
+    ) -> None:
+        self._stack.close()
+
+    def _build(self) -> ExifRereader:
+        s = self._settings
+        engine = create_db_engine(s.database_url)
+        self._stack.callback(engine.dispose)
+        store = SqlAlchemyPhotoRepository(create_session_factory(engine))
+        date_resolver = CaptureDateResolver(
+            build_date_sources(s.date_sources), DateValidator()
+        )
+        reader = self._stack.enter_context(PyExifToolReader(ExifMapper(date_resolver)))
+        return ExifRereader(store, reader)
 
 
 def build_annotator(llm: LLMSettings) -> LLMAnnotator:

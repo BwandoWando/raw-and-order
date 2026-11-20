@@ -7,9 +7,10 @@ from typing import Annotated, NoReturn
 
 import typer
 
-from my_agent.bootstrap import Application, check_model
+from my_agent.bootstrap import Application, ExifRereadApplication, check_model
 from my_agent.config import MAX_PHOTOS_HARD_LIMIT, Settings, load_settings
 from my_agent.exceptions import MyAgentError
+from my_agent.exif_reread import RereadSummary
 from my_agent.logging_config import configure_logging
 from my_agent.pipeline import RunSummary
 from my_agent.ui.launcher import streamlit_command
@@ -30,6 +31,16 @@ def process(
         typer.Option(
             "--reprocess-failed",
             help="Retry only the photos logged as failed in SOURCE_DIR.",
+        ),
+    ] = False,
+    reread_exif: Annotated[
+        bool,
+        typer.Option(
+            "--reread-exif",
+            help=(
+                "Only re-read EXIF for photos already stored from SOURCE_DIR and "
+                "update those fields. No LLM calls; annotations stay."
+            ),
         ),
     ] = False,
     skip_model_check: Annotated[
@@ -68,7 +79,16 @@ def process(
             "logged failures), not both",
             param_hint="--reprocess-failed",
         )
+    if reread_exif and (reprocess or reprocess_failed):
+        raise typer.BadParameter(
+            "--reread-exif only updates EXIF of stored photos; it cannot be "
+            "combined with --reprocess or --reprocess-failed",
+            param_hint="--reread-exif",
+        )
     settings = _startup()
+    if reread_exif:
+        _reread(settings, source_dir)
+        return
     limit = max_photos if max_photos is not None else settings.max_photos_per_run
     chunk = chunk_size if chunk_size is not None else settings.chunk_size
     try:
@@ -137,6 +157,33 @@ def _run(
             reprocess_failed=reprocess_failed,
             max_photos=max_photos,
             chunk_size=chunk_size,
+        )
+
+
+def _reread(settings: Settings, source_dir: Path) -> None:
+    try:
+        with ExifRereadApplication(settings) as application:
+            if application.rereader is None:
+                raise RuntimeError("Application did not build the re-reader")
+            summary = application.rereader.run(source_dir)
+    except MyAgentError as exc:
+        _fail(exc)
+    _print_reread_summary(summary)
+
+
+def _print_reread_summary(summary: RereadSummary) -> None:
+    typer.echo(
+        f"EXIF re-read: {summary.checked} stored photo(s) checked, "
+        f"{summary.updated} updated, {summary.unchanged} unchanged, "
+        f"{len(summary.missing)} missing, {len(summary.failed)} failed."
+    )
+    for path in summary.missing:
+        typer.echo(f"  MISSING {path}")
+    for failed in summary.failed:
+        typer.echo(f"  FAILED {failed.path}: {failed.message}")
+    if summary.checked == 0:
+        typer.echo(
+            "No stored photos in that folder; run it without --reread-exif first."
         )
 
 

@@ -12,6 +12,25 @@ from my_agent.db.session import create_db_engine, create_session_factory
 from my_agent.schemas import ExifData, GpsCoordinate
 
 
+@pytest.fixture(autouse=True)
+def isolate_from_real_settings(
+    tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Never let a test touch the real database, previews or LLM from ``.env``.
+
+    Environment variables take precedence over ``.env``, so anything that
+    loads settings (e.g. a CLI test) only sees throwaway locations. The LLM
+    points at a closed local port, so an accidental call fails fast.
+    """
+    base = tmp_path_factory.mktemp("isolated")
+    monkeypatch.setenv("DATA_DIR", str(base))
+    monkeypatch.setenv("DATABASE_URL", f"sqlite:///{base / 'app.db'}")
+    monkeypatch.setenv("CHECKPOINT_DB_PATH", str(base / "checkpoints.db"))
+    monkeypatch.setenv("PREVIEW_DIR", str(base / "previews"))
+    monkeypatch.setenv("LLM__PROVIDER", "ollama")
+    monkeypatch.setenv("LLM__BASE_URL", "http://127.0.0.1:9")
+
+
 @pytest.fixture
 def sample_exif() -> ExifData:
     return ExifData(

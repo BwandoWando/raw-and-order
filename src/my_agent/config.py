@@ -24,7 +24,7 @@ DEFAULT_IMAGE_EXTENSIONS = frozenset(
     {".jpg", ".jpeg", ".png", ".tif", ".tiff", ".webp", ".heic", ".heif"}
 )
 DEFAULT_MAX_PHOTOS_PER_RUN = 500
-MAX_PHOTOS_HARD_LIMIT = 2000
+MAX_PHOTOS_HARD_LIMIT = 5000
 DEFAULT_CHUNK_SIZE = 25
 
 DEFAULT_DATE_SOURCES = (

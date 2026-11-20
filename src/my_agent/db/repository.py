@@ -7,10 +7,10 @@ from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, sessionmaker
 
-from my_agent.db.mappers import apply_record, to_record
+from my_agent.db.mappers import apply_exif, apply_record, to_exif, to_record
 from my_agent.db.models import PhotoRow
 from my_agent.exceptions import PersistenceError
-from my_agent.schemas import PhotoRecord
+from my_agent.schemas import ExifData, PhotoRecord
 
 
 class PhotoRepository(Protocol):
@@ -30,6 +30,18 @@ class PhotoRepository(Protocol):
 
     def known_fingerprints(self) -> dict[Path, str | None]:
         """Return each stored photo's path and SHA-256."""
+        ...
+
+
+class ExifStore(Protocol):
+    """Reads and updates only the EXIF part of stored photos."""
+
+    def stored_exif_under(self, folder: Path) -> dict[Path, ExifData]:
+        """Return the stored EXIF of every photo inside ``folder``."""
+        ...
+
+    def update_exif(self, path: Path, exif: ExifData) -> None:
+        """Replace the EXIF columns of the photo at ``path``."""
         ...
 
 
@@ -93,6 +105,37 @@ class SqlAlchemyPhotoRepository:
                 return {Path(path): sha for path, sha in session.execute(query)}
         except SQLAlchemyError as exc:
             raise PersistenceError(f"Could not list fingerprints: {exc}") from exc
+
+    def stored_exif_under(self, folder: Path) -> dict[Path, ExifData]:
+        """Return the stored EXIF of every photo inside ``folder``, by path.
+
+        Raises:
+            PersistenceError: If the query fails.
+        """
+        try:
+            with self._session_factory() as session:
+                rows = session.scalars(select(PhotoRow).order_by(PhotoRow.path))
+                stored = {Path(row.path): to_exif(row) for row in rows}
+        except SQLAlchemyError as exc:
+            raise PersistenceError(f"Could not list stored photos: {exc}") from exc
+        return {
+            path: exif for path, exif in stored.items() if path.is_relative_to(folder)
+        }
+
+    def update_exif(self, path: Path, exif: ExifData) -> None:
+        """Replace only the EXIF columns; annotation, preview and hashes stay.
+
+        Raises:
+            PersistenceError: If the photo is not stored or the write fails.
+        """
+        try:
+            with self._session_factory.begin() as session:
+                row = self._find_row(session, path)
+                if row is None:
+                    raise PersistenceError(f"{path} is not in the database")
+                apply_exif(row, exif)
+        except SQLAlchemyError as exc:
+            raise PersistenceError(f"Could not update {path}: {exc}") from exc
 
     @staticmethod
     def _find_row(session: Session, path: Path) -> PhotoRow | None:

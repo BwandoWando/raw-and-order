@@ -38,6 +38,13 @@ K mode, or Canon's as-shot temperature); an estimate from the camera's
 white-balance calibration (`estimated`: most Sony Auto WB shots, accurate to a
 few hundred K); Lightroom's `XMP-crs:ColorTemperature` (`edited`).
 
+**Re-reading EXIF:** `--reread-exif` re-reads the EXIF of photos already stored
+from the folder and updates only those columns (dates, lens, white balance,
+GPS, camera settings). Annotations, previews and hashes are kept and no LLM is
+called, so it is fast (about 15 s for 1,000 photos). Use it after an update adds
+or fixes EXIF fields. Missing files are listed and skipped. Previews stay in
+their original `YYYYMMDD` folder even if a corrected date differs.
+
 **Lens:** `lens_model` (exiftool's lens database, then EXIF/maker-note/XMP lens
 tags; numeric codes and placeholders are skipped), `lens_make`, and
 `lens_spec` (e.g. `24-70mm f/2.8`).
@@ -89,7 +96,8 @@ my-agent check                      # config valid, model reachable, supports im
 my-agent process /path/to/raws      # process new files
 my-agent process /path/to/raws --reprocess
 my-agent process /path/to/raws --reprocess-failed   # retry only logged failures
-my-agent process /path/to/raws --max-photos 1500   # up to 1500 photos this run (max 2000)
+my-agent process /path/to/raws --reread-exif        # refresh EXIF of stored photos (no LLM)
+my-agent process /path/to/raws --max-photos 1500   # up to 1500 photos this run (max 5000)
 my-agent process /path/to/raws --chunk-size 10     # save every 10 photos
 ```
 
@@ -127,8 +135,8 @@ All settings come from environment variables or `.env`
 | `LLM__API_KEY` | - | Required for OpenAI / Anthropic |
 | `DATABASE_URL` | `sqlite:///data/app.db` | App database (managed by Alembic) |
 | `CHECKPOINT_DB_PATH` | `data/checkpoints.db` | LangGraph checkpoints (separate DB) |
-| `MAX_PHOTOS_PER_RUN` | `500` | Process at most this many photos per run, first by path; the rest wait for the next run (1–2000; `--max-photos`) |
-| `CHUNK_SIZE` | `25` | Photos processed and saved together; an interruption loses at most one chunk (1–2000; `--chunk-size`) |
+| `MAX_PHOTOS_PER_RUN` | `500` | Process at most this many photos per run, first by path; the rest wait for the next run (1–5000; `--max-photos`) |
+| `CHUNK_SIZE` | `25` | Photos processed and saved together; an interruption loses at most one chunk (1–5000; `--chunk-size`) |
 | `SEND_EXIF_TO_LLM` | `true` | Send camera metadata as context |
 | `REDACT_GPS` | `true` | Never send GPS coordinates to the LLM |
 

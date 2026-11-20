@@ -15,11 +15,24 @@ from my_agent.schemas import (
 
 def apply_record(row: PhotoRow, record: PhotoRecord) -> PhotoRow:
     """Copy every field of ``record`` onto ``row`` and return it."""
-    exif, annotation, gps = record.exif, record.annotation, record.exif.gps
+    annotation = record.annotation
     row.path = str(record.path)
     row.sha256 = record.sha256
     row.dhash = record.dhash
     row.preview_path = str(record.preview_path)
+    apply_exif(row, record.exif)
+    row.description = annotation.description
+    row.tags = list(annotation.tags)
+    row.scene = annotation.scene.value
+    row.contains_people = annotation.contains_people
+    row.annotated_by = record.annotated_by
+    row.processed_at = record.processed_at
+    return row
+
+
+def apply_exif(row: PhotoRow, exif: ExifData) -> PhotoRow:
+    """Copy only the EXIF fields of ``exif`` onto ``row`` and return it."""
+    gps = exif.gps
     row.make = exif.make
     row.model = exif.model
     row.lens_model = exif.lens_model
@@ -41,12 +54,6 @@ def apply_record(row: PhotoRow, record: PhotoRecord) -> PhotoRow:
     row.gps_latitude = gps.latitude if gps else None
     row.gps_longitude = gps.longitude if gps else None
     row.gps_altitude_m = gps.altitude_m if gps else None
-    row.description = annotation.description
-    row.tags = list(annotation.tags)
-    row.scene = annotation.scene.value
-    row.contains_people = annotation.contains_people
-    row.annotated_by = record.annotated_by
-    row.processed_at = record.processed_at
     return row
 
 
@@ -57,7 +64,7 @@ def to_record(row: PhotoRow) -> PhotoRecord:
         sha256=row.sha256,
         dhash=row.dhash,
         preview_path=Path(row.preview_path),
-        exif=_to_exif(row),
+        exif=to_exif(row),
         annotation=Annotation(
             description=row.description,
             tags=list(row.tags),
@@ -69,7 +76,8 @@ def to_record(row: PhotoRow) -> PhotoRecord:
     )
 
 
-def _to_exif(row: PhotoRow) -> ExifData:
+def to_exif(row: PhotoRow) -> ExifData:
+    """Build :class:`ExifData` from the EXIF columns of ``row``."""
     return ExifData(
         make=row.make,
         model=row.model,

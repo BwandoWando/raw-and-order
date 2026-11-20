@@ -125,3 +125,70 @@ def test_nothing_available() -> None:
 
 def test_round_kelvin() -> None:
     assert (round_kelvin(5382.4), round_kelvin(5374.9)) == (5400, 5350)
+
+
+# Pentax-style calibration and DNG neutral, as written by a Ricoh GR IV.
+RICOH_CALIBRATION = {
+    "MakerNotes:KelvinWB_Daylight": "5205 0 2.499755859375 1.591796875",
+    "MakerNotes:KelvinWB_01": "2500 0 1.3848876953125 2.7548828125",
+    "MakerNotes:KelvinWB_10": "4550 0 2.322021484375 1.7281494140625",
+    "MakerNotes:KelvinWB_11": "5000 0 2.4498291015625 1.62939453125",
+    "MakerNotes:KelvinWB_12": "5560 0 2.5802001953125 1.5321044921875",
+    "MakerNotes:KelvinWB_16": "10000 0 3.0869140625 1.20068359375",
+}
+
+
+def test_ricoh_dng_auto_white_balance_is_estimated() -> None:
+    tags = {
+        "MakerNotes:WhiteBalance": "Auto",
+        "EXIF:AsShotNeutral": "0.3920367534 1 0.583143508",
+        **RICOH_CALIBRATION,
+    }
+
+    wb = resolve_white_balance(tags)
+
+    assert (wb.mode, wb.kelvin, wb.source) == (
+        "Auto",
+        4950,
+        WhiteBalanceSource.ESTIMATED,
+    )
+
+
+def test_kelvin_wb_points_include_daylight_and_are_sorted() -> None:
+    points = calibration_points(RICOH_CALIBRATION)
+
+    assert [k for k, _ in points] == [2500, 4550, 5000, 5205, 5560, 10000]
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [("0.5 1 0.25", 0.5), ("0 1 1", None), ("1 1", None), (None, None)],
+)
+def test_neutral_red_blue_ratio(value: object, expected: float | None) -> None:
+    from my_agent.media.white_balance import neutral_red_blue_ratio
+
+    assert neutral_red_blue_ratio(value) == expected
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        ("5000 0 2.0 1.0", (5000, 2.0)),
+        ("0 0 1 1", None),
+        ("5000 0 2", None),
+        ("x", None),
+    ],
+)
+def test_kelvin_wb_point(value: str, expected: tuple[int, float] | None) -> None:
+    from my_agent.media.white_balance import kelvin_wb_point
+
+    assert kelvin_wb_point(value) == expected
+
+
+def test_maker_levels_are_preferred_over_dng_neutral() -> None:
+    tags = {
+        **_sony("2964 1024 1024 1972"),
+        "EXIF:AsShotNeutral": "0.1 1 0.9",  # would give a very different ratio
+    }
+
+    assert resolve_white_balance(tags).kelvin == 5400

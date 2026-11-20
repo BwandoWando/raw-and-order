@@ -3,6 +3,9 @@
 Cameras rarely store the kelvin value of an Auto white balance shot. Many
 (e.g. Sony) do store the red/blue correction they applied (``WB_RGGBLevels``)
 plus calibration levels for known temperatures (``WB_RGBLevels3200K`` ...).
+Pentax-style maker notes (e.g. Ricoh GR) store calibration as
+``KelvinWB_NN = "K 0 R B"`` multipliers, and DNG files store the as-shot
+white balance as ``AsShotNeutral`` (the inverse of the multipliers).
 The as-shot temperature is estimated by interpolating the red/blue ratio
 between those calibration points, in mireds (1e6 / K), the scale colour
 temperature is normally interpolated on.
@@ -28,15 +31,20 @@ AS_SHOT_LEVEL_KEYS = (
     "EXIF:WB_RGGBLevels",
     "MakerNotes:WB_RGBLevels",
 )
+AS_SHOT_NEUTRAL_KEY = "EXIF:AsShotNeutral"  # DNG: neutral = 1 / multiplier
 # Exiftool tag patterns to request (numeric values, so "#").
 LEVEL_TAG_PATTERNS = (
     "WB_RGGBLevelsAsShot#",
     "WB_RGGBLevels#",
     "WB_RGBLevels#",
     "WB_RGB*Levels*K#",
+    "KelvinWB_*#",
+    "AsShotNeutral#",
 )
 
 CALIBRATION_KEY = re.compile(r":WB_RGG?BLevels(\d{4,5})K$")
+KELVIN_WB_KEY = re.compile(r":KelvinWB_(?:\d+|Daylight)$")
+KELVIN_WB_FIELDS = 4  # kelvin, unused, red multiplier, blue multiplier
 PLAUSIBLE_KELVIN = (1500, 15000)
 ROUND_TO_K = 50
 MIN_CALIBRATION_POINTS = 2
@@ -75,7 +83,7 @@ def estimate_from_tags(tags: Mapping[str, Any]) -> float | None:
     as_shot = next(
         (r for key in AS_SHOT_LEVEL_KEYS if (r := red_blue_ratio(tags.get(key)))),
         None,
-    )
+    ) or neutral_red_blue_ratio(tags.get(AS_SHOT_NEUTRAL_KEY))
     if as_shot is None:
         return None
     return estimate_kelvin(as_shot, calibration_points(tags))
@@ -86,10 +94,34 @@ def calibration_points(tags: Mapping[str, Any]) -> list[tuple[int, float]]:
     points: dict[int, float] = {}
     for key, value in tags.items():
         match = CALIBRATION_KEY.search(key)
-        ratio = red_blue_ratio(value) if match else None
-        if match and ratio:
+        if match and (ratio := red_blue_ratio(value)):
             points[int(match.group(1))] = ratio
+        elif KELVIN_WB_KEY.search(key) and (point := kelvin_wb_point(value)):
+            points[point[0]] = point[1]
     return sorted(points.items())
+
+
+def kelvin_wb_point(value: Any) -> tuple[int, float] | None:
+    """Parse a Pentax/Ricoh ``"K 0 R B"`` calibration value."""
+    numbers = _numbers(value)
+    if numbers is None or len(numbers) != KELVIN_WB_FIELDS:
+        return None
+    kelvin, _, red, blue = numbers
+    if kelvin <= 0 or red <= 0 or blue <= 0:
+        return None
+    return int(kelvin), red / blue
+
+
+def neutral_red_blue_ratio(value: Any) -> float | None:
+    """Red/blue multiplier ratio from a DNG ``AsShotNeutral`` (``"R G B"``).
+
+    The neutral is the inverse of the multiplier, so the ratio is blue / red.
+    """
+    numbers = _numbers(value)
+    if numbers is None or len(numbers) != RGB_CHANNELS:
+        return None
+    red, _, blue = numbers
+    return blue / red if red > 0 and blue > 0 else None
 
 
 def estimate_kelvin(ratio: float, points: list[tuple[int, float]]) -> float | None:
@@ -113,12 +145,8 @@ def estimate_kelvin(ratio: float, points: list[tuple[int, float]]) -> float | No
 
 def red_blue_ratio(value: Any) -> float | None:
     """Return red/blue from ``"R G B"`` or ``"R G G B"`` levels."""
-    if not isinstance(value, str | list | tuple):
-        return None
-    parts = value.split() if isinstance(value, str) else list(value)
-    try:
-        numbers = [float(part) for part in parts]
-    except (TypeError, ValueError):
+    numbers = _numbers(value)
+    if numbers is None:
         return None
     if len(numbers) == RGB_CHANNELS:
         red, blue = numbers[0], numbers[2]
@@ -127,6 +155,16 @@ def red_blue_ratio(value: Any) -> float | None:
     else:
         return None
     return red / blue if red > 0 and blue > 0 else None
+
+
+def _numbers(value: Any) -> list[float] | None:
+    if not isinstance(value, str | list | tuple):
+        return None
+    parts = value.split() if isinstance(value, str) else list(value)
+    try:
+        return [float(part) for part in parts]
+    except (TypeError, ValueError):
+        return None
 
 
 def round_kelvin(kelvin: float) -> int:
