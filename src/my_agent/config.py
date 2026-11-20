@@ -1,0 +1,79 @@
+"""Application settings loaded from environment variables and ``.env``."""
+
+from enum import StrEnum
+from pathlib import Path
+
+from pydantic import BaseModel, Field, SecretStr, ValidationError, model_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from my_agent.exceptions import ConfigurationError
+
+DEFAULT_RAW_EXTENSIONS = frozenset(
+    {".cr2", ".cr3", ".nef", ".arw", ".raf", ".orf", ".rw2", ".dng"}
+)
+
+
+class LLMProvider(StrEnum):
+    """Supported LLM providers."""
+
+    OLLAMA = "ollama"
+    OPENAI = "openai"
+    ANTHROPIC = "anthropic"
+
+
+class LLMSettings(BaseModel):
+    """Which model to use and how to reach it."""
+
+    provider: LLMProvider = LLMProvider.OLLAMA
+    model: str = "llama3.2-vision"
+    base_url: str | None = None
+    api_key: SecretStr | None = None
+    temperature: float | None = None
+    timeout_seconds: float = 120.0
+    max_retries: int = Field(default=3, ge=1)
+    max_output_fix_attempts: int = Field(default=2, ge=1)
+
+    @model_validator(mode="after")
+    def _require_api_key_for_cloud(self) -> "LLMSettings":
+        if self.provider is not LLMProvider.OLLAMA and self.api_key is None:
+            raise ValueError(f"LLM__API_KEY is required for provider '{self.provider}'")
+        return self
+
+    @property
+    def label(self) -> str:
+        """Short identifier stored with each annotation, e.g. ``ollama:llava``."""
+        return f"{self.provider}:{self.model}"
+
+
+class Settings(BaseSettings):
+    """Top-level application settings."""
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_nested_delimiter="__",
+        extra="ignore",
+    )
+
+    log_level: str = "INFO"
+    data_dir: Path = Path("data")
+    database_url: str = "sqlite:///data/app.db"
+    checkpoint_db_path: Path | None = Path("data/checkpoints.db")
+    preview_dir: Path = Path("data/previews")
+    preview_max_px: int = Field(default=1024, ge=64)
+    preview_quality: int = Field(default=85, ge=1, le=100)
+    raw_extensions: frozenset[str] = DEFAULT_RAW_EXTENSIONS
+    send_exif_to_llm: bool = True
+    redact_gps: bool = True
+    llm: LLMSettings = Field(default_factory=LLMSettings)
+
+
+def load_settings() -> Settings:
+    """Load settings, converting validation failures into a domain error.
+
+    Raises:
+        ConfigurationError: If any setting is missing or invalid.
+    """
+    try:
+        return Settings()
+    except ValidationError as exc:
+        raise ConfigurationError(f"Invalid configuration:\n{exc}") from exc

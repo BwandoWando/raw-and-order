@@ -5,16 +5,34 @@
 *.pem
 *.key
 
+# Local data: raw photos, previews, SQLite databases
+data/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Camera raw formats (never commit photos)
+*.[cC][rR]2
+*.[cC][rR]3
+*.[nN][eE][fF]
+*.[aA][rR][wW]
+*.[rR][aA][fF]
+*.[oO][rR][fF]
+*.[rR][wW]2
+*.[dD][nN][gG]
+
 # Python
 __pycache__/
 *.py[cod]
 .venv/
 venv/
-.pytest_cache/
 *.egg-info/
-
-# Node
-node_modules/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
 dist/
 build/
 
