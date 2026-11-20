@@ -4,20 +4,32 @@ from pathlib import Path
 import pytest
 
 from my_agent.exceptions import ConfigurationError, ExifReadError
+from my_agent.media.capture_date import (
+    CaptureDateResolver,
+    DateValidator,
+    build_date_sources,
+)
 from my_agent.media.exif import PyExifToolReader
+from my_agent.media.exif_mapping import ExifMapper
+from my_agent.schemas import DateSource
+
+
+def _mapper() -> ExifMapper:
+    sources = build_date_sources([DateSource.EXIF_ORIGINAL])
+    return ExifMapper(CaptureDateResolver(sources, DateValidator()))
 
 
 def test_missing_exiftool_raises_configuration_error() -> None:
     with (
         pytest.raises(ConfigurationError, match="exiftool not found"),
-        PyExifToolReader(executable="/nonexistent/exiftool"),
+        PyExifToolReader(_mapper(), executable="/nonexistent/exiftool"),
     ):
         pass
 
 
 def test_read_before_start_raises_domain_error() -> None:
     with pytest.raises(ExifReadError, match="not running"):
-        PyExifToolReader().read(Path("x.nef"))
+        PyExifToolReader(_mapper()).read(Path("x.nef"))
 
 
 FAKE_OLD_EXIFTOOL = """#!{python}
@@ -47,6 +59,6 @@ def test_old_exiftool_raises_configuration_error(tmp_path: Path) -> None:
 
     with (
         pytest.raises(ConfigurationError, match=r"12\.15\+ is required"),
-        PyExifToolReader(executable=str(fake)),
+        PyExifToolReader(_mapper(), executable=str(fake)),
     ):
         pass

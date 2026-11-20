@@ -1,8 +1,9 @@
 import pytest
 from pydantic import SecretStr, ValidationError
 
-from my_agent.config import LLMProvider, LLMSettings
+from my_agent.config import LLMProvider, LLMSettings, Settings
 from my_agent.llm.factory import build_model_kwargs, create_chat_model
+from my_agent.schemas import DateSource
 
 
 def test_cloud_provider_requires_api_key() -> None:
@@ -49,3 +50,29 @@ def test_factory_builds_each_provider(provider: LLMProvider, class_name: str) ->
     settings = LLMSettings(provider=provider, model="m", api_key=SecretStr("k"))
 
     assert type(create_chat_model(settings)).__name__ == class_name
+
+
+def test_date_sources_parse_from_comma_separated_env(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("DATE_SOURCES", "filename, exif_original")
+
+    settings = Settings(_env_file=None)
+
+    assert settings.date_sources == [DateSource.FILENAME, DateSource.EXIF_ORIGINAL]
+
+
+def test_date_sources_reject_none(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("DATE_SOURCES", "exif_original,none")
+
+    with pytest.raises(ValidationError, match="not a date source"):
+        Settings(_env_file=None)
+
+
+def test_default_date_source_order() -> None:
+    assert Settings(_env_file=None).date_sources == [
+        DateSource.EXIF_ORIGINAL,
+        DateSource.XMP,
+        DateSource.EXIF_CREATE,
+        DateSource.FILENAME,
+    ]

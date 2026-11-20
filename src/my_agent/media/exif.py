@@ -9,12 +9,14 @@ import exiftool
 from exiftool.exceptions import ExifToolException, ExifToolVersionError
 
 from my_agent.exceptions import ConfigurationError, ExifReadError
-from my_agent.media.exif_mapping import map_exif
+from my_agent.media.exif_mapping import REQUESTED_TAGS, ExifMapper
 from my_agent.schemas.exif import ExifData
 
 logger = logging.getLogger(__name__)
 
-EXIFTOOL_ARGS = ["-G", "-n"]
+# -G: prefix keys with their group (EXIF:, XMP:, ...). No -n: numeric tags are
+# requested individually with "#" so text tags (e.g. lens names) stay readable.
+EXIFTOOL_ARGS = ["-G"]
 MIN_EXIFTOOL_VERSION = "12.15"  # required by pyexiftool
 INSTALL_HINT = (
     "Install a current release from https://exiftool.org "
@@ -29,10 +31,12 @@ class PyExifToolReader:
     always stopped.
 
     Args:
+        mapper: Turns exiftool tags into :class:`ExifData`.
         executable: Path to ``exiftool``; ``None`` searches ``PATH``.
     """
 
-    def __init__(self, executable: str | None = None) -> None:
+    def __init__(self, mapper: ExifMapper, executable: str | None = None) -> None:
+        self._mapper = mapper
         self._executable = executable
         self._helper: exiftool.ExifToolHelper | None = None
 
@@ -81,13 +85,15 @@ class PyExifToolReader:
         Raises:
             ExifReadError: If exiftool fails on this file.
         """
-        return map_exif(self._read_tags(path))
+        return self._mapper.map(self._read_tags(path), path)
 
     def _read_tags(self, path: Path) -> dict[str, Any]:
         if self._helper is None:
             raise ExifReadError("exiftool is not running; call start() first")
         try:
-            results: list[dict[str, Any]] = self._helper.get_metadata(str(path))
+            results: list[dict[str, Any]] = self._helper.get_tags(
+                str(path), list(REQUESTED_TAGS)
+            )
         except ExifToolException as exc:
             raise ExifReadError(f"exiftool failed on {path}: {exc}") from exc
         if not results:

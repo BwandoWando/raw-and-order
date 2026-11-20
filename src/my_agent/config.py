@@ -2,17 +2,32 @@
 
 from enum import StrEnum
 from pathlib import Path
+from typing import Annotated, Any
 
-from pydantic import BaseModel, Field, SecretStr, ValidationError, model_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import (
+    BaseModel,
+    Field,
+    SecretStr,
+    ValidationError,
+    field_validator,
+    model_validator,
+)
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 from my_agent.exceptions import ConfigurationError
+from my_agent.schemas.exif import DateSource
 
 DEFAULT_RAW_EXTENSIONS = frozenset(
     {".cr2", ".cr3", ".nef", ".arw", ".raf", ".orf", ".rw2", ".dng"}
 )
 DEFAULT_IMAGE_EXTENSIONS = frozenset(
     {".jpg", ".jpeg", ".png", ".tif", ".tiff", ".webp", ".heic", ".heif"}
+)
+DEFAULT_DATE_SOURCES = (
+    DateSource.EXIF_ORIGINAL,
+    DateSource.XMP,
+    DateSource.EXIF_CREATE,
+    DateSource.FILENAME,
 )
 
 
@@ -66,9 +81,27 @@ class Settings(BaseSettings):
     preview_quality: int = Field(default=85, ge=1, le=100)
     raw_extensions: frozenset[str] = DEFAULT_RAW_EXTENSIONS
     image_extensions: frozenset[str] = DEFAULT_IMAGE_EXTENSIONS
+    date_sources: Annotated[list[DateSource], NoDecode] = Field(
+        default_factory=lambda: list(DEFAULT_DATE_SOURCES),
+        description="Capture-date sources in order, e.g. exif_original,xmp.",
+    )
     send_exif_to_llm: bool = True
     redact_gps: bool = True
     llm: LLMSettings = Field(default_factory=LLMSettings)
+
+    @field_validator("date_sources", mode="before")
+    @classmethod
+    def _split_date_sources(cls, value: Any) -> Any:
+        if isinstance(value, str):
+            return [part.strip() for part in value.split(",") if part.strip()]
+        return value
+
+    @field_validator("date_sources")
+    @classmethod
+    def _reject_none_source(cls, value: list[DateSource]) -> list[DateSource]:
+        if DateSource.NONE in value:
+            raise ValueError("'none' is not a date source; leave it out instead")
+        return value
 
 
 def load_settings() -> Settings:

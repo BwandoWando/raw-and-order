@@ -32,8 +32,14 @@ from my_agent.llm.capabilities import (
 from my_agent.llm.context import ExifContextFormatter
 from my_agent.llm.factory import create_chat_model
 from my_agent.llm.prompts import load_prompt
+from my_agent.media.capture_date import (
+    CaptureDateResolver,
+    DateValidator,
+    build_date_sources,
+)
 from my_agent.media.discovery import FileSystemDiscoverer
 from my_agent.media.exif import PyExifToolReader
+from my_agent.media.exif_mapping import ExifMapper
 from my_agent.media.heif import enable_heif_support
 from my_agent.media.pairing import RawPairFilter
 from my_agent.media.pillow_decoder import PillowDecoder
@@ -81,7 +87,12 @@ class Application:
         engine = create_db_engine(s.database_url)
         self._stack.callback(engine.dispose)
         repository = SqlAlchemyPhotoRepository(create_session_factory(engine))
-        exif_reader = self._stack.enter_context(PyExifToolReader())
+        date_resolver = CaptureDateResolver(
+            build_date_sources(s.date_sources), DateValidator()
+        )
+        exif_reader = self._stack.enter_context(
+            PyExifToolReader(ExifMapper(date_resolver))
+        )
         preview_store = JpegPreviewStore(
             s.preview_dir, DatedPreviewLayout(), s.preview_max_px, s.preview_quality
         )

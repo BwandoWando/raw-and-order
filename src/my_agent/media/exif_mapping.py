@@ -1,53 +1,123 @@
-"""Pure functions that map raw exiftool tags to :class:`ExifData`.
+"""Map exiftool tags to :class:`ExifData`.
 
-Exiftool is called with ``-G -n``, so keys look like ``"EXIF:Make"`` and
-numeric values are returned as numbers rather than formatted strings.
+Exiftool is called with ``-G`` and an explicit tag list (:data:`REQUESTED_TAGS`).
+Numeric fields are requested with a ``#`` suffix so they come back as numbers;
+text fields such as the lens name come back human-readable. Output keys never
+include the ``#``.
 """
 
+import re
 from collections.abc import Mapping
-from datetime import datetime
+from pathlib import Path
 from typing import Any
 
-from my_agent.schemas.exif import ExifData, GpsCoordinate
+from my_agent.media.capture_date import (
+    CREATE_DATE_KEYS,
+    DATE_TIME_ORIGINAL_KEYS,
+    XMP_DATE_KEYS,
+    CaptureDateResolver,
+)
+from my_agent.schemas.exif import DateSource, ExifData, GpsCoordinate
 
-EXIF_DATETIME_FORMAT = "%Y:%m:%d %H:%M:%S"
+# Text fields (human-readable values)
+MAKE_KEYS = ("EXIF:Make", "MakerNotes:Make")
+MODEL_KEYS = ("EXIF:Model", "MakerNotes:Model")
+LENS_MODEL_KEYS = (
+    "Composite:LensID",  # best: exiftool's lens database lookup
+    "EXIF:LensModel",
+    "MakerNotes:LensModel",
+    "MakerNotes:Lens",
+    "XMP:Lens",  # Lightroom exports (XMP-aux)
+    "XMP:LensModel",  # XMP-exifEX
+)
+LENS_MAKE_KEYS = ("EXIF:LensMake", "XMP:LensMake")
+LENS_SPEC_KEYS = ("Composite:LensSpec", "EXIF:LensInfo", "XMP:LensInfo")
 
-_MAKE = ("EXIF:Make", "MakerNotes:Make")
-_MODEL = ("EXIF:Model", "MakerNotes:Model")
-_LENS = ("Composite:LensID", "EXIF:LensModel", "MakerNotes:LensModel")
-_ISO = ("EXIF:ISO", "Composite:ISO", "MakerNotes:ISO")
-_EXPOSURE = ("EXIF:ExposureTime", "Composite:ShutterSpeed")
-_F_NUMBER = ("EXIF:FNumber", "Composite:Aperture")
-_FOCAL = ("EXIF:FocalLength",)
-_CAPTURED = ("EXIF:DateTimeOriginal",)  # when the shutter fired; no fallback
-_WIDTH = ("File:ImageWidth", "EXIF:ExifImageWidth", "EXIF:ImageWidth")
-_HEIGHT = ("File:ImageHeight", "EXIF:ExifImageHeight", "EXIF:ImageHeight")
-_LAT = ("Composite:GPSLatitude",)
-_LON = ("Composite:GPSLongitude",)
-_ALT = ("Composite:GPSAltitude",)
+# Numeric fields (requested with "#")
+ISO_KEYS = ("EXIF:ISO", "Composite:ISO", "MakerNotes:ISO")
+EXPOSURE_KEYS = ("EXIF:ExposureTime", "Composite:ShutterSpeed")
+F_NUMBER_KEYS = ("EXIF:FNumber", "Composite:Aperture")
+FOCAL_KEYS = ("EXIF:FocalLength",)
+WIDTH_KEYS = ("File:ImageWidth", "EXIF:ExifImageWidth", "EXIF:ImageWidth")
+HEIGHT_KEYS = ("File:ImageHeight", "EXIF:ExifImageHeight", "EXIF:ImageHeight")
+LAT_KEYS = ("Composite:GPSLatitude",)
+LON_KEYS = ("Composite:GPSLongitude",)
+ALT_KEYS = ("Composite:GPSAltitude", "EXIF:GPSAltitude")
+
+_TEXT_KEYS = (
+    *MAKE_KEYS,
+    *MODEL_KEYS,
+    *LENS_MODEL_KEYS,
+    *LENS_MAKE_KEYS,
+    *LENS_SPEC_KEYS,
+    *DATE_TIME_ORIGINAL_KEYS,
+    *XMP_DATE_KEYS,
+    *CREATE_DATE_KEYS,
+)
+_NUMERIC_KEYS = (
+    *ISO_KEYS,
+    *EXPOSURE_KEYS,
+    *F_NUMBER_KEYS,
+    *FOCAL_KEYS,
+    *WIDTH_KEYS,
+    *HEIGHT_KEYS,
+    *LAT_KEYS,
+    *LON_KEYS,
+    *ALT_KEYS,
+)
+REQUESTED_TAGS: tuple[str, ...] = (*_TEXT_KEYS, *(f"{k}#" for k in _NUMERIC_KEYS))
+
+_JUNK_TEXT = re.compile(r"^(?:[-\s]*|n/?a|none|unknown.*|\d+(?:\.\d+)?)$", re.I)
 
 
-def map_exif(tags: Mapping[str, Any]) -> ExifData:
-    """Build :class:`ExifData` from an exiftool tag dictionary."""
-    return ExifData(
-        make=_as_str(_first(tags, _MAKE)),
-        model=_as_str(_first(tags, _MODEL)),
-        lens_model=_as_str(_first(tags, _LENS)),
-        iso=_as_int(_first(tags, _ISO)),
-        exposure_time_s=_as_float(_first(tags, _EXPOSURE)),
-        f_number=_as_float(_first(tags, _F_NUMBER)),
-        focal_length_mm=_as_float(_first(tags, _FOCAL)),
-        captured_at=parse_exif_datetime(_first(tags, _CAPTURED)),
-        width_px=_as_int(_first(tags, _WIDTH)),
-        height_px=_as_int(_first(tags, _HEIGHT)),
-        gps=map_gps(tags),
-    )
+class ExifMapper:
+    """Builds :class:`ExifData` from exiftool tags.
+
+    Args:
+        date_resolver: Picks the capture date from tags and the file name.
+    """
+
+    def __init__(self, date_resolver: CaptureDateResolver) -> None:
+        self._date_resolver = date_resolver
+
+    def map(self, tags: Mapping[str, Any], path: Path) -> ExifData:
+        """Return the metadata of ``path`` from its exiftool ``tags``."""
+        capture = self._date_resolver.resolve(tags, path)
+        return ExifData(
+            make=_as_text(_first(tags, MAKE_KEYS)),
+            model=_as_text(_first(tags, MODEL_KEYS)),
+            lens_model=first_meaningful_text(tags, LENS_MODEL_KEYS),
+            lens_make=first_meaningful_text(tags, LENS_MAKE_KEYS),
+            lens_spec=first_meaningful_text(tags, LENS_SPEC_KEYS),
+            iso=_as_int(_first(tags, ISO_KEYS)),
+            exposure_time_s=_as_float(_first(tags, EXPOSURE_KEYS)),
+            f_number=_as_float(_first(tags, F_NUMBER_KEYS)),
+            focal_length_mm=_as_float(_first(tags, FOCAL_KEYS)),
+            captured_at=capture.value if capture else None,
+            date_source=capture.source if capture else DateSource.NONE,
+            width_px=_as_int(_first(tags, WIDTH_KEYS)),
+            height_px=_as_int(_first(tags, HEIGHT_KEYS)),
+            gps=map_gps(tags),
+        )
+
+
+def first_meaningful_text(tags: Mapping[str, Any], keys: tuple[str, ...]) -> str | None:
+    """Return the first value that is real text, skipping codes and placeholders.
+
+    Skips values such as ``""``, ``"----"``, ``"0"``, ``"61"`` (an unconverted
+    lens code) and ``"Unknown (61)"``.
+    """
+    for key in keys:
+        text = _as_text(tags.get(key))
+        if text is not None and not _JUNK_TEXT.match(text):
+            return text
+    return None
 
 
 def map_gps(tags: Mapping[str, Any]) -> GpsCoordinate | None:
     """Return the GPS position, or ``None`` if absent or out of range."""
-    latitude = _as_float(_first(tags, _LAT))
-    longitude = _as_float(_first(tags, _LON))
+    latitude = _as_float(_first(tags, LAT_KEYS))
+    longitude = _as_float(_first(tags, LON_KEYS))
     if latitude is None or longitude is None:
         return None
     if not (-90 <= latitude <= 90 and -180 <= longitude <= 180):
@@ -55,25 +125,15 @@ def map_gps(tags: Mapping[str, Any]) -> GpsCoordinate | None:
     return GpsCoordinate(
         latitude=latitude,
         longitude=longitude,
-        altitude_m=_as_float(_first(tags, _ALT)),
+        altitude_m=_as_float(_first(tags, ALT_KEYS)),
     )
-
-
-def parse_exif_datetime(value: Any) -> datetime | None:
-    """Parse an EXIF ``YYYY:MM:DD HH:MM:SS`` timestamp, ignoring junk values."""
-    if not isinstance(value, str):
-        return None
-    try:
-        return datetime.strptime(value.strip()[:19], EXIF_DATETIME_FORMAT)
-    except ValueError:
-        return None
 
 
 def _first(tags: Mapping[str, Any], keys: tuple[str, ...]) -> Any:
     return next((tags[key] for key in keys if tags.get(key) not in (None, "")), None)
 
 
-def _as_str(value: Any) -> str | None:
+def _as_text(value: Any) -> str | None:
     return None if value is None else str(value).strip() or None
 
 

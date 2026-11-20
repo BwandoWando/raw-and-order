@@ -17,6 +17,25 @@ discover ─▶ extract_exif ─▶ decode ─▶ annotate ─▶ persist
 same folder (e.g. `DSC_0042.NEF` and `DSC_0042.JPG`), only the raw file is
 processed; the image is skipped and counted in the run summary.
 
+**Capture date** (used for the database and the preview folder
+`data/previews/YYYYMMDD/<extension>/`), first plausible source wins:
+
+1. EXIF `DateTimeOriginal`
+2. XMP `DateCreated` / `DateTimeOriginal` (e.g. Lightroom exports)
+3. EXIF `CreateDate`
+4. A date in the file name (`IMG_20240501_183000`, `PXL_…`, `IMG-20240501-WA0001`,
+   `Screenshot 2024-05-01 at 18.30.00`, `2024-05-01`)
+5. otherwise `unknown-date`
+
+Dates before 1990, camera reset dates (2000-01-01, 2001-01-01, 2010-01-01) and
+dates more than a day in the future are rejected. Times are kept as recorded
+(no timezone conversion). The source used is stored in `photos.date_source`.
+Reorder or trim with `DATE_SOURCES` in `.env`.
+
+**Lens:** `lens_model` (exiftool's lens database, then EXIF/maker-note/XMP lens
+tags; numeric codes and placeholders are skipped), `lens_make`, and
+`lens_spec` (e.g. `24-70mm f/2.8`).
+
 A failure in one file is recorded against that file; the rest of the batch
 continues. Files already in the database are skipped unless `--reprocess`.
 

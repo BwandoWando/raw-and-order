@@ -3,7 +3,13 @@
 from pathlib import Path
 
 from my_agent.db.models import PhotoRow
-from my_agent.schemas import Annotation, ExifData, GpsCoordinate, PhotoRecord
+from my_agent.schemas import (
+    Annotation,
+    DateSource,
+    ExifData,
+    GpsCoordinate,
+    PhotoRecord,
+)
 
 
 def apply_record(row: PhotoRow, record: PhotoRecord) -> PhotoRow:
@@ -14,11 +20,14 @@ def apply_record(row: PhotoRow, record: PhotoRecord) -> PhotoRow:
     row.make = exif.make
     row.model = exif.model
     row.lens_model = exif.lens_model
+    row.lens_make = exif.lens_make
+    row.lens_spec = exif.lens_spec
     row.iso = exif.iso
     row.exposure_time_s = exif.exposure_time_s
     row.f_number = exif.f_number
     row.focal_length_mm = exif.focal_length_mm
     row.captured_at = exif.captured_at
+    row.date_source = exif.date_source.value if exif.date_source else None
     row.width_px = exif.width_px
     row.height_px = exif.height_px
     row.gps_latitude = gps.latitude if gps else None
@@ -55,11 +64,14 @@ def _to_exif(row: PhotoRow) -> ExifData:
         make=row.make,
         model=row.model,
         lens_model=row.lens_model,
+        lens_make=row.lens_make,
+        lens_spec=row.lens_spec,
         iso=row.iso,
         exposure_time_s=row.exposure_time_s,
         f_number=row.f_number,
         focal_length_mm=row.focal_length_mm,
         captured_at=row.captured_at,
+        date_source=DateSource(row.date_source) if row.date_source else None,
         width_px=row.width_px,
         height_px=row.height_px,
         gps=_to_gps(row),
