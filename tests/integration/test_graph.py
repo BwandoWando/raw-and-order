@@ -17,7 +17,7 @@ from my_agent.graph.state import Stage
 from my_agent.llm.context import ExifContextFormatter
 from my_agent.media.discovery import FileSystemDiscoverer
 from my_agent.media.pairing import RawPairFilter
-from my_agent.media.previews import JpegPreviewStore
+from my_agent.media.previews import DatedPreviewLayout, JpegPreviewStore
 from my_agent.pipeline import PhotoPipeline
 from my_agent.schemas import ExifData
 from tests.fakes import FakeAnnotator, FakeExifReader, FakeImageDecoder
@@ -30,7 +30,7 @@ def _pipeline(
     annotator: FakeAnnotator,
     fail_exif_for: tuple[str, ...] = (),
 ) -> PhotoPipeline:
-    previews = JpegPreviewStore(tmp_path / "previews", max_px=32)
+    previews = JpegPreviewStore(tmp_path / "previews", DatedPreviewLayout(), max_px=32)
     nodes = PipelineNodes(
         discover=DiscoverNode(
             FileSystemDiscoverer({".nef", ".jpg"}),
@@ -103,3 +103,19 @@ def test_raw_wins_over_jpeg_of_same_shot(
 
     assert summary.skipped_pairs == 1
     assert repository.known_paths() == {photos / "DSC_1.NEF", photos / "solo.jpg"}
+
+
+def test_previews_are_filed_by_capture_date_and_type(
+    tmp_path: Path, repository: SqlAlchemyPhotoRepository, sample_exif: ExifData
+) -> None:
+    photos = _make_photos(tmp_path / "in", "a.nef", "b.jpg")
+
+    _pipeline(tmp_path, repository, sample_exif, FakeAnnotator()).run(photos)
+
+    folders = set()
+    for name in ("a.nef", "b.jpg"):
+        record = repository.get_by_path(photos / name)
+        assert record is not None
+        assert record.preview_path.is_file()
+        folders.add(record.preview_path.parent.relative_to(tmp_path / "previews"))
+    assert folders == {Path("20240501/nef"), Path("20240501/jpg")}

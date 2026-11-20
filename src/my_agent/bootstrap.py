@@ -37,7 +37,7 @@ from my_agent.media.exif import PyExifToolReader
 from my_agent.media.heif import enable_heif_support
 from my_agent.media.pairing import RawPairFilter
 from my_agent.media.pillow_decoder import PillowDecoder
-from my_agent.media.previews import JpegPreviewStore
+from my_agent.media.previews import DatedPreviewLayout, JpegPreviewStore
 from my_agent.media.raw import RawpyDecoder
 from my_agent.media.routing import ExtensionRoutingDecoder
 from my_agent.pipeline import PhotoPipeline
@@ -83,7 +83,7 @@ class Application:
         repository = SqlAlchemyPhotoRepository(create_session_factory(engine))
         exif_reader = self._stack.enter_context(PyExifToolReader())
         preview_store = JpegPreviewStore(
-            s.preview_dir, s.preview_max_px, s.preview_quality
+            s.preview_dir, DatedPreviewLayout(), s.preview_max_px, s.preview_quality
         )
         enable_heif_support()
         decoder = ExtensionRoutingDecoder(

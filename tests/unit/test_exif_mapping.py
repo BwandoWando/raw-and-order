@@ -28,6 +28,10 @@ def test_map_exif_reads_grouped_numeric_tags() -> None:
     assert exif.gps is None
 
 
+def test_captured_at_uses_only_date_time_original() -> None:
+    assert map_exif({"EXIF:CreateDate": "2024:06:01 10:15:30"}).captured_at is None
+
+
 def test_map_exif_falls_back_to_secondary_keys() -> None:
     exif = map_exif({"MakerNotes:Make": "Sony", "Composite:ISO": "100"})
 

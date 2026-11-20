@@ -25,5 +25,6 @@ class DecodeNode:
 
     def _decode(self, item: PhotoItem) -> PhotoItem:
         image = self._decoder.decode(item.path)
-        preview_path = self._preview_store.save(image, item.path)
+        captured_at = item.exif.captured_at if item.exif else None
+        preview_path = self._preview_store.save(image, item.path, captured_at)
         return item.model_copy(update={"preview_path": preview_path})

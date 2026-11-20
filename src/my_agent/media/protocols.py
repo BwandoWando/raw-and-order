@@ -1,5 +1,6 @@
 """Interfaces for media adapters, used for constructor injection."""
 
+from datetime import datetime
 from pathlib import Path
 from typing import Protocol
 
@@ -32,10 +33,18 @@ class ImageDecoder(Protocol):
         ...
 
 
+class PreviewLayout(Protocol):
+    """Decides where a preview is stored, relative to the preview root."""
+
+    def relative_path(self, source: Path, captured_at: datetime | None) -> Path:
+        """Return the relative preview path for ``source``."""
+        ...
+
+
 class PreviewStore(Protocol):
     """Saves and loads downscaled JPEG previews."""
 
-    def save(self, image: Image, source: Path) -> Path:
+    def save(self, image: Image, source: Path, captured_at: datetime | None) -> Path:
         """Save a preview of ``image`` for ``source`` and return its path."""
         ...
 
