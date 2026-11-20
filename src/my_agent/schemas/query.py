@@ -32,6 +32,8 @@ class PhotoQuery(BaseModel):
     date_from: date | None = None
     date_to: date | None = None
     only_with_gps: bool = False
+    kelvin_min: int | None = Field(default=None, description="White balance, K.")
+    kelvin_max: int | None = None
     annotated_by: tuple[str, ...] = ()
     sort: SortOrder = SortOrder.CAPTURED_NEWEST
     page: int = Field(default=1, ge=1)
@@ -62,6 +64,8 @@ class FilterOptions(BaseModel):
     annotated_by: list[str]
     earliest: date | None
     latest: date | None
+    kelvin_min: int | None = None
+    kelvin_max: int | None = None
 
 
 class CountRow(BaseModel):
@@ -81,6 +85,9 @@ class PhotoStats(BaseModel):
     by_lens: list[CountRow]
     by_camera: list[CountRow]
     by_month: list[CountRow] = Field(description="YYYY-MM, oldest first.")
+    by_white_balance: list[CountRow] = Field(
+        default_factory=list, description="500 K buckets, coolest light first."
+    )
 
 
 class NearDuplicate(BaseModel):

@@ -7,7 +7,13 @@ import streamlit as st
 
 from my_agent.schemas.query import CountRow
 from my_agent.ui import services
-from my_agent.ui.charts import columns_by_month, horizontal_bars, rows_frame, theme_for
+from my_agent.ui.charts import (
+    columns_by_month,
+    horizontal_bars,
+    ordered_columns,
+    rows_frame,
+    theme_for,
+)
 
 TOP_LENSES = 10
 UNKNOWN = "Unknown"
@@ -45,6 +51,16 @@ def render_stats() -> None:
         st.caption(
             f"{undated} photo(s) have no capture date and are not shown by month."
         )
+    _section(
+        "Photos by white balance (500 K bands, warm to cool light)",
+        summary.by_white_balance,
+        lambda rows: ordered_columns(
+            rows, theme, x_title="Band start (K)", x_name="Band from (K)"
+        ),
+    )
+    unknown_wb = summary.total - sum(row.count for row in summary.by_white_balance)
+    if unknown_wb:
+        st.caption(f"{unknown_wb} photo(s) have no white balance temperature.")
 
 
 def _section(

@@ -15,7 +15,7 @@ from my_agent.media.capture_date import (
 )
 from my_agent.media.exif import PyExifToolReader
 from my_agent.media.exif_mapping import ExifMapper
-from my_agent.schemas import DateSource, ExifData
+from my_agent.schemas import DateSource, ExifData, WhiteBalanceSource
 
 pytestmark = pytest.mark.skipif(shutil.which("exiftool") is None, reason="no exiftool")
 
@@ -98,3 +98,16 @@ def test_no_date_at_all(tmp_path: Path) -> None:
         DateSource.NONE,
         None,
     )
+
+
+def test_reads_white_balance_mode_and_editor_temperature(tmp_path: Path) -> None:
+    path = _write(
+        tmp_path / "edited.jpg",
+        "-WhiteBalance=Manual",
+        "-XMP-crs:ColorTemperature=5650",
+    )
+
+    exif = _read(path)
+
+    assert (exif.white_balance, exif.white_balance_k) == ("Manual", 5650)
+    assert exif.white_balance_k_source is WhiteBalanceSource.EDITED

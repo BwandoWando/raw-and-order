@@ -9,6 +9,7 @@ from my_agent.schemas import (
     ExifData,
     GpsCoordinate,
     PhotoRecord,
+    WhiteBalanceSource,
 )
 
 
@@ -30,6 +31,11 @@ def apply_record(row: PhotoRow, record: PhotoRecord) -> PhotoRow:
     row.focal_length_mm = exif.focal_length_mm
     row.captured_at = exif.captured_at
     row.date_source = exif.date_source.value if exif.date_source else None
+    row.white_balance = exif.white_balance
+    row.white_balance_k = exif.white_balance_k
+    row.white_balance_k_source = (
+        exif.white_balance_k_source.value if exif.white_balance_k_source else None
+    )
     row.width_px = exif.width_px
     row.height_px = exif.height_px
     row.gps_latitude = gps.latitude if gps else None
@@ -76,6 +82,13 @@ def _to_exif(row: PhotoRow) -> ExifData:
         focal_length_mm=row.focal_length_mm,
         captured_at=row.captured_at,
         date_source=DateSource(row.date_source) if row.date_source else None,
+        white_balance=row.white_balance,
+        white_balance_k=row.white_balance_k,
+        white_balance_k_source=(
+            WhiteBalanceSource(row.white_balance_k_source)
+            if row.white_balance_k_source
+            else None
+        ),
         width_px=row.width_px,
         height_px=row.height_px,
         gps=_to_gps(row),

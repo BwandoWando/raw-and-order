@@ -80,16 +80,29 @@ def horizontal_bars(rows: list[CountRow], theme: ChartTheme) -> alt.LayerChart:
 
 def columns_by_month(rows: list[CountRow], theme: ChartTheme) -> alt.LayerChart:
     """Months left to right (oldest first), value on each column's cap."""
+    return ordered_columns(rows, theme, x_title=None, x_name="Month")
+
+
+def ordered_columns(
+    rows: list[CountRow],
+    theme: ChartTheme,
+    x_title: str | None,
+    x_name: str,
+) -> alt.LayerChart:
+    """Ordered categories left to right, kept in the given order."""
     data = rows_frame(rows)
     base = alt.Chart(data).encode(
         x=alt.X(
-            "label:O", sort=None, title=None, axis=alt.Axis(labelAngle=0, grid=False)
+            "label:O",
+            sort=None,
+            title=x_title,
+            axis=alt.Axis(labelAngle=0, grid=False, titleColor=theme.muted),
         ),
         y=alt.Y(
             "count:Q", title=None, axis=alt.Axis(tickMinStep=1, format="d", grid=True)
         ),
         tooltip=[
-            alt.Tooltip("label:O", title="Month"),
+            alt.Tooltip("label:O", title=x_name),
             alt.Tooltip("count:Q", title="Photos"),
         ],
     )

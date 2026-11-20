@@ -13,7 +13,14 @@ from my_agent.db.base import Base
 from my_agent.db.failure_repository import SqlAlchemyFailureRepository
 from my_agent.db.repository import SqlAlchemyPhotoRepository
 from my_agent.db.session import create_db_engine, create_session_factory
-from my_agent.schemas import Annotation, ExifData, GpsCoordinate, PhotoRecord, SceneType
+from my_agent.schemas import (
+    Annotation,
+    ExifData,
+    GpsCoordinate,
+    PhotoRecord,
+    SceneType,
+    WhiteBalanceSource,
+)
 from my_agent.ui.launcher import APP_PATH
 
 TIMEOUT_S = 30
@@ -41,6 +48,9 @@ def _seed(tmp_path: Path, photos: int) -> str:
                     gps=GpsCoordinate(latitude=14.6, longitude=121.0)
                     if i == 0
                     else None,
+                    white_balance="Auto",
+                    white_balance_k=5000 + 100 * i,
+                    white_balance_k_source=WhiteBalanceSource.ESTIMATED,
                 ),
                 annotation=Annotation(
                     description="Sunset over the sea." if i == 0 else f"Photo {i}.",
@@ -136,3 +146,15 @@ def test_empty_database_shows_hint(app_with) -> None:  # type: ignore[no-untyped
     app = app_with(0)
 
     assert any("No photos" in i.value for i in app.info)
+
+
+def test_white_balance_slider_filters(app_with, tmp_path: Path) -> None:  # type: ignore[no-untyped-def]
+    app = app_with(3)  # 5000, 5100 and 5200 K
+
+    assert app.slider(key="f_kelvin").value == (5000, 5200)
+    app.slider(key="f_kelvin").set_range(5100, 5200).run()
+
+    assert not app.exception
+    assert "Showing 1–2 of 2 photos" in _captions(app)
+    app.button(key=f"details-{tmp_path / 'IMG_1.ARW'}").click().run()
+    assert not app.exception

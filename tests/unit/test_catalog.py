@@ -24,6 +24,7 @@ def _photo(
     model: str = "ollama:gemma3:12b",
     dhash: str | None = "0000000000000000",
     processed_day: int = 1,
+    kelvin: int | None = None,
 ) -> PhotoRecord:
     return PhotoRecord(
         path=Path(f"/photos/{name}"),
@@ -34,6 +35,7 @@ def _photo(
             lens_model=lens,
             captured_at=captured,
             gps=GpsCoordinate(latitude=14.6, longitude=121.0) if gps else None,
+            white_balance_k=kelvin,
         ),
         annotation=Annotation(
             description=description,
@@ -59,6 +61,7 @@ def catalog(
             captured=datetime(2026, 2, 21, 18, 0),
             gps=True,
             dhash="000000000000000f",
+            kelvin=5400,
         ),
         _photo(
             "street.arw",
@@ -67,6 +70,7 @@ def catalog(
             people=True,
             captured=datetime(2026, 1, 11, 9, 0),
             processed_day=3,
+            kelvin=3150,
         ),
         _photo(
             "portrait.jpg",
@@ -195,3 +199,31 @@ def test_stats(catalog: SqlAlchemyPhotoCatalog) -> None:
 
 def test_escape_like() -> None:
     assert escape_like("50%_off\\") == "50\\%\\_off\\\\"
+
+
+@pytest.mark.parametrize(
+    ("filters", "expected"),
+    [
+        ({"kelvin_min": 5000}, ["beach.arw"]),
+        ({"kelvin_max": 3150}, ["street.arw"]),  # bounds are inclusive
+        ({"kelvin_min": 3000, "kelvin_max": 6000}, ["beach.arw", "street.arw"]),
+    ],
+)
+def test_white_balance_filter(
+    catalog: SqlAlchemyPhotoCatalog, filters: dict[str, object], expected: list[str]
+) -> None:
+    assert _names(catalog, **filters) == expected
+
+
+def test_white_balance_options_and_buckets(catalog: SqlAlchemyPhotoCatalog) -> None:
+    options = catalog.filter_options()
+    stats = catalog.stats()
+
+    assert (options.kelvin_min, options.kelvin_max) == (3150, 5400)
+    assert [(r.label, r.count) for r in stats.by_white_balance] == [
+        ("3000", 1),
+        ("3500", 0),  # empty bands are kept so gaps are visible
+        ("4000", 0),
+        ("4500", 0),
+        ("5000", 1),
+    ]

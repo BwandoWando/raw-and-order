@@ -17,6 +17,13 @@ from my_agent.media.capture_date import (
     XMP_DATE_KEYS,
     CaptureDateResolver,
 )
+from my_agent.media.white_balance import (
+    CAMERA_KELVIN_KEYS,
+    EDITED_KELVIN_KEYS,
+    LEVEL_TAG_PATTERNS,
+    MODE_KEYS,
+    resolve_white_balance,
+)
 from my_agent.schemas.exif import DateSource, ExifData, GpsCoordinate
 
 # Text fields (human-readable values)
@@ -53,6 +60,7 @@ _TEXT_KEYS = (
     *DATE_TIME_ORIGINAL_KEYS,
     *XMP_DATE_KEYS,
     *CREATE_DATE_KEYS,
+    *MODE_KEYS,
 )
 _NUMERIC_KEYS = (
     *ISO_KEYS,
@@ -64,8 +72,14 @@ _NUMERIC_KEYS = (
     *LAT_KEYS,
     *LON_KEYS,
     *ALT_KEYS,
+    *CAMERA_KELVIN_KEYS,
+    *EDITED_KELVIN_KEYS,
 )
-REQUESTED_TAGS: tuple[str, ...] = (*_TEXT_KEYS, *(f"{k}#" for k in _NUMERIC_KEYS))
+REQUESTED_TAGS: tuple[str, ...] = (
+    *_TEXT_KEYS,
+    *(f"{k}#" for k in _NUMERIC_KEYS),
+    *LEVEL_TAG_PATTERNS,  # white balance levels and calibration (wildcards)
+)
 
 _JUNK_TEXT = re.compile(r"^(?:[-\s]*|n/?a|none|unknown.*|\d+(?:\.\d+)?)$", re.I)
 
@@ -83,6 +97,7 @@ class ExifMapper:
     def map(self, tags: Mapping[str, Any], path: Path) -> ExifData:
         """Return the metadata of ``path`` from its exiftool ``tags``."""
         capture = self._date_resolver.resolve(tags, path)
+        white_balance = resolve_white_balance(tags)
         return ExifData(
             make=_as_text(_first(tags, MAKE_KEYS)),
             model=_as_text(_first(tags, MODEL_KEYS)),
@@ -95,6 +110,9 @@ class ExifMapper:
             focal_length_mm=_as_float(_first(tags, FOCAL_KEYS)),
             captured_at=capture.value if capture else None,
             date_source=capture.source if capture else DateSource.NONE,
+            white_balance=white_balance.mode,
+            white_balance_k=white_balance.kelvin,
+            white_balance_k_source=white_balance.source,
             width_px=_as_int(_first(tags, WIDTH_KEYS)),
             height_px=_as_int(_first(tags, HEIGHT_KEYS)),
             gps=map_gps(tags),

@@ -16,6 +16,14 @@ class DateSource(StrEnum):
     NONE = "none"
 
 
+class WhiteBalanceSource(StrEnum):
+    """Where a white balance temperature (kelvin) came from."""
+
+    CAMERA = "camera"  # recorded by the camera (e.g. K mode, Canon as-shot)
+    ESTIMATED = "estimated"  # interpolated from the camera's WB calibration
+    EDITED = "edited"  # set in an editor such as Lightroom (XMP)
+
+
 class GpsCoordinate(BaseModel):
     """A GPS position in signed decimal degrees."""
 
@@ -45,6 +53,11 @@ class ExifData(BaseModel):
         default=None,
         description="Which source captured_at came from; None for legacy rows.",
     )
+    white_balance: str | None = Field(
+        default=None, description="White balance mode, e.g. Auto, Daylight."
+    )
+    white_balance_k: int | None = Field(default=None, description="Kelvin.")
+    white_balance_k_source: WhiteBalanceSource | None = None
     width_px: int | None = None
     height_px: int | None = None
     gps: GpsCoordinate | None = None

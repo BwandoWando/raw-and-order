@@ -2,7 +2,7 @@
 
 from fractions import Fraction
 
-from my_agent.schemas import DateSource, ExifData, PhotoRecord
+from my_agent.schemas import DateSource, ExifData, PhotoRecord, WhiteBalanceSource
 
 DATE_SOURCE_LABELS = {
     DateSource.EXIF_ORIGINAL: "EXIF DateTimeOriginal",
@@ -38,6 +38,7 @@ def camera_settings(exif: ExifData) -> list[tuple[str, str]]:
         ("Aperture", f"f/{exif.f_number:g}" if exif.f_number else None),
         ("Shutter", format_exposure(exif.exposure_time_s)),
         ("ISO", str(exif.iso) if exif.iso else None),
+        ("White balance", format_white_balance(exif)),
         (
             "Size",
             f"{exif.width_px} × {exif.height_px}"
@@ -64,3 +65,23 @@ def card_caption(record: PhotoRecord) -> str:
 def date_source_label(source: DateSource | None) -> str:
     """Readable name for where the capture date came from."""
     return DATE_SOURCE_LABELS.get(source, "unknown") if source else "unknown"
+
+
+WB_SOURCE_LABELS = {
+    WhiteBalanceSource.CAMERA: "recorded by camera",
+    WhiteBalanceSource.ESTIMATED: "estimated",
+    WhiteBalanceSource.EDITED: "set in editor",
+}
+
+
+def format_white_balance(exif: ExifData) -> str | None:
+    """Return e.g. ``Auto · ≈ 5,400 K (estimated)``, or ``None`` if unknown."""
+    parts: list[str] = []
+    if exif.white_balance:
+        parts.append(exif.white_balance)
+    if exif.white_balance_k is not None:
+        estimated = exif.white_balance_k_source is WhiteBalanceSource.ESTIMATED
+        kelvin = f"{'≈ ' if estimated else ''}{exif.white_balance_k:,} K"
+        source = WB_SOURCE_LABELS.get(exif.white_balance_k_source)  # type: ignore[arg-type]
+        parts.append(f"{kelvin} ({source})" if source else kelvin)
+    return " · ".join(parts) or None

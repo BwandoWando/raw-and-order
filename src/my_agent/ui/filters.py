@@ -8,6 +8,7 @@ import streamlit as st
 from my_agent.schemas.query import FilterOptions, PhotoQuery
 
 PEOPLE_CHOICES = {"Any": None, "Yes": True, "No": False}
+KELVIN_STEP = 50
 FILTER_KEYS = (
     "f_text",
     "f_scenes",
@@ -17,6 +18,7 @@ FILTER_KEYS = (
     "f_lenses",
     "f_dates",
     "f_gps",
+    "f_kelvin",
     "f_models",
 )
 
@@ -37,6 +39,7 @@ def render_filters(options: FilterOptions) -> PhotoQuery:
     lenses = sidebar.multiselect("Lens", options.lenses, key="f_lenses")
     date_from, date_to = _date_range(options)
     only_gps = sidebar.checkbox("Only photos with GPS", key="f_gps")
+    kelvin_min, kelvin_max = _kelvin_range(options)
     models = sidebar.multiselect("Annotated by", options.annotated_by, key="f_models")
     sidebar.button("Reset filters", on_click=_reset, width="stretch")
     return PhotoQuery(
@@ -49,6 +52,8 @@ def render_filters(options: FilterOptions) -> PhotoQuery:
         date_from=date_from,
         date_to=date_to,
         only_with_gps=only_gps,
+        kelvin_min=kelvin_min,
+        kelvin_max=kelvin_max,
         annotated_by=tuple(models),
     )
 
@@ -69,6 +74,23 @@ def _date_range(options: FilterOptions) -> tuple[date | None, date | None]:
         full_range = (start, end) == (options.earliest, options.latest)
         return (None, None) if full_range else (start, end)
     return None, None  # mid-selection: only a start date picked so far
+
+
+def _kelvin_range(options: FilterOptions) -> tuple[int | None, int | None]:
+    low, high = options.kelvin_min, options.kelvin_max
+    if low is None or high is None or low == high:
+        return None, None  # nothing to choose between
+    start, end = st.sidebar.slider(
+        "White balance (K)",
+        min_value=low,
+        max_value=high,
+        value=(low, high),
+        step=KELVIN_STEP,
+        key="f_kelvin",
+        help="Colour temperature; most values are estimated from the camera's "
+        "Auto white balance.",
+    )
+    return (None, None) if (start, end) == (low, high) else (start, end)
 
 
 def _reset() -> None:

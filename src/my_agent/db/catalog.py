@@ -31,6 +31,7 @@ from my_agent.schemas.query import (
 )
 
 LIKE_ESCAPE = "\\"
+KELVIN_BUCKET = 500
 NEAR_DUPLICATE_DISTANCE = 10
 UNKNOWN_LABEL = "Unknown"
 
@@ -105,6 +106,12 @@ class SqlAlchemyPhotoCatalog:
             earliest, latest = session.execute(
                 select(func.min(PhotoRow.captured_at), func.max(PhotoRow.captured_at))
             ).one()
+            kelvin_min, kelvin_max = session.execute(
+                select(
+                    func.min(PhotoRow.white_balance_k),
+                    func.max(PhotoRow.white_balance_k),
+                )
+            ).one()
             return FilterOptions(
                 scenes=self._distinct(session, PhotoRow.scene),
                 tags=[tag for tag, _ in tags.most_common()],
@@ -113,6 +120,8 @@ class SqlAlchemyPhotoCatalog:
                 annotated_by=self._distinct(session, PhotoRow.annotated_by),
                 earliest=earliest.date() if earliest else None,
                 latest=latest.date() if latest else None,
+                kelvin_min=kelvin_min,
+                kelvin_max=kelvin_max,
             )
 
     def get(self, path: Path) -> PhotoRecord | None:
@@ -186,6 +195,7 @@ class SqlAlchemyPhotoCatalog:
                 by_lens=self._counts(session, PhotoRow.lens_model),
                 by_camera=self._counts(session, PhotoRow.model),
                 by_month=sorted(self._counts(session, month), key=lambda r: r.label),
+                by_white_balance=self._kelvin_buckets(session),
             )
 
     def _read(self) -> "_ReadSession":
@@ -195,6 +205,26 @@ class SqlAlchemyPhotoCatalog:
     def _distinct(session: Session, column: Any) -> list[str]:
         query = select(column).where(column.is_not(None)).distinct().order_by(column)
         return [str(value) for value in session.scalars(query)]
+
+    @staticmethod
+    def _kelvin_buckets(session: Session) -> list[CountRow]:
+        """Photos per 500 K band, labelled by the band's start (e.g. 5000)."""
+        # ``//`` is integer division (SQLAlchemy 2's ``/`` is true division).
+        bucket = (PhotoRow.white_balance_k // KELVIN_BUCKET) * KELVIN_BUCKET
+        query = (
+            select(bucket, func.count(PhotoRow.id))
+            .where(PhotoRow.white_balance_k.is_not(None))
+            .group_by(bucket)
+            .order_by(bucket)
+        )
+        counts = {
+            int(start): n for start, n in session.execute(query) if start is not None
+        }
+        if not counts:
+            return []
+        # Include empty bands between the coolest and warmest, so gaps show.
+        bands = range(min(counts), max(counts) + KELVIN_BUCKET, KELVIN_BUCKET)
+        return [CountRow(label=str(band), count=counts.get(band, 0)) for band in bands]
 
     @staticmethod
     def _counts(session: Session, column: Any) -> list[CountRow]:
@@ -259,6 +289,10 @@ def apply_filters(statement: Select[Any], query: PhotoQuery) -> Select[Any]:
         )
     if query.only_with_gps:
         conditions.append(PhotoRow.gps_latitude.is_not(None))
+    if query.kelvin_min is not None:
+        conditions.append(PhotoRow.white_balance_k >= query.kelvin_min)
+    if query.kelvin_max is not None:
+        conditions.append(PhotoRow.white_balance_k <= query.kelvin_max)
     return statement.where(*conditions)
 
 

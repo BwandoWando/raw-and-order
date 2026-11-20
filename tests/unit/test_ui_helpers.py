@@ -3,7 +3,14 @@ from pathlib import Path
 
 import pytest
 
-from my_agent.schemas import Annotation, DateSource, ExifData, PhotoRecord, SceneType
+from my_agent.schemas import (
+    Annotation,
+    DateSource,
+    ExifData,
+    PhotoRecord,
+    SceneType,
+    WhiteBalanceSource,
+)
 from my_agent.schemas.query import CountRow
 from my_agent.ui.charts import DARK, LIGHT, columns_by_month, horizontal_bars, theme_for
 from my_agent.ui.formatting import (
@@ -11,6 +18,7 @@ from my_agent.ui.formatting import (
     card_caption,
     date_source_label,
     format_exposure,
+    format_white_balance,
 )
 from my_agent.ui.launcher import APP_PATH, streamlit_command
 
@@ -102,3 +110,30 @@ def test_horizontal_bars_leave_room_for_every_row() -> None:
 
     assert spec["height"] == 3 * 28 + 40
     assert spec["layer"][0]["encoding"]["y"]["scale"]["paddingInner"] == 0.3
+
+
+@pytest.mark.parametrize(
+    ("exif", "expected"),
+    [
+        (
+            ExifData(
+                white_balance="Auto",
+                white_balance_k=5400,
+                white_balance_k_source=WhiteBalanceSource.ESTIMATED,
+            ),
+            "Auto · ≈ 5,400 K (estimated)",
+        ),
+        (
+            ExifData(
+                white_balance="Color Temperature/Color Filter",
+                white_balance_k=3200,
+                white_balance_k_source=WhiteBalanceSource.CAMERA,
+            ),
+            "Color Temperature/Color Filter · 3,200 K (recorded by camera)",
+        ),
+        (ExifData(white_balance="Auto"), "Auto"),
+        (ExifData(), None),
+    ],
+)
+def test_format_white_balance(exif: ExifData, expected: str | None) -> None:
+    assert format_white_balance(exif) == expected

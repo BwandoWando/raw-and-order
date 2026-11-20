@@ -32,6 +32,12 @@ dates more than a day in the future are rejected. Times are kept as recorded
 (no timezone conversion). The source used is stored in `photos.date_source`.
 Reorder or trim with `DATE_SOURCES` in `.env`.
 
+**White balance:** the mode (e.g. Auto, Daylight) and the colour temperature in
+kelvin. Sources, first found wins: the camera's recorded value (`camera`: e.g.
+K mode, or Canon's as-shot temperature); an estimate from the camera's
+white-balance calibration (`estimated`: most Sony Auto WB shots, accurate to a
+few hundred K); Lightroom's `XMP-crs:ColorTemperature` (`edited`).
+
 **Lens:** `lens_model` (exiftool's lens database, then EXIF/maker-note/XMP lens
 tags; numeric codes and placeholders are skipped), `lens_make`, and
 `lens_spec` (e.g. `24-70mm f/2.8`).
@@ -100,9 +106,10 @@ my-agent ui --port 8600 --no-open-browser
   camera and lens settings, a map when the photo has GPS, its SHA-256 and dHash,
   and similar photos (dHash distance ≤ 10).
 - **Filters** (sidebar): text search over descriptions and tags, scene, tags
-  (all of), people, camera, lens, capture-date range, GPS only, annotating model.
+  (all of), people, camera, lens, capture-date range, white balance (K) range,
+  GPS only, annotating model.
 - **Failures:** the `processing_failures` log, filterable by stage.
-- **Stats:** totals and photos by scene, lens and capture month.
+- **Stats:** totals and photos by scene, lens, capture month and white balance.
 
 The UI only reads the database, so it is safe to keep open during a processing
 run (press **Refresh data** to see new photos). It listens on `localhost` only
