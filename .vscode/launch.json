@@ -1,0 +1,63 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "my-agent: process folder",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "my_agent",
+            "args": ["process", "${input:sourceDir}", "${input:extraArgs}"],
+            "cwd": "${workspaceFolder}",
+            "envFile": "${workspaceFolder}/.env",
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "my-agent: process folder (step into libraries)",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "my_agent",
+            "args": ["process", "${input:sourceDir}", "${input:extraArgs}"],
+            "cwd": "${workspaceFolder}",
+            "envFile": "${workspaceFolder}/.env",
+            "console": "integratedTerminal",
+            "justMyCode": false
+        },
+        {
+            "name": "my-agent: check",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "my_agent",
+            "args": ["check"],
+            "cwd": "${workspaceFolder}",
+            "envFile": "${workspaceFolder}/.env",
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "pytest: current file",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "pytest",
+            "args": ["${file}", "-x", "-vv"],
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal",
+            "justMyCode": false
+        }
+    ],
+    "inputs": [
+        {
+            "id": "sourceDir",
+            "type": "promptString",
+            "description": "Folder with raw files to process",
+            "default": "${userHome}/Pictures"
+        },
+        {
+            "id": "extraArgs",
+            "type": "pickString",
+            "description": "Extra options",
+            "options": ["--skip-model-check", "--reprocess", "--no-reprocess"],
+            "default": "--no-reprocess"
+        }
+    ]
+}

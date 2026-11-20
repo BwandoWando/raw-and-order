@@ -39,6 +39,7 @@ build/
 # Editors / OS
 .vscode/*
 !.vscode/settings.json
+!.vscode/launch.json
 .idea/
 .DS_Store
 *.log
