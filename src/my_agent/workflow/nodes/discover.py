@@ -3,9 +3,9 @@
 import logging
 from typing import Any
 
-from my_agent.graph.state import GraphState, PhotoItem
 from my_agent.media.pairing import RawPairFilter
 from my_agent.media.protocols import PhotoDiscoverer
+from my_agent.workflow.state import PhotoItem, WorkflowState
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +25,7 @@ class DiscoverNode:
         self._discoverer = discoverer
         self._pair_filter = pair_filter
 
-    def __call__(self, state: GraphState) -> dict[str, Any]:
+    def __call__(self, state: WorkflowState) -> dict[str, Any]:
         """Return the candidate ``items`` and the skipped pairs."""
         pairs = self._pair_filter.apply(self._discoverer.find(state.source_dir))
         logger.info(

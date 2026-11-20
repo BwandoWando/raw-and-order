@@ -4,7 +4,7 @@ import logging
 from typing import Any
 
 from my_agent.db.failure_repository import FailureRepository
-from my_agent.graph.state import GraphState, PhotoItem
+from my_agent.workflow.state import PhotoItem, WorkflowState
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +22,7 @@ class LoadFailuresNode:
     def __init__(self, failures: FailureRepository) -> None:
         self._failures = failures
 
-    def __call__(self, state: GraphState) -> dict[str, Any]:
+    def __call__(self, state: WorkflowState) -> dict[str, Any]:
         """Return the failures to retry as ``items``, and the missing ones."""
         logged = [r.path for r in self._failures.failures_under(state.source_dir)]
         existing = [path for path in logged if path.is_file()]

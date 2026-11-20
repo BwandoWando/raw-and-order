@@ -2,9 +2,9 @@
 
 from typing import Any
 
-from my_agent.graph.nodes._per_item import apply_step
-from my_agent.graph.state import GraphState, PhotoItem, Stage
 from my_agent.media.protocols import ExifReader
+from my_agent.workflow.nodes._per_item import apply_step
+from my_agent.workflow.state import PhotoItem, Stage, WorkflowState
 
 
 class ExtractExifNode:
@@ -17,7 +17,7 @@ class ExtractExifNode:
     def __init__(self, exif_reader: ExifReader) -> None:
         self._exif_reader = exif_reader
 
-    def __call__(self, state: GraphState) -> dict[str, Any]:
+    def __call__(self, state: WorkflowState) -> dict[str, Any]:
         """Return ``items`` with ``exif`` filled in."""
         return {"items": apply_step(state.items, Stage.EXTRACT_EXIF, self._extract)}
 

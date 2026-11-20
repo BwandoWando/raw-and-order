@@ -25,7 +25,6 @@ def isolate_from_real_settings(
     base = tmp_path_factory.mktemp("isolated")
     monkeypatch.setenv("DATA_DIR", str(base))
     monkeypatch.setenv("DATABASE_URL", f"sqlite:///{base / 'app.db'}")
-    monkeypatch.setenv("CHECKPOINT_DB_PATH", str(base / "checkpoints.db"))
     monkeypatch.setenv("PREVIEW_DIR", str(base / "previews"))
     monkeypatch.setenv("LLM__PROVIDER", "ollama")
     monkeypatch.setenv("LLM__BASE_URL", "http://127.0.0.1:9")

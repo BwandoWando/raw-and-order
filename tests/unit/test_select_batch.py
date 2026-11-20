@@ -1,7 +1,7 @@
 from pathlib import Path
 
-from my_agent.graph.nodes import NextChunkNode, RecordChunkNode, SelectBatchNode
-from my_agent.graph.state import FileError, GraphState, PhotoItem, Stage
+from my_agent.workflow.nodes import NextChunkNode, RecordChunkNode, SelectBatchNode
+from my_agent.workflow.state import FileError, PhotoItem, Stage, WorkflowState
 
 ERROR = FileError(stage=Stage.FINGERPRINT, error_type="X", message="x")
 
@@ -11,10 +11,10 @@ def _state(
     max_photos: int | None,
     chunk_size: int | None = None,
     failed: list[str] | None = None,
-) -> GraphState:
+) -> WorkflowState:
     items = [PhotoItem(path=Path(f"/in/{n}")) for n in names]
     items += [PhotoItem(path=Path(f"/in/{n}"), error=ERROR) for n in failed or []]
-    return GraphState(
+    return WorkflowState(
         source_dir=Path("/in"),
         items=items,
         max_photos=max_photos,
@@ -55,7 +55,7 @@ def test_chunk_total() -> None:
 
 def test_next_chunk_takes_chunk_size_from_queue() -> None:
     queue = [PhotoItem(path=Path(f"/in/p{i}.nef")) for i in range(5)]
-    state = GraphState(source_dir=Path("/in"), queue=queue, chunk_size=2)
+    state = WorkflowState(source_dir=Path("/in"), queue=queue, chunk_size=2)
 
     update = NextChunkNode()(state)
 
@@ -69,7 +69,9 @@ def test_record_chunk_folds_results_into_totals() -> None:
         PhotoItem(path=Path("/in/a.nef"), saved=True),
         PhotoItem(path=Path("/in/b.nef"), error=ERROR),
     ]
-    state = GraphState(source_dir=Path("/in"), items=items, saved_count=10, selected=12)
+    state = WorkflowState(
+        source_dir=Path("/in"), items=items, saved_count=10, selected=12
+    )
 
     update = RecordChunkNode()(state)
 

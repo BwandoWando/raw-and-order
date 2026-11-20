@@ -4,7 +4,7 @@ import logging
 import math
 from typing import Any
 
-from my_agent.graph.state import FileFailure, GraphState, PhotoItem
+from my_agent.workflow.state import FileFailure, PhotoItem, WorkflowState
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +17,7 @@ class SelectBatchNode:
     could not be hashed) are recorded as failures and use no slot.
     """
 
-    def __call__(self, state: GraphState) -> dict[str, Any]:
+    def __call__(self, state: WorkflowState) -> dict[str, Any]:
         """Return the ``queue``, counts, and any early failures."""
         pending = sorted((i for i in state.items if i.is_ok), key=_path_key)
         selected = pending if state.max_photos is None else pending[: state.max_photos]

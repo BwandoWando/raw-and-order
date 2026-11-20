@@ -2,13 +2,13 @@
 
 from typing import Any
 
-from my_agent.graph.state import GraphState
+from my_agent.workflow.state import WorkflowState
 
 
 class NextChunkNode:
     """Moves up to ``chunk_size`` photos from ``queue`` into ``items``."""
 
-    def __call__(self, state: GraphState) -> dict[str, Any]:
+    def __call__(self, state: WorkflowState) -> dict[str, Any]:
         """Return the new chunk, the shorter queue and the chunk number."""
         size = state.chunk_size or len(state.queue)
         return {

@@ -1,6 +1,6 @@
 # my-agent
 
-A LangGraph agent that reads camera raw files and regular images, extracts
+An ordered workflow that reads camera raw files and regular images, extracts
 EXIF metadata, creates an upright preview, asks a vision LLM to annotate it,
 and stores everything in SQLite.
 
@@ -140,7 +140,6 @@ All settings come from environment variables or `.env`
 | `LLM__MODEL` | `llama3.2-vision` | Model name for the provider |
 | `LLM__API_KEY` | - | Required for OpenAI / Anthropic |
 | `DATABASE_URL` | `sqlite:///data/app.db` | App database (managed by Alembic) |
-| `CHECKPOINT_DB_PATH` | *(unset = off)* | LangGraph checkpoints on disk; set a path to turn on (e.g. for future human-in-the-loop) |
 | `MAX_PHOTOS_PER_RUN` | `500` | Process at most this many photos per run, first by path; the rest wait for the next run (1–5000; `--max-photos`) |
 | `CHUNK_SIZE` | `25` | Photos processed and saved together; an interruption loses at most one chunk (1–5000; `--chunk-size`) |
 | `MAX_CONSECUTIVE_FAILURES` | `10` | Stop a run after this many annotation failures in a row (`0` = never) |
@@ -157,7 +156,7 @@ src/my_agent/
 ├── config.py         pydantic-settings
 ├── exceptions.py     domain exception hierarchy
 ├── pipeline.py       runs the graph, builds the run summary
-├── graph/            LangGraph: state, nodes, routing, builder
+├── workflow/         state, steps (nodes/), routing, ordered runner
 ├── media/            discovery, exiftool, rawpy, previews (no LLM code)
 ├── llm/              provider factory, capability check, annotator, prompts
 ├── schemas/          Pydantic models shared across layers

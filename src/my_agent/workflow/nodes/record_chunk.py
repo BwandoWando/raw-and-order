@@ -3,7 +3,7 @@
 import logging
 from typing import Any
 
-from my_agent.graph.state import FileFailure, GraphState
+from my_agent.workflow.state import FileFailure, WorkflowState
 
 logger = logging.getLogger(__name__)
 
@@ -14,7 +14,7 @@ class RecordChunkNode:
     By the time this runs, the chunk's photos are already in the database.
     """
 
-    def __call__(self, state: GraphState) -> dict[str, Any]:
+    def __call__(self, state: WorkflowState) -> dict[str, Any]:
         """Return the updated totals and an empty ``items``."""
         saved = sum(item.saved for item in state.items)
         failed = [

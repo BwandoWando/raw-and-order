@@ -5,8 +5,8 @@ from datetime import datetime
 from typing import Any
 
 from my_agent.db.failure_repository import FailureRepository
-from my_agent.graph.nodes.persist import utc_now
-from my_agent.graph.state import GraphState
+from my_agent.workflow.nodes.persist import utc_now
+from my_agent.workflow.state import WorkflowState
 
 
 class LogFailuresNode:
@@ -26,7 +26,7 @@ class LogFailuresNode:
         self._failures = failures
         self._clock = clock
 
-    def __call__(self, state: GraphState) -> dict[str, Any]:
+    def __call__(self, state: WorkflowState) -> dict[str, Any]:
         """Write failures and resolutions; the state is not changed."""
         now = self._clock()
         for item in state.items:

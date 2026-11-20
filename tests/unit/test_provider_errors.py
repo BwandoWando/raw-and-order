@@ -3,11 +3,11 @@ import ollama
 import pytest
 
 from my_agent.exceptions import FatalRunError, ModelRejectedError, ModelUnavailableError
-from my_agent.graph.nodes._per_item import apply_step
-from my_agent.graph.nodes.annotate import consecutive_failures
-from my_agent.graph.state import FileError, PhotoItem, Stage
 from my_agent.llm.annotator import LLMAnnotator
 from my_agent.llm.errors import is_unavailable, status_code
+from my_agent.workflow.nodes._per_item import apply_step
+from my_agent.workflow.nodes.annotate import consecutive_failures
+from my_agent.workflow.state import FileError, PhotoItem, Stage
 from tests.fakes import SAMPLE_ANNOTATION, ScriptedChatModel
 
 

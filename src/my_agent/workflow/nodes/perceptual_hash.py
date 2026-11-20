@@ -2,9 +2,9 @@
 
 from typing import Any
 
-from my_agent.graph.nodes._per_item import apply_step
-from my_agent.graph.state import GraphState, PhotoItem, Stage
 from my_agent.media.protocols import PerceptualHasher, PreviewStore
+from my_agent.workflow.nodes._per_item import apply_step
+from my_agent.workflow.state import PhotoItem, Stage, WorkflowState
 
 
 class PerceptualHashNode:
@@ -22,7 +22,7 @@ class PerceptualHashNode:
         self._hasher = hasher
         self._preview_store = preview_store
 
-    def __call__(self, state: GraphState) -> dict[str, Any]:
+    def __call__(self, state: WorkflowState) -> dict[str, Any]:
         """Return ``items`` with ``dhash`` filled in."""
         return {"items": apply_step(state.items, Stage.PERCEPTUAL_HASH, self._hash)}
 

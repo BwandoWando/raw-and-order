@@ -3,14 +3,12 @@
 Everything else receives its dependencies through constructors.
 """
 
-import sqlite3
 from contextlib import ExitStack
 from dataclasses import dataclass
 from types import TracebackType
 from typing import Self
 
 import httpx
-from langgraph.checkpoint.sqlite import SqliteSaver
 
 from my_agent.config import LLMProvider, LLMSettings, Settings
 from my_agent.db.catalog import PhotoCatalog, SqlAlchemyPhotoCatalog
@@ -21,22 +19,6 @@ from my_agent.db.failure_repository import (
 from my_agent.db.repository import SqlAlchemyPhotoRepository
 from my_agent.db.session import create_db_engine, create_session_factory
 from my_agent.exif_reread import ExifRereader
-from my_agent.graph.builder import PhotoGraph, PipelineNodes, build_graph
-from my_agent.graph.nodes import (
-    AnnotateNode,
-    DecodeNode,
-    DiscoverNode,
-    ExtractExifNode,
-    FingerprintNode,
-    LoadFailuresNode,
-    LogFailuresNode,
-    NextChunkNode,
-    PerceptualHashNode,
-    PersistNode,
-    RecordChunkNode,
-    SelectBatchNode,
-    SkipKnownNode,
-)
 from my_agent.llm.annotator import LLMAnnotator
 from my_agent.llm.capabilities import (
     DEFAULT_OLLAMA_URL,
@@ -64,6 +46,22 @@ from my_agent.media.raw import RawpyDecoder
 from my_agent.media.routing import ExtensionRoutingDecoder
 from my_agent.pipeline import PhotoPipeline
 from my_agent.schemas.annotation import annotation_schema
+from my_agent.workflow.nodes import (
+    AnnotateNode,
+    DecodeNode,
+    DiscoverNode,
+    ExtractExifNode,
+    FingerprintNode,
+    LoadFailuresNode,
+    LogFailuresNode,
+    NextChunkNode,
+    PerceptualHashNode,
+    PersistNode,
+    RecordChunkNode,
+    SelectBatchNode,
+    SkipKnownNode,
+)
+from my_agent.workflow.runner import PhotoWorkflow, WorkflowSteps
 
 CAPABILITY_CHECK_TIMEOUT_S = 10.0
 
@@ -72,7 +70,7 @@ class Application:
     """Owns long-lived resources and exposes the wired pipeline.
 
     Use as a context manager so the exiftool process, database engine and
-    checkpoint connection are always closed.
+    exiftool process and database engine are always closed.
 
     Args:
         settings: Validated application settings.
@@ -85,7 +83,7 @@ class Application:
 
     def __enter__(self) -> Self:
         try:
-            self.pipeline = PhotoPipeline(self._build_graph())
+            self.pipeline = PhotoPipeline(self._build_workflow())
         except BaseException:
             self._stack.close()
             raise
@@ -99,7 +97,7 @@ class Application:
     ) -> None:
         self._stack.close()
 
-    def _build_graph(self) -> PhotoGraph:
+    def _build_workflow(self) -> PhotoWorkflow:
         s = self._settings
         engine = create_db_engine(s.database_url)
         self._stack.callback(engine.dispose)
@@ -120,7 +118,7 @@ class Application:
             RawpyDecoder(), PillowDecoder(), s.raw_extensions
         )
         discoverer = FileSystemDiscoverer(s.raw_extensions | s.image_extensions)
-        nodes = PipelineNodes(
+        steps = WorkflowSteps(
             discover=DiscoverNode(discoverer, RawPairFilter(s.raw_extensions)),
             load_failures=LoadFailuresNode(failures),
             fingerprint=FingerprintNode(Sha256FileHasher()),
@@ -141,16 +139,7 @@ class Application:
             log_failures=LogFailuresNode(failures),
             record_chunk=RecordChunkNode(),
         )
-        return build_graph(nodes, self._open_checkpointer())
-
-    def _open_checkpointer(self) -> SqliteSaver | None:
-        path = self._settings.checkpoint_db_path
-        if path is None:
-            return None
-        path.parent.mkdir(parents=True, exist_ok=True)
-        connection = sqlite3.connect(path, check_same_thread=False)
-        self._stack.callback(connection.close)
-        return SqliteSaver(connection)
+        return PhotoWorkflow(steps)
 
 
 class ExifRereadApplication:

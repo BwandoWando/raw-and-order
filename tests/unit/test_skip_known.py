@@ -2,8 +2,8 @@ from pathlib import Path
 
 import pytest
 
-from my_agent.graph.nodes import SkipKnownNode
-from my_agent.graph.state import GraphState, PhotoItem
+from my_agent.workflow.nodes import SkipKnownNode
+from my_agent.workflow.state import PhotoItem, WorkflowState
 
 
 class StubPhotos:
@@ -38,7 +38,7 @@ def _node() -> SkipKnownNode:
     return SkipKnownNode(StubPhotos(STORED), StubFailures(FAILED))  # type: ignore[arg-type]
 
 
-def _state(**flags: bool) -> GraphState:
+def _state(**flags: bool) -> WorkflowState:
     names = {
         "same": "aaa",
         "edited": "new",
@@ -51,7 +51,7 @@ def _state(**flags: bool) -> GraphState:
     items = [
         PhotoItem(path=Path(f"/in/{n}.nef"), sha256=sha) for n, sha in names.items()
     ]
-    return GraphState(source_dir=Path("/in"), items=items, **flags)
+    return WorkflowState(source_dir=Path("/in"), items=items, **flags)
 
 
 def test_skips_unchanged_photos_and_known_failures() -> None:

@@ -6,7 +6,7 @@ from typing import Any
 
 from my_agent.db.failure_repository import FailureRepository
 from my_agent.db.repository import PhotoRepository
-from my_agent.graph.state import GraphState, PhotoItem
+from my_agent.workflow.state import PhotoItem, WorkflowState
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +30,7 @@ class SkipKnownNode:
         self._photos = photos
         self._failures = failures
 
-    def __call__(self, state: GraphState) -> dict[str, Any]:
+    def __call__(self, state: WorkflowState) -> dict[str, Any]:
         """Return the remaining ``items`` and what was skipped."""
         if state.reprocess or state.reprocess_failed:
             return {"unchanged": [], "previously_failed": []}

@@ -4,7 +4,7 @@ import logging
 from collections.abc import Callable
 
 from my_agent.exceptions import FatalRunError, MyAgentError
-from my_agent.graph.state import FileError, PhotoItem, Stage
+from my_agent.workflow.state import FileError, PhotoItem, Stage
 
 logger = logging.getLogger(__name__)
 

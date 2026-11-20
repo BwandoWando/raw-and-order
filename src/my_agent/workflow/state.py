@@ -1,4 +1,4 @@
-"""Graph state models."""
+"""Workflow state models."""
 
 from enum import StrEnum
 from pathlib import Path
@@ -52,14 +52,14 @@ class FileFailure(BaseModel):
     error: FileError
 
 
-class GraphState(BaseModel):
+class WorkflowState(BaseModel):
     """State shared by all nodes for one run.
 
     Planning steps (discover -> fingerprint -> skip_unchanged -> select_batch)
     work on every candidate in ``items``. ``select_batch`` then moves the
     photos to process into ``queue``, and the chunk loop works on one chunk
     at a time in ``items``. Finished chunks are reduced to counts and
-    failures so checkpoints stay small.
+    failures so the state stays small.
     """
 
     source_dir: Path

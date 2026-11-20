@@ -5,9 +5,9 @@ from datetime import UTC, datetime
 from typing import Any
 
 from my_agent.db.repository import PhotoRepository
-from my_agent.graph.nodes._per_item import apply_step
-from my_agent.graph.state import GraphState, PhotoItem, Stage
 from my_agent.schemas import PhotoRecord
+from my_agent.workflow.nodes._per_item import apply_step
+from my_agent.workflow.state import PhotoItem, Stage, WorkflowState
 
 
 def utc_now() -> datetime:
@@ -34,7 +34,7 @@ class PersistNode:
         self._annotated_by = annotated_by
         self._clock = clock
 
-    def __call__(self, state: GraphState) -> dict[str, Any]:
+    def __call__(self, state: WorkflowState) -> dict[str, Any]:
         """Return ``items`` with ``saved`` set."""
         return {"items": apply_step(state.items, Stage.PERSIST, self._persist)}
 

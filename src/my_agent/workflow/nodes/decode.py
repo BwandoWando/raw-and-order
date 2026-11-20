@@ -2,9 +2,9 @@
 
 from typing import Any
 
-from my_agent.graph.nodes._per_item import apply_step
-from my_agent.graph.state import GraphState, PhotoItem, Stage
 from my_agent.media.protocols import ImageDecoder, PreviewStore
+from my_agent.workflow.nodes._per_item import apply_step
+from my_agent.workflow.state import PhotoItem, Stage, WorkflowState
 
 
 class DecodeNode:
@@ -19,7 +19,7 @@ class DecodeNode:
         self._decoder = decoder
         self._preview_store = preview_store
 
-    def __call__(self, state: GraphState) -> dict[str, Any]:
+    def __call__(self, state: WorkflowState) -> dict[str, Any]:
         """Return ``items`` with ``preview_path`` filled in."""
         return {"items": apply_step(state.items, Stage.DECODE, self._decode)}
 

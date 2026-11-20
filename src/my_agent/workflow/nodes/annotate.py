@@ -3,11 +3,11 @@
 from typing import Any
 
 from my_agent.exceptions import TooManyFailuresError
-from my_agent.graph.nodes._per_item import apply_step
-from my_agent.graph.state import GraphState, PhotoItem, Stage
 from my_agent.llm.annotator import Annotator
 from my_agent.llm.context import ExifContextFormatter
 from my_agent.media.protocols import PreviewStore
+from my_agent.workflow.nodes._per_item import apply_step
+from my_agent.workflow.state import PhotoItem, Stage, WorkflowState
 
 
 class AnnotateNode:
@@ -33,7 +33,7 @@ class AnnotateNode:
         self._context_formatter = context_formatter
         self._max_consecutive_failures = max_consecutive_failures
 
-    def __call__(self, state: GraphState) -> dict[str, Any]:
+    def __call__(self, state: WorkflowState) -> dict[str, Any]:
         """Return ``items`` with ``annotation`` filled in.
 
         Photos are annotated one at a time so the run stops exactly when the

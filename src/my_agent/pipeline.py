@@ -1,20 +1,13 @@
-"""Run the compiled graph for one directory and summarise the outcome."""
+"""Run the workflow for one directory and summarise the outcome."""
 
-import math
 import uuid
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any
 
-from langchain_core.runnables import RunnableConfig
 from pydantic import BaseModel
 
-from my_agent.config import MAX_PHOTOS_HARD_LIMIT
-from my_agent.exceptions import FatalRunError, RunAbortedError
-from my_agent.graph.builder import PhotoGraph, planning_steps, steps_per_chunk
-from my_agent.graph.state import FileFailure, GraphState
-
-RECURSION_MARGIN = 10
+from my_agent.workflow.runner import PhotoWorkflow
+from my_agent.workflow.state import FileFailure, WorkflowState
 
 
 class RunSummary(BaseModel):
@@ -32,8 +25,8 @@ class RunSummary(BaseModel):
     failed: list[FileFailure]
 
 
-def summarise(run_id: str, state: GraphState) -> RunSummary:
-    """Build a :class:`RunSummary` from the final graph state."""
+def summarise(run_id: str, state: WorkflowState) -> RunSummary:
+    """Build a :class:`RunSummary` from the final workflow state."""
     return RunSummary(
         run_id=run_id,
         selected=state.selected,
@@ -48,34 +41,23 @@ def summarise(run_id: str, state: GraphState) -> RunSummary:
     )
 
 
-def recursion_limit(max_photos: int | None, chunk_size: int | None) -> int:
-    """Graph steps needed for the worst case, so LangGraph never stops early.
-
-    LangGraph aborts after 25 steps by default; the chunk loop needs about
-    ``steps_per_chunk()`` steps per chunk.
-    """
-    photos = max_photos or MAX_PHOTOS_HARD_LIMIT
-    chunks = 1 if chunk_size is None else math.ceil(photos / chunk_size)
-    return planning_steps() + chunks * steps_per_chunk() + RECURSION_MARGIN
-
-
 def new_run_id() -> str:
-    """Return a unique id used as the LangGraph thread id."""
+    """Return a unique id for log lines and the run summary."""
     return f"run-{uuid.uuid4().hex[:12]}"
 
 
 class PhotoPipeline:
-    """Runs the photo graph.
+    """Runs the photo workflow for a folder.
 
     Args:
-        graph: The compiled LangGraph pipeline.
-        run_id_factory: Creates the thread id for each run.
+        workflow: The configured workflow.
+        run_id_factory: Creates the id of each run.
     """
 
     def __init__(
-        self, graph: PhotoGraph, run_id_factory: Callable[[], str] = new_run_id
+        self, workflow: PhotoWorkflow, run_id_factory: Callable[[], str] = new_run_id
     ) -> None:
-        self._graph = graph
+        self._workflow = workflow
         self._run_id_factory = run_id_factory
 
     def run(
@@ -91,31 +73,17 @@ class PhotoPipeline:
         Photos are processed and saved ``chunk_size`` at a time, so an
         interrupted run keeps every finished chunk. With ``reprocess_failed``
         only the logged failures under ``source_dir`` are retried.
+
+        Raises:
+            RunAbortedError: If the LLM became unavailable or too many photos
+                in a row failed; carries the photos saved so far.
         """
         run_id = self._run_id_factory()
-        config: RunnableConfig = {
-            "configurable": {"thread_id": run_id},
-            "recursion_limit": recursion_limit(max_photos, chunk_size),
-        }
-        initial = GraphState(
+        initial = WorkflowState(
             source_dir=source_dir,
             reprocess=reprocess,
             reprocess_failed=reprocess_failed,
             max_photos=max_photos,
             chunk_size=chunk_size,
         )
-        latest: dict[str, Any] = {}
-        try:
-            # Stream state values (instead of invoke) so the latest progress is
-            # known even if a step stops the run; works without a checkpointer.
-            for values in self._graph.stream(initial, config, stream_mode="values"):
-                latest = values
-        except FatalRunError as exc:
-            raise RunAbortedError(exc, saved=_saved(latest)) from exc
-        return summarise(run_id, GraphState.model_validate(latest))
-
-
-def _saved(values: dict[str, Any]) -> int:
-    """Photos saved by finished chunks, from the latest streamed state."""
-    saved = values.get("saved_count", 0)
-    return saved if isinstance(saved, int) else 0
+        return summarise(run_id, self._workflow.run(initial))
