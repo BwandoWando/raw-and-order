@@ -10,6 +10,7 @@
             "cwd": "${workspaceFolder}",
             "envFile": "${workspaceFolder}/.env",
             "console": "integratedTerminal",
+            "env": {"PYTHONNOUSERSITE": "1"},
             "justMyCode": true
         },
         {
@@ -21,6 +22,7 @@
             "cwd": "${workspaceFolder}",
             "envFile": "${workspaceFolder}/.env",
             "console": "integratedTerminal",
+            "env": {"PYTHONNOUSERSITE": "1"},
             "justMyCode": false
         },
         {
@@ -32,6 +34,7 @@
             "cwd": "${workspaceFolder}",
             "envFile": "${workspaceFolder}/.env",
             "console": "integratedTerminal",
+            "env": {"PYTHONNOUSERSITE": "1"},
             "justMyCode": true
         },
         {
@@ -42,6 +45,7 @@
             "args": ["${file}", "-x", "-vv"],
             "cwd": "${workspaceFolder}",
             "console": "integratedTerminal",
+            "env": {"PYTHONNOUSERSITE": "1"},
             "justMyCode": false
         }
     ],
