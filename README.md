@@ -42,8 +42,13 @@ Every chunk is saved before the next starts, so an interrupted run keeps all
 finished chunks. Run the same folder again to continue: saved photos are
 skipped as unchanged.
 
-A failure in one file is recorded against that file; the rest of the batch
-continues. Files already in the database are skipped unless `--reprocess`.
+**Failures:** a file that fails any step is logged in the `processing_failures`
+table (stage, error, attempts, first/last failure) and the rest of the batch
+continues. Later runs skip logged failures, unless the file's contents changed
+(then it is retried automatically). `--reprocess-failed` retries only the
+logged failures under the folder that still exist (missing ones are removed
+from the log); `--max-photos` and chunking still apply. A photo that succeeds
+is removed from the log. Files already in the database are skipped unless `--reprocess`.
 
 ## Requirements
 
@@ -77,6 +82,7 @@ For Ollama, pull a vision model first, e.g. `ollama pull llama3.2-vision`.
 my-agent check                      # config valid, model reachable, supports images
 my-agent process /path/to/raws      # process new files
 my-agent process /path/to/raws --reprocess
+my-agent process /path/to/raws --reprocess-failed   # retry only logged failures
 my-agent process /path/to/raws --max-photos 1500   # up to 1500 photos this run (max 2000)
 my-agent process /path/to/raws --chunk-size 10     # save every 10 photos
 ```

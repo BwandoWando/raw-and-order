@@ -1,5 +1,6 @@
 """Test doubles injected through constructors instead of monkeypatching."""
 
+import hashlib
 from collections.abc import Iterator, Sequence
 from pathlib import Path
 from typing import Any
@@ -11,7 +12,7 @@ from langchain_core.runnables import Runnable, RunnableLambda
 from PIL import Image
 from pydantic import PrivateAttr
 
-from my_agent.exceptions import ExifReadError
+from my_agent.exceptions import ExifReadError, FingerprintError
 from my_agent.schemas import Annotation, ExifData, SceneType
 
 SAMPLE_ANNOTATION = Annotation(
@@ -33,6 +34,18 @@ class FakeExifReader:
         if path.name in self._fail_for:
             raise ExifReadError(f"corrupt: {path.name}")
         return self._exif
+
+
+class FakeFileHasher:
+    """SHA-256 like the real hasher, but fails for names in ``fail_for``."""
+
+    def __init__(self, fail_for: Sequence[str] = ()) -> None:
+        self._fail_for = set(fail_for)
+
+    def hash_file(self, path: Path) -> str:
+        if path.name in self._fail_for:
+            raise FingerprintError(f"unreadable: {path.name}")
+        return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 class FakeImageDecoder:

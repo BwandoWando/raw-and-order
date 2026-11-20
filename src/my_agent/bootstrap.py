@@ -12,6 +12,7 @@ import httpx
 from langgraph.checkpoint.sqlite import SqliteSaver
 
 from my_agent.config import LLMProvider, LLMSettings, Settings
+from my_agent.db.failure_repository import SqlAlchemyFailureRepository
 from my_agent.db.repository import SqlAlchemyPhotoRepository
 from my_agent.db.session import create_db_engine, create_session_factory
 from my_agent.graph.builder import PhotoGraph, PipelineNodes, build_graph
@@ -21,12 +22,14 @@ from my_agent.graph.nodes import (
     DiscoverNode,
     ExtractExifNode,
     FingerprintNode,
+    LoadFailuresNode,
+    LogFailuresNode,
     NextChunkNode,
     PerceptualHashNode,
     PersistNode,
     RecordChunkNode,
     SelectBatchNode,
-    SkipUnchangedNode,
+    SkipKnownNode,
 )
 from my_agent.llm.annotator import LLMAnnotator
 from my_agent.llm.capabilities import (
@@ -93,7 +96,9 @@ class Application:
         s = self._settings
         engine = create_db_engine(s.database_url)
         self._stack.callback(engine.dispose)
-        repository = SqlAlchemyPhotoRepository(create_session_factory(engine))
+        session_factory = create_session_factory(engine)
+        repository = SqlAlchemyPhotoRepository(session_factory)
+        failures = SqlAlchemyFailureRepository(session_factory)
         date_resolver = CaptureDateResolver(
             build_date_sources(s.date_sources), DateValidator()
         )
@@ -110,9 +115,11 @@ class Application:
         discoverer = FileSystemDiscoverer(s.raw_extensions | s.image_extensions)
         nodes = PipelineNodes(
             discover=DiscoverNode(discoverer, RawPairFilter(s.raw_extensions)),
+            load_failures=LoadFailuresNode(failures),
             fingerprint=FingerprintNode(Sha256FileHasher()),
-            skip_unchanged=SkipUnchangedNode(repository),
+            skip_known=SkipKnownNode(repository, failures),
             select_batch=SelectBatchNode(),
+            log_planning_failures=LogFailuresNode(failures),
             next_chunk=NextChunkNode(),
             extract_exif=ExtractExifNode(exif_reader),
             decode=DecodeNode(decoder, preview_store),
@@ -123,6 +130,7 @@ class Application:
                 ExifContextFormatter(s.send_exif_to_llm, include_gps=not s.redact_gps),
             ),
             persist=PersistNode(repository, annotated_by=s.llm.label),
+            log_failures=LogFailuresNode(failures),
             record_chunk=RecordChunkNode(),
         )
         return build_graph(nodes, self._open_checkpointer())

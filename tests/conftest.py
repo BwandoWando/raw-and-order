@@ -6,6 +6,7 @@ import pytest
 from sqlalchemy.orm import Session, sessionmaker
 
 from my_agent.db.base import Base
+from my_agent.db.failure_repository import SqlAlchemyFailureRepository
 from my_agent.db.repository import SqlAlchemyPhotoRepository
 from my_agent.db.session import create_db_engine, create_session_factory
 from my_agent.schemas import ExifData, GpsCoordinate
@@ -35,3 +36,8 @@ def session_factory(tmp_path: Path) -> Iterator[sessionmaker[Session]]:
 @pytest.fixture
 def repository(session_factory: sessionmaker[Session]) -> SqlAlchemyPhotoRepository:
     return SqlAlchemyPhotoRepository(session_factory)
+
+
+@pytest.fixture
+def failures(session_factory: sessionmaker[Session]) -> SqlAlchemyFailureRepository:
+    return SqlAlchemyFailureRepository(session_factory)

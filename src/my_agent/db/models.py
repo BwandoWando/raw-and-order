@@ -6,6 +6,7 @@ from sqlalchemy import JSON, DateTime, Float, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from my_agent.db.base import Base
+from my_agent.db.types import UtcDateTime
 
 
 class PhotoRow(Base):
@@ -44,4 +45,20 @@ class PhotoRow(Base):
     scene: Mapped[str] = mapped_column(String(32), index=True)
     contains_people: Mapped[bool]
     annotated_by: Mapped[str] = mapped_column(String(128))
-    processed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    processed_at: Mapped[datetime] = mapped_column(UtcDateTime)
+
+
+class FailureRow(Base):
+    """A file that failed processing; removed once it succeeds."""
+
+    __tablename__ = "processing_failures"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    path: Mapped[str] = mapped_column(String(1024), unique=True, index=True)
+    sha256: Mapped[str | None] = mapped_column(String(64))
+    stage: Mapped[str] = mapped_column(String(32))
+    error_type: Mapped[str] = mapped_column(String(128))
+    message: Mapped[str] = mapped_column(Text)
+    attempts: Mapped[int] = mapped_column(Integer, default=1)
+    first_failed_at: Mapped[datetime] = mapped_column(UtcDateTime)
+    last_failed_at: Mapped[datetime] = mapped_column(UtcDateTime)

@@ -33,3 +33,12 @@ def next_chunk_or(next_chunk: str, done: str) -> Router:
         return next_chunk if has_queued_photos(state) else done
 
     return route
+
+
+def start_from(discover: str, load_failures: str) -> Router:
+    """Start from the failure log in --reprocess-failed runs, else discover."""
+
+    def route(state: GraphState) -> str:
+        return load_failures if state.reprocess_failed else discover
+
+    return route

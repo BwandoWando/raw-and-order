@@ -44,3 +44,16 @@ def test_upsert_updates_existing_row(
 
 def test_get_missing_returns_none(repository: SqlAlchemyPhotoRepository) -> None:
     assert repository.get_by_path(Path("/nope.nef")) is None
+
+
+def test_processed_at_comes_back_timezone_aware(
+    repository: SqlAlchemyPhotoRepository, sample_exif: ExifData
+) -> None:
+    record = _record(sample_exif)
+    repository.upsert(record)
+
+    loaded = repository.get_by_path(record.path)
+
+    assert loaded is not None
+    assert loaded.processed_at == record.processed_at
+    assert loaded.processed_at.tzinfo is not None

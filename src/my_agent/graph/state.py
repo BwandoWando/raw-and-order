@@ -64,6 +64,9 @@ class GraphState(BaseModel):
 
     source_dir: Path
     reprocess: bool = False
+    reprocess_failed: bool = Field(
+        default=False, description="Retry only the logged failures under source_dir."
+    )
     max_photos: int | None = Field(
         default=None, description="Photos to process this run; None = all."
     )
@@ -85,4 +88,12 @@ class GraphState(BaseModel):
     unchanged: list[Path] = Field(
         default_factory=list,
         description="Files skipped because they are stored with the same SHA-256.",
+    )
+    previously_failed: list[Path] = Field(
+        default_factory=list,
+        description="Files skipped because they are logged as failed.",
+    )
+    missing: list[Path] = Field(
+        default_factory=list,
+        description="Logged failures whose file no longer exists (log cleared).",
     )

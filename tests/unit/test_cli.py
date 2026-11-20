@@ -20,3 +20,12 @@ def test_help_mentions_max_photos() -> None:
 
     assert "--max-photos" in result.output
     assert "--chunk-size" in result.output
+
+
+def test_reprocess_and_reprocess_failed_are_mutually_exclusive() -> None:
+    result = runner.invoke(
+        app, ["process", "/tmp", "--reprocess", "--reprocess-failed"]
+    )
+
+    assert result.exit_code == 2
+    assert "not both" in result.output

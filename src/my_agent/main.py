@@ -23,6 +23,13 @@ def process(
     reprocess: Annotated[
         bool, typer.Option(help="Also process files already in the database.")
     ] = False,
+    reprocess_failed: Annotated[
+        bool,
+        typer.Option(
+            "--reprocess-failed",
+            help="Retry only the photos logged as failed in SOURCE_DIR.",
+        ),
+    ] = False,
     skip_model_check: Annotated[
         bool, typer.Option(help="Skip the startup check of the LLM.")
     ] = False,
@@ -53,13 +60,19 @@ def process(
     ] = None,
 ) -> None:
     """Process new or changed photos in SOURCE_DIR, in chunks."""
+    if reprocess and reprocess_failed:
+        raise typer.BadParameter(
+            "use either --reprocess (everything) or --reprocess-failed (only "
+            "logged failures), not both",
+            param_hint="--reprocess-failed",
+        )
     settings = _startup()
     limit = max_photos if max_photos is not None else settings.max_photos_per_run
     chunk = chunk_size if chunk_size is not None else settings.chunk_size
     try:
         if not skip_model_check:
             check_model(settings.llm)
-        summary = _run(settings, source_dir, reprocess, limit, chunk)
+        summary = _run(settings, source_dir, reprocess, reprocess_failed, limit, chunk)
     except MyAgentError as exc:
         _fail(exc)
     _print_summary(summary)
@@ -90,6 +103,7 @@ def _run(
     settings: Settings,
     source_dir: Path,
     reprocess: bool,
+    reprocess_failed: bool,
     max_photos: int,
     chunk_size: int,
 ) -> RunSummary:
@@ -99,6 +113,7 @@ def _run(
         return application.pipeline.run(
             source_dir,
             reprocess=reprocess,
+            reprocess_failed=reprocess_failed,
             max_photos=max_photos,
             chunk_size=chunk_size,
         )
@@ -109,6 +124,7 @@ def _print_summary(summary: RunSummary) -> None:
         f"Run {summary.run_id}: {summary.selected} processed in "
         f"{summary.chunks} chunk(s) ({summary.saved} saved, "
         f"{len(summary.failed)} failed), {summary.unchanged} unchanged, "
+        f"{summary.previously_failed} previously failed (skipped), "
         f"{summary.skipped_pairs} skipped (RAW+JPEG pairs), "
         f"{summary.deferred} remaining."
     )
@@ -116,8 +132,12 @@ def _print_summary(summary: RunSummary) -> None:
         typer.echo(
             f"  FAILED [{failed.error.stage}] {failed.path}: {failed.error.message}"
         )
+    for path in summary.missing:
+        typer.echo(f"  MISSING (removed from failure log) {path}")
     if summary.deferred:
         typer.echo(f"{summary.deferred} photos are left; run again to continue.")
+    if summary.previously_failed:
+        typer.echo("Retry previously failed photos with --reprocess-failed.")
 
 
 def _fail(exc: MyAgentError) -> NoReturn:

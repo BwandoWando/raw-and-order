@@ -22,6 +22,8 @@ class RunSummary(BaseModel):
     selected: int
     skipped_pairs: int
     unchanged: int
+    previously_failed: int
+    missing: list[Path]
     deferred: int
     chunks: int
     saved: int
@@ -35,6 +37,8 @@ def summarise(run_id: str, state: GraphState) -> RunSummary:
         selected=state.selected,
         skipped_pairs=len(state.skipped_pairs),
         unchanged=len(state.unchanged),
+        previously_failed=len(state.previously_failed),
+        missing=state.missing,
         deferred=state.deferred,
         chunks=state.chunk_index,
         saved=state.saved_count,
@@ -78,11 +82,13 @@ class PhotoPipeline:
         reprocess: bool = False,
         max_photos: int | None = None,
         chunk_size: int | None = None,
+        reprocess_failed: bool = False,
     ) -> RunSummary:
         """Process up to ``max_photos`` new or changed photos in ``source_dir``.
 
         Photos are processed and saved ``chunk_size`` at a time, so an
-        interrupted run keeps every finished chunk.
+        interrupted run keeps every finished chunk. With ``reprocess_failed``
+        only the logged failures under ``source_dir`` are retried.
         """
         run_id = self._run_id_factory()
         config: RunnableConfig = {
@@ -92,6 +98,7 @@ class PhotoPipeline:
         initial = GraphState(
             source_dir=source_dir,
             reprocess=reprocess,
+            reprocess_failed=reprocess_failed,
             max_photos=max_photos,
             chunk_size=chunk_size,
         )
