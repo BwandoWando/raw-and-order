@@ -1,6 +1,6 @@
 """Drive the Streamlit app headless with AppTest against a seeded database."""
 
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -21,6 +21,7 @@ from my_agent.schemas import (
     SceneType,
     WhiteBalanceSource,
 )
+from my_agent.ui.gallery import open_button_key
 from my_agent.ui.launcher import APP_PATH
 
 TIMEOUT_S = 30
@@ -158,3 +159,23 @@ def test_white_balance_slider_filters(app_with, tmp_path: Path) -> None:  # type
     assert "Showing 1–2 of 2 photos" in _captions(app)
     app.button(key=f"details-{tmp_path / 'IMG_1.ARW'}").click().run()
     assert not app.exception
+
+
+def test_clicking_the_thumbnail_opens_details(app_with, tmp_path: Path) -> None:  # type: ignore[no-untyped-def]
+    app = app_with(2)
+    photo = tmp_path / "IMG_0.ARW"
+
+    app.button(key=open_button_key(photo)).click().run()
+
+    assert not app.exception
+    assert "**Sunset over the sea.**" in [m.value for m in app.markdown]
+
+
+def test_thumbnail_button_is_labelled_for_screen_readers(
+    app_with: Callable[[int], AppTest], tmp_path: Path
+) -> None:
+    app = app_with(1)
+
+    button = app.button(key=open_button_key(tmp_path / "IMG_0.ARW"))
+
+    assert button.label == "Open details for IMG_0.ARW"

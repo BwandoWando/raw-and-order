@@ -110,7 +110,7 @@ my-agent ui --port 8600 --no-open-browser
 ```
 
 - **Gallery:** thumbnail grid (24 / 48 / 72 / 96 per page), sorted by capture or
-  processing date. **Details** shows the large preview, description, tags,
+  processing date. Click a photo (or **Details**) to see the large preview, description, tags,
   camera and lens settings, a map when the photo has GPS, its SHA-256 and dHash,
   and similar photos (dHash distance ≤ 10).
 - **Filters** (sidebar): text search over descriptions and tags, scene, tags
