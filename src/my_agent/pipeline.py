@@ -4,6 +4,7 @@ import math
 import uuid
 from collections.abc import Callable
 from pathlib import Path
+from typing import Any
 
 from langchain_core.runnables import RunnableConfig
 from pydantic import BaseModel
@@ -103,17 +104,18 @@ class PhotoPipeline:
             max_photos=max_photos,
             chunk_size=chunk_size,
         )
+        latest: dict[str, Any] = {}
         try:
-            result = self._graph.invoke(initial, config)
+            # Stream state values (instead of invoke) so the latest progress is
+            # known even if a step stops the run; works without a checkpointer.
+            for values in self._graph.stream(initial, config, stream_mode="values"):
+                latest = values
         except FatalRunError as exc:
-            raise RunAbortedError(exc, saved=self._saved_so_far(config)) from exc
-        return summarise(run_id, GraphState.model_validate(result))
+            raise RunAbortedError(exc, saved=_saved(latest)) from exc
+        return summarise(run_id, GraphState.model_validate(latest))
 
-    def _saved_so_far(self, config: RunnableConfig) -> int | None:
-        """Photos saved by finished chunks, from the last checkpoint."""
-        try:
-            snapshot = self._graph.get_state(config)
-        except ValueError:  # no checkpointer configured
-            return None
-        saved = snapshot.values.get("saved_count") if snapshot.values else None
-        return saved if isinstance(saved, int) else 0
+
+def _saved(values: dict[str, Any]) -> int:
+    """Photos saved by finished chunks, from the latest streamed state."""
+    saved = values.get("saved_count", 0)
+    return saved if isinstance(saved, int) else 0

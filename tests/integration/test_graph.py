@@ -50,6 +50,7 @@ def _pipeline(
     fail_exif_for: tuple[str, ...] = (),
     fail_hash_for: tuple[str, ...] = (),
     max_consecutive_failures: int = 0,
+    use_checkpointer: bool = True,
 ) -> PhotoPipeline:
     previews = JpegPreviewStore(tmp_path / "previews", DatedPreviewLayout(), max_px=32)
     nodes = PipelineNodes(
@@ -75,7 +76,8 @@ def _pipeline(
         log_failures=LogFailuresNode(failures),
         record_chunk=RecordChunkNode(),
     )
-    return PhotoPipeline(build_graph(nodes, InMemorySaver()), lambda: "run-test")
+    checkpointer = InMemorySaver() if use_checkpointer else None
+    return PhotoPipeline(build_graph(nodes, checkpointer), lambda: "run-test")
 
 
 def _make_photos(root: Path, *names: str) -> Path:
@@ -695,3 +697,48 @@ def test_a_success_resets_the_failure_streak(
     ).run(photos, chunk_size=2)
 
     assert (summary.saved, len(summary.failed)) == (2, 4)  # never 3 in a row
+
+
+# --- checkpointing off (the default) -----------------------------------------------
+
+
+def test_runs_without_a_checkpointer(
+    tmp_path: Path,
+    repository: SqlAlchemyPhotoRepository,
+    failures: SqlAlchemyFailureRepository,
+    sample_exif: ExifData,
+) -> None:
+    photos = _make_distinct(tmp_path / "in", *(f"p{i}.nef" for i in range(5)))
+
+    summary = _pipeline(
+        tmp_path,
+        repository,
+        failures,
+        sample_exif,
+        FakeAnnotator(),
+        use_checkpointer=False,
+    ).run(photos, chunk_size=2)
+
+    assert (summary.chunks, summary.saved) == (3, 5)
+
+
+def test_aborted_run_reports_saved_count_without_a_checkpointer(
+    tmp_path: Path,
+    repository: SqlAlchemyPhotoRepository,
+    failures: SqlAlchemyFailureRepository,
+    sample_exif: ExifData,
+) -> None:
+    photos = _make_distinct(tmp_path / "in", *(f"p{i}.nef" for i in range(5)))
+    annotator = FakeAnnotator(errors={3: ModelUnavailableError("gone")})
+
+    with pytest.raises(RunAbortedError) as caught:
+        _pipeline(
+            tmp_path,
+            repository,
+            failures,
+            sample_exif,
+            annotator,
+            use_checkpointer=False,
+        ).run(photos, chunk_size=2)
+
+    assert caught.value.saved == 2

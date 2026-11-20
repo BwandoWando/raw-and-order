@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pytest
 from pydantic import SecretStr, ValidationError
 
@@ -104,3 +106,24 @@ def test_chunk_size_outside_range_is_rejected(
 
     with pytest.raises(ValidationError, match="chunk_size"):
         Settings(_env_file=None)
+
+
+def test_checkpointing_is_off_by_default(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("CHECKPOINT_DB_PATH", raising=False)
+
+    assert Settings(_env_file=None).checkpoint_db_path is None
+
+
+@pytest.mark.parametrize(("value", "expected"), [("", None), ("  ", None)])
+def test_empty_checkpoint_path_means_off(
+    monkeypatch: pytest.MonkeyPatch, value: str, expected: object
+) -> None:
+    monkeypatch.setenv("CHECKPOINT_DB_PATH", value)
+
+    assert Settings(_env_file=None).checkpoint_db_path is expected
+
+
+def test_checkpoint_path_turns_it_on(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("CHECKPOINT_DB_PATH", "data/checkpoints.db")
+
+    assert Settings(_env_file=None).checkpoint_db_path == Path("data/checkpoints.db")

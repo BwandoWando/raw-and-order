@@ -80,7 +80,11 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     data_dir: Path = Path("data")
     database_url: str = "sqlite:///data/app.db"
-    checkpoint_db_path: Path | None = Path("data/checkpoints.db")
+    checkpoint_db_path: Path | None = Field(
+        default=None,
+        description="LangGraph checkpoints on disk; unset or empty = off. Only "
+        "needed for future features such as pausing for human review.",
+    )
     preview_dir: Path = Path("data/previews")
     preview_max_px: int = Field(default=1024, ge=64)
     preview_quality: int = Field(default=85, ge=1, le=100)
@@ -117,6 +121,11 @@ class Settings(BaseSettings):
     send_exif_to_llm: bool = True
     redact_gps: bool = True
     llm: LLMSettings = Field(default_factory=LLMSettings)
+
+    @field_validator("checkpoint_db_path", mode="before")
+    @classmethod
+    def _empty_means_off(cls, value: Any) -> Any:
+        return None if isinstance(value, str) and not value.strip() else value
 
     @field_validator("date_sources", mode="before")
     @classmethod
