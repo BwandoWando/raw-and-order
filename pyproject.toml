@@ -27,7 +27,8 @@ dependencies = [
 ollama = ["langchain-ollama>=0.2"]
 openai = ["langchain-openai>=0.2"]
 anthropic = ["langchain-anthropic>=0.3"]
-all = ["my-agent[ollama,openai,anthropic]"]
+heic = ["pillow-heif>=0.16"]
+all = ["my-agent[ollama,openai,anthropic,heic]"]
 dev = [
     "mypy>=1.10",
     "pre-commit>=3.7",

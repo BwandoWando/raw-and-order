@@ -8,7 +8,7 @@ from my_agent.db.repository import SqlAlchemyPhotoRepository
 from my_agent.graph.builder import PipelineNodes, build_graph
 from my_agent.graph.nodes import (
     AnnotateNode,
-    DecodeRawNode,
+    DecodeNode,
     DiscoverNode,
     ExtractExifNode,
     PersistNode,
@@ -16,10 +16,11 @@ from my_agent.graph.nodes import (
 from my_agent.graph.state import Stage
 from my_agent.llm.context import ExifContextFormatter
 from my_agent.media.discovery import FileSystemDiscoverer
+from my_agent.media.pairing import RawPairFilter
 from my_agent.media.previews import JpegPreviewStore
 from my_agent.pipeline import PhotoPipeline
 from my_agent.schemas import ExifData
-from tests.fakes import FakeAnnotator, FakeExifReader, FakeRawDecoder
+from tests.fakes import FakeAnnotator, FakeExifReader, FakeImageDecoder
 
 
 def _pipeline(
@@ -31,9 +32,13 @@ def _pipeline(
 ) -> PhotoPipeline:
     previews = JpegPreviewStore(tmp_path / "previews", max_px=32)
     nodes = PipelineNodes(
-        discover=DiscoverNode(FileSystemDiscoverer({".nef"}), repository),
+        discover=DiscoverNode(
+            FileSystemDiscoverer({".nef", ".jpg"}),
+            RawPairFilter({".nef"}),
+            repository,
+        ),
         extract_exif=ExtractExifNode(FakeExifReader(exif, fail_for=fail_exif_for)),
-        decode_raw=DecodeRawNode(FakeRawDecoder(), previews),
+        decode=DecodeNode(FakeImageDecoder(), previews),
         annotate=AnnotateNode(annotator, previews, ExifContextFormatter()),
         persist=PersistNode(repository, annotated_by="fake:model"),
     )
@@ -87,3 +92,14 @@ def test_gps_is_not_sent_to_model_by_default(
     _, context = annotator.calls[0]
     assert context is not None
     assert "gps" not in context
+
+
+def test_raw_wins_over_jpeg_of_same_shot(
+    tmp_path: Path, repository: SqlAlchemyPhotoRepository, sample_exif: ExifData
+) -> None:
+    photos = _make_photos(tmp_path / "in", "DSC_1.NEF", "dsc_1.jpg", "solo.jpg")
+
+    summary = _pipeline(tmp_path, repository, sample_exif, FakeAnnotator()).run(photos)
+
+    assert summary.skipped_pairs == 1
+    assert repository.known_paths() == {photos / "DSC_1.NEF", photos / "solo.jpg"}

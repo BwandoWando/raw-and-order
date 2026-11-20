@@ -1,12 +1,21 @@
 # my-agent
 
-A LangGraph agent that reads camera raw files (CR2, CR3, NEF, ARW, RAF, ORF,
-RW2, DNG), extracts EXIF metadata, creates a preview, asks a vision LLM to
-annotate it, and stores everything in SQLite.
+A LangGraph agent that reads camera raw files and regular images, extracts
+EXIF metadata, creates an upright preview, asks a vision LLM to annotate it,
+and stores everything in SQLite.
 
 ```
-discover ─▶ extract_exif ─▶ decode_raw ─▶ annotate ─▶ persist
+discover ─▶ extract_exif ─▶ decode ─▶ annotate ─▶ persist
 ```
+
+**Supported files**
+- Raw (via LibRaw): CR2, CR3, NEF, ARW, RAF, ORF, RW2, DNG (`RAW_EXTENSIONS`)
+- Images (via Pillow): JPEG, PNG, TIFF, WebP, and HEIC/HEIF with the `heic`
+  extra (`IMAGE_EXTENSIONS`)
+
+**RAW+JPEG pairs:** if a raw file and an image with the same name are in the
+same folder (e.g. `DSC_0042.NEF` and `DSC_0042.JPG`), only the raw file is
+processed; the image is skipped and counted in the run summary.
 
 A failure in one file is recorded against that file; the rest of the batch
 continues. Files already in the database are skipped unless `--reprocess`.

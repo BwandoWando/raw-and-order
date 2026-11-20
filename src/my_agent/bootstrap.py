@@ -17,7 +17,7 @@ from my_agent.db.session import create_db_engine, create_session_factory
 from my_agent.graph.builder import PhotoGraph, PipelineNodes, build_graph
 from my_agent.graph.nodes import (
     AnnotateNode,
-    DecodeRawNode,
+    DecodeNode,
     DiscoverNode,
     ExtractExifNode,
     PersistNode,
@@ -34,8 +34,12 @@ from my_agent.llm.factory import create_chat_model
 from my_agent.llm.prompts import load_prompt
 from my_agent.media.discovery import FileSystemDiscoverer
 from my_agent.media.exif import PyExifToolReader
+from my_agent.media.heif import enable_heif_support
+from my_agent.media.pairing import RawPairFilter
+from my_agent.media.pillow_decoder import PillowDecoder
 from my_agent.media.previews import JpegPreviewStore
 from my_agent.media.raw import RawpyDecoder
+from my_agent.media.routing import ExtensionRoutingDecoder
 from my_agent.pipeline import PhotoPipeline
 
 CAPABILITY_CHECK_TIMEOUT_S = 10.0
@@ -81,10 +85,17 @@ class Application:
         preview_store = JpegPreviewStore(
             s.preview_dir, s.preview_max_px, s.preview_quality
         )
+        enable_heif_support()
+        decoder = ExtensionRoutingDecoder(
+            RawpyDecoder(), PillowDecoder(), s.raw_extensions
+        )
+        discoverer = FileSystemDiscoverer(s.raw_extensions | s.image_extensions)
         nodes = PipelineNodes(
-            discover=DiscoverNode(FileSystemDiscoverer(s.raw_extensions), repository),
+            discover=DiscoverNode(
+                discoverer, RawPairFilter(s.raw_extensions), repository
+            ),
             extract_exif=ExtractExifNode(exif_reader),
-            decode_raw=DecodeRawNode(RawpyDecoder(), preview_store),
+            decode=DecodeNode(decoder, preview_store),
             annotate=AnnotateNode(
                 build_annotator(s.llm),
                 preview_store,

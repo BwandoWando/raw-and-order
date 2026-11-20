@@ -23,6 +23,7 @@ class RunSummary(BaseModel):
 
     run_id: str
     discovered: int
+    skipped_pairs: int
     saved: int
     failed: list[FailedFile]
 
@@ -32,6 +33,7 @@ def summarise(run_id: str, state: GraphState) -> RunSummary:
     return RunSummary(
         run_id=run_id,
         discovered=len(state.items),
+        skipped_pairs=len(state.skipped_pairs),
         saved=sum(item.saved for item in state.items),
         failed=[
             FailedFile(path=item.path, error=item.error)

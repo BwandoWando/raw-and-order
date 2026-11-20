@@ -69,6 +69,7 @@ def _run(settings: Settings, source_dir: Path, reprocess: bool) -> RunSummary:
 def _print_summary(summary: RunSummary) -> None:
     typer.echo(
         f"Run {summary.run_id}: {summary.discovered} found, "
+        f"{summary.skipped_pairs} skipped (RAW+JPEG pairs), "
         f"{summary.saved} saved, {len(summary.failed)} failed."
     )
     for failed in summary.failed:

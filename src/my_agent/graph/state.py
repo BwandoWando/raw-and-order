@@ -12,7 +12,7 @@ class Stage(StrEnum):
     """Pipeline steps, used to report where a file failed."""
 
     EXTRACT_EXIF = "extract_exif"
-    DECODE_RAW = "decode_raw"
+    DECODE = "decode"
     ANNOTATE = "annotate"
     PERSIST = "persist"
 
@@ -47,3 +47,7 @@ class GraphState(BaseModel):
     source_dir: Path
     reprocess: bool = False
     items: list[PhotoItem] = Field(default_factory=list)
+    skipped_pairs: list[Path] = Field(
+        default_factory=list,
+        description="Images skipped because a raw file of the same shot exists.",
+    )

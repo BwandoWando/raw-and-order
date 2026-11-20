@@ -34,7 +34,7 @@ class AnnotateNode:
 
     def _annotate(self, item: PhotoItem) -> PhotoItem:
         if item.preview_path is None:
-            raise ValueError(f"No preview for {item.path}; decode_raw must run first")
+            raise ValueError(f"No preview for {item.path}; decode must run first")
         image = self._preview_store.load(item.preview_path)
         context = self._context_formatter.format(item.exif)
         annotation = self._annotator.annotate(image, context)

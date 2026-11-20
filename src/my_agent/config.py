@@ -11,6 +11,9 @@ from my_agent.exceptions import ConfigurationError
 DEFAULT_RAW_EXTENSIONS = frozenset(
     {".cr2", ".cr3", ".nef", ".arw", ".raf", ".orf", ".rw2", ".dng"}
 )
+DEFAULT_IMAGE_EXTENSIONS = frozenset(
+    {".jpg", ".jpeg", ".png", ".tif", ".tiff", ".webp", ".heic", ".heif"}
+)
 
 
 class LLMProvider(StrEnum):
@@ -62,6 +65,7 @@ class Settings(BaseSettings):
     preview_max_px: int = Field(default=1024, ge=64)
     preview_quality: int = Field(default=85, ge=1, le=100)
     raw_extensions: frozenset[str] = DEFAULT_RAW_EXTENSIONS
+    image_extensions: frozenset[str] = DEFAULT_IMAGE_EXTENSIONS
     send_exif_to_llm: bool = True
     redact_gps: bool = True
     llm: LLMSettings = Field(default_factory=LLMSettings)

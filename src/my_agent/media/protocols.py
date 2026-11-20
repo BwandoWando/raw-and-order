@@ -24,8 +24,8 @@ class ExifReader(Protocol):
         ...
 
 
-class RawDecoder(Protocol):
-    """Decodes a raw file into a viewable image."""
+class ImageDecoder(Protocol):
+    """Decodes a raw or regular image file into a viewable image."""
 
     def decode(self, path: Path) -> Image:
         """Return an RGB image for ``path``."""

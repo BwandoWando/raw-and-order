@@ -8,7 +8,7 @@ from langgraph.graph.state import CompiledStateGraph
 
 from my_agent.graph.nodes import (
     AnnotateNode,
-    DecodeRawNode,
+    DecodeNode,
     DiscoverNode,
     ExtractExifNode,
     PersistNode,
@@ -25,7 +25,7 @@ class PipelineNodes:
 
     discover: DiscoverNode
     extract_exif: ExtractExifNode
-    decode_raw: DecodeRawNode
+    decode: DecodeNode
     annotate: AnnotateNode
     persist: PersistNode
 
@@ -43,14 +43,14 @@ def build_graph(
     graph = StateGraph(GraphState)
     graph.add_node(DISCOVER, nodes.discover)
     graph.add_node(Stage.EXTRACT_EXIF.value, nodes.extract_exif)
-    graph.add_node(Stage.DECODE_RAW.value, nodes.decode_raw)
+    graph.add_node(Stage.DECODE.value, nodes.decode)
     graph.add_node(Stage.ANNOTATE.value, nodes.annotate)
     graph.add_node(Stage.PERSIST.value, nodes.persist)
 
     graph.add_edge(START, DISCOVER)
     _add_guarded_edge(graph, DISCOVER, Stage.EXTRACT_EXIF.value)
-    _add_guarded_edge(graph, Stage.EXTRACT_EXIF.value, Stage.DECODE_RAW.value)
-    _add_guarded_edge(graph, Stage.DECODE_RAW.value, Stage.ANNOTATE.value)
+    _add_guarded_edge(graph, Stage.EXTRACT_EXIF.value, Stage.DECODE.value)
+    _add_guarded_edge(graph, Stage.DECODE.value, Stage.ANNOTATE.value)
     _add_guarded_edge(graph, Stage.ANNOTATE.value, Stage.PERSIST.value)
     graph.add_edge(Stage.PERSIST.value, END)
     return graph.compile(checkpointer=checkpointer)

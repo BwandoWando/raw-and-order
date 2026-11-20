@@ -35,11 +35,16 @@ class FakeExifReader:
         return self._exif
 
 
-class FakeRawDecoder:
-    """Returns a small solid-colour image for any path."""
+class FakeImageDecoder:
+    """Returns a small solid-colour image and records decoded paths."""
+
+    def __init__(self, size: tuple[int, int] = (64, 48)) -> None:
+        self._size = size
+        self.decoded: list[Path] = []
 
     def decode(self, path: Path) -> Image.Image:
-        return Image.new("RGB", (64, 48), color=(200, 120, 40))
+        self.decoded.append(path)
+        return Image.new("RGB", self._size, color=(200, 120, 40))
 
 
 class FakeAnnotator:

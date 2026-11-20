@@ -31,8 +31,8 @@ class UnsupportedFormatError(MediaError):
     """The file format is not supported by the decoder."""
 
 
-class RawDecodeError(MediaError):
-    """A raw file could not be decoded into an image."""
+class ImageDecodeError(MediaError):
+    """A raw or regular image file could not be decoded."""
 
 
 class ExifReadError(MediaError):
