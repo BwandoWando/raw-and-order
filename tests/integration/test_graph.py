@@ -7,17 +7,18 @@ import pytest
 from langgraph.checkpoint.memory import InMemorySaver
 
 from my_agent.db.repository import SqlAlchemyPhotoRepository
-from my_agent.exceptions import BatchLimitExceededError
 from my_agent.graph.builder import PipelineNodes, build_graph
 from my_agent.graph.nodes import (
     AnnotateNode,
-    BatchLimitNode,
     DecodeNode,
     DiscoverNode,
     ExtractExifNode,
     FingerprintNode,
+    NextChunkNode,
     PerceptualHashNode,
     PersistNode,
+    RecordChunkNode,
+    SelectBatchNode,
     SkipUnchangedNode,
 )
 from my_agent.graph.state import Stage
@@ -45,12 +46,14 @@ def _pipeline(
         ),
         fingerprint=FingerprintNode(Sha256FileHasher()),
         skip_unchanged=SkipUnchangedNode(repository),
-        check_limit=BatchLimitNode(),
+        select_batch=SelectBatchNode(),
+        next_chunk=NextChunkNode(),
         extract_exif=ExtractExifNode(FakeExifReader(exif, fail_for=fail_exif_for)),
         decode=DecodeNode(FakeImageDecoder(), previews),
         perceptual_hash=PerceptualHashNode(DHasher(), previews),
         annotate=AnnotateNode(annotator, previews, ExifContextFormatter()),
         persist=PersistNode(repository, annotated_by="fake:model"),
+        record_chunk=RecordChunkNode(),
     )
     return PhotoPipeline(build_graph(nodes, InMemorySaver()), lambda: "run-test")
 
@@ -72,7 +75,7 @@ def test_processes_files_and_isolates_failures(
         tmp_path, repository, sample_exif, annotator, fail_exif_for=("bad.nef",)
     ).run(photos)
 
-    assert (summary.discovered, summary.saved) == (2, 1)
+    assert (summary.selected, summary.saved) == (2, 1)
     assert [f.path.name for f in summary.failed] == ["bad.nef"]
     assert summary.failed[0].error.stage is Stage.EXTRACT_EXIF
     assert repository.known_paths() == {photos / "good.nef"}
@@ -87,7 +90,7 @@ def test_second_run_skips_known_files_unless_reprocessing(
 
     pipeline.run(photos)
 
-    assert pipeline.run(photos).discovered == 0
+    assert pipeline.run(photos).selected == 0
     assert pipeline.run(photos, reprocess=True).saved == 1
 
 
@@ -158,7 +161,7 @@ def test_changed_file_is_reprocessed_unchanged_is_skipped(
     (photos / "a.nef").write_bytes(b"edited")
     summary = pipeline.run(photos)
 
-    assert (summary.discovered, summary.unchanged, summary.saved) == (1, 1, 1)
+    assert (summary.selected, summary.unchanged, summary.saved) == (1, 1, 1)
     record = repository.get_by_path(photos / "a.nef")
     assert record is not None
     assert record.sha256 == hashlib.sha256(b"edited").hexdigest()
@@ -179,30 +182,127 @@ def test_identical_copies_in_two_folders_are_both_stored(
     assert fingerprints == {hashlib.sha256(b"same bytes").hexdigest()}
 
 
-def test_over_limit_stops_before_any_work(
+def _names(repository: SqlAlchemyPhotoRepository) -> list[str]:
+    return sorted(path.name for path in repository.known_paths())
+
+
+def _make_distinct(root: Path, *names: str) -> Path:
+    """Photos with different contents (so each has its own SHA-256)."""
+    root.mkdir()
+    for name in names:
+        (root / name).write_bytes(name.encode())
+    return root
+
+
+# --- max photos: take the first X, defer the rest ------------------------------
+
+
+def test_takes_first_photos_by_path_and_defers_the_rest(
     tmp_path: Path, repository: SqlAlchemyPhotoRepository, sample_exif: ExifData
 ) -> None:
-    photos = _make_photos(tmp_path / "in", "a.nef", "b.nef", "c.nef")
-    annotator = FakeAnnotator()
-
-    with pytest.raises(BatchLimitExceededError, match=r"Found 3 photos.*limit of 2"):
-        _pipeline(tmp_path, repository, sample_exif, annotator).run(
-            photos, max_photos=2
-        )
-
-    assert annotator.calls == []
-    assert repository.known_paths() == set()
-    assert not (tmp_path / "previews").exists()
-
-
-def test_unchanged_files_do_not_count_towards_limit(
-    tmp_path: Path, repository: SqlAlchemyPhotoRepository, sample_exif: ExifData
-) -> None:
-    photos = _make_photos(tmp_path / "in", "a.nef", "b.nef")
+    photos = _make_distinct(tmp_path / "in", *(f"p{i}.nef" for i in range(7)))
     pipeline = _pipeline(tmp_path, repository, sample_exif, FakeAnnotator())
-    pipeline.run(photos, max_photos=2)
+
+    first = pipeline.run(photos, max_photos=3)
+    assert (first.selected, first.saved, first.deferred) == (3, 3, 4)
+    assert _names(repository) == ["p0.nef", "p1.nef", "p2.nef"]
+
+    second = pipeline.run(photos, max_photos=3)
+    assert (second.selected, second.unchanged, second.deferred) == (3, 3, 1)
+    assert _names(repository)[-1] == "p5.nef"
+
+    third = pipeline.run(photos, max_photos=3)
+    assert (third.selected, third.deferred) == (1, 0)
+    assert len(_names(repository)) == 7
+
+
+def test_unchanged_files_use_no_slots(
+    tmp_path: Path, repository: SqlAlchemyPhotoRepository, sample_exif: ExifData
+) -> None:
+    photos = _make_distinct(tmp_path / "in", "a.nef", "b.nef")
+    pipeline = _pipeline(tmp_path, repository, sample_exif, FakeAnnotator())
+    pipeline.run(photos)
     (photos / "c.nef").write_bytes(b"new photo")
 
     summary = pipeline.run(photos, max_photos=1)
 
-    assert (summary.saved, summary.unchanged) == (1, 2)
+    assert (summary.selected, summary.saved, summary.unchanged) == (1, 1, 2)
+    assert summary.deferred == 0
+
+
+# --- chunks --------------------------------------------------------------------
+
+
+def test_processes_in_chunks(
+    tmp_path: Path, repository: SqlAlchemyPhotoRepository, sample_exif: ExifData
+) -> None:
+    photos = _make_distinct(tmp_path / "in", *(f"p{i}.nef" for i in range(5)))
+    annotator = FakeAnnotator()
+
+    summary = _pipeline(tmp_path, repository, sample_exif, annotator).run(
+        photos, chunk_size=2
+    )
+
+    assert (summary.chunks, summary.saved, summary.failed) == (3, 5, [])
+    assert len(annotator.calls) == 5
+
+
+def test_chunk_where_every_photo_fails_does_not_stop_the_run(
+    tmp_path: Path, repository: SqlAlchemyPhotoRepository, sample_exif: ExifData
+) -> None:
+    photos = _make_distinct(tmp_path / "in", "a.nef", "b.nef", "c.nef", "d.nef")
+
+    summary = _pipeline(
+        tmp_path,
+        repository,
+        sample_exif,
+        FakeAnnotator(),
+        fail_exif_for=("a.nef", "b.nef"),
+    ).run(photos, chunk_size=2)
+
+    assert (summary.chunks, summary.saved) == (2, 2)
+    assert sorted(f.path.name for f in summary.failed) == ["a.nef", "b.nef"]
+    assert _names(repository) == ["c.nef", "d.nef"]
+
+
+def test_interrupted_run_keeps_finished_chunks_and_rerun_continues(
+    tmp_path: Path, repository: SqlAlchemyPhotoRepository, sample_exif: ExifData
+) -> None:
+    photos = _make_distinct(tmp_path / "in", *(f"p{i}.nef" for i in range(5)))
+    crashing = FakeAnnotator(crash_on_call=3)  # dies during chunk 2
+
+    with pytest.raises(RuntimeError, match="simulated crash"):
+        _pipeline(tmp_path, repository, sample_exif, crashing).run(photos, chunk_size=2)
+    assert _names(repository) == ["p0.nef", "p1.nef"]  # chunk 1 was saved
+
+    annotator = FakeAnnotator()
+    summary = _pipeline(tmp_path, repository, sample_exif, annotator).run(
+        photos, chunk_size=2
+    )
+    assert (summary.unchanged, summary.selected, summary.saved) == (2, 3, 3)
+    assert len(annotator.calls) == 3
+    assert len(_names(repository)) == 5
+
+
+def test_many_chunks_do_not_hit_langgraph_recursion_limit(
+    tmp_path: Path, repository: SqlAlchemyPhotoRepository, sample_exif: ExifData
+) -> None:
+    photos = _make_distinct(tmp_path / "in", *(f"p{i:02}.nef" for i in range(60)))
+
+    summary = _pipeline(tmp_path, repository, sample_exif, FakeAnnotator()).run(
+        photos, max_photos=60, chunk_size=1
+    )
+
+    assert (summary.chunks, summary.saved) == (60, 60)
+
+
+def test_empty_folder_finishes_cleanly(
+    tmp_path: Path, repository: SqlAlchemyPhotoRepository, sample_exif: ExifData
+) -> None:
+    (tmp_path / "in").mkdir()
+
+    summary = _pipeline(tmp_path, repository, sample_exif, FakeAnnotator()).run(
+        tmp_path / "in", chunk_size=2
+    )
+
+    assert (summary.selected, summary.chunks, summary.saved) == (0, 0, 0)

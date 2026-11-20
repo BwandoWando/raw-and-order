@@ -90,3 +90,17 @@ def test_max_photos_per_run_outside_range_is_rejected(
 
     with pytest.raises(ValidationError, match="max_photos_per_run"):
         Settings(_env_file=None)
+
+
+def test_chunk_size_defaults_to_25() -> None:
+    assert Settings(_env_file=None).chunk_size == 25
+
+
+@pytest.mark.parametrize("value", ["0", "2001"])
+def test_chunk_size_outside_range_is_rejected(
+    monkeypatch: pytest.MonkeyPatch, value: str
+) -> None:
+    monkeypatch.setenv("CHUNK_SIZE", value)
+
+    with pytest.raises(ValidationError, match="chunk_size"):
+        Settings(_env_file=None)

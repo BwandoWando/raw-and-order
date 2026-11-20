@@ -17,13 +17,15 @@ from my_agent.db.session import create_db_engine, create_session_factory
 from my_agent.graph.builder import PhotoGraph, PipelineNodes, build_graph
 from my_agent.graph.nodes import (
     AnnotateNode,
-    BatchLimitNode,
     DecodeNode,
     DiscoverNode,
     ExtractExifNode,
     FingerprintNode,
+    NextChunkNode,
     PerceptualHashNode,
     PersistNode,
+    RecordChunkNode,
+    SelectBatchNode,
     SkipUnchangedNode,
 )
 from my_agent.llm.annotator import LLMAnnotator
@@ -110,7 +112,8 @@ class Application:
             discover=DiscoverNode(discoverer, RawPairFilter(s.raw_extensions)),
             fingerprint=FingerprintNode(Sha256FileHasher()),
             skip_unchanged=SkipUnchangedNode(repository),
-            check_limit=BatchLimitNode(),
+            select_batch=SelectBatchNode(),
+            next_chunk=NextChunkNode(),
             extract_exif=ExtractExifNode(exif_reader),
             decode=DecodeNode(decoder, preview_store),
             perceptual_hash=PerceptualHashNode(DHasher(), preview_store),
@@ -120,6 +123,7 @@ class Application:
                 ExifContextFormatter(s.send_exif_to_llm, include_gps=not s.redact_gps),
             ),
             persist=PersistNode(repository, annotated_by=s.llm.label),
+            record_chunk=RecordChunkNode(),
         )
         return build_graph(nodes, self._open_checkpointer())
 

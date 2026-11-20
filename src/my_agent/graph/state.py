@@ -45,15 +45,39 @@ class PhotoItem(BaseModel):
         return self.error is None
 
 
+class FileFailure(BaseModel):
+    """A file that failed, kept after its chunk has been recorded."""
+
+    path: Path
+    error: FileError
+
+
 class GraphState(BaseModel):
-    """State shared by all nodes for one batch run."""
+    """State shared by all nodes for one run.
+
+    Planning steps (discover -> fingerprint -> skip_unchanged -> select_batch)
+    work on every candidate in ``items``. ``select_batch`` then moves the
+    photos to process into ``queue``, and the chunk loop works on one chunk
+    at a time in ``items``. Finished chunks are reduced to counts and
+    failures so checkpoints stay small.
+    """
 
     source_dir: Path
     reprocess: bool = False
     max_photos: int | None = Field(
-        default=None, description="Per-run limit; None means no limit."
+        default=None, description="Photos to process this run; None = all."
+    )
+    chunk_size: int | None = Field(
+        default=None, description="Photos saved per chunk; None = one chunk."
     )
     items: list[PhotoItem] = Field(default_factory=list)
+    queue: list[PhotoItem] = Field(default_factory=list)
+    selected: int = 0
+    deferred: int = Field(default=0, description="Left for a later run.")
+    chunk_index: int = 0
+    chunk_total: int = 0
+    saved_count: int = 0
+    failures: list[FileFailure] = Field(default_factory=list)
     skipped_pairs: list[Path] = Field(
         default_factory=list,
         description="Images skipped because a raw file of the same shot exists.",

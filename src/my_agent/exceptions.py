@@ -15,18 +15,6 @@ class ConfigurationError(MyAgentError):
     """Settings are invalid or a required external tool is unavailable."""
 
 
-class BatchLimitExceededError(MyAgentError):
-    """More photos need processing than the per-run limit allows."""
-
-    def __init__(self, count: int, limit: int) -> None:
-        super().__init__(
-            f"Found {count} photos to process, which is more than the limit of "
-            f"{limit}. Nothing was processed."
-        )
-        self.count = count
-        self.limit = limit
-
-
 class MediaError(MyAgentError):
     """A photo file could not be discovered, read or decoded."""
 

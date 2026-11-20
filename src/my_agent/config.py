@@ -25,6 +25,7 @@ DEFAULT_IMAGE_EXTENSIONS = frozenset(
 )
 DEFAULT_MAX_PHOTOS_PER_RUN = 500
 MAX_PHOTOS_HARD_LIMIT = 2000
+DEFAULT_CHUNK_SIZE = 25
 
 DEFAULT_DATE_SOURCES = (
     DateSource.EXIF_ORIGINAL,
@@ -92,7 +93,13 @@ class Settings(BaseSettings):
         default=DEFAULT_MAX_PHOTOS_PER_RUN,
         ge=1,
         le=MAX_PHOTOS_HARD_LIMIT,
-        description="Refuse to start if more photos than this need processing.",
+        description="Process at most this many photos per run; the rest wait.",
+    )
+    chunk_size: int = Field(
+        default=DEFAULT_CHUNK_SIZE,
+        ge=1,
+        le=MAX_PHOTOS_HARD_LIMIT,
+        description="Photos processed and saved together; limits interrupted work.",
     )
     send_exif_to_llm: bool = True
     redact_gps: bool = True

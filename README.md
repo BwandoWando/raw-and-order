@@ -36,6 +36,12 @@ Reorder or trim with `DATE_SOURCES` in `.env`.
 tags; numeric codes and placeholders are skipped), `lens_make`, and
 `lens_spec` (e.g. `24-70mm f/2.8`).
 
+**Batches and chunks:** each run takes the first `MAX_PHOTOS_PER_RUN` photos that
+still need work (sorted by path) and processes them `CHUNK_SIZE` at a time.
+Every chunk is saved before the next starts, so an interrupted run keeps all
+finished chunks. Run the same folder again to continue: saved photos are
+skipped as unchanged.
+
 A failure in one file is recorded against that file; the rest of the batch
 continues. Files already in the database are skipped unless `--reprocess`.
 
@@ -71,7 +77,8 @@ For Ollama, pull a vision model first, e.g. `ollama pull llama3.2-vision`.
 my-agent check                      # config valid, model reachable, supports images
 my-agent process /path/to/raws      # process new files
 my-agent process /path/to/raws --reprocess
-my-agent process /path/to/raws --max-photos 1500   # one-off higher limit (max 2000)
+my-agent process /path/to/raws --max-photos 1500   # up to 1500 photos this run (max 2000)
+my-agent process /path/to/raws --chunk-size 10     # save every 10 photos
 ```
 
 ## Configuration
@@ -86,7 +93,8 @@ All settings come from environment variables or `.env`
 | `LLM__API_KEY` | - | Required for OpenAI / Anthropic |
 | `DATABASE_URL` | `sqlite:///data/app.db` | App database (managed by Alembic) |
 | `CHECKPOINT_DB_PATH` | `data/checkpoints.db` | LangGraph checkpoints (separate DB) |
-| `MAX_PHOTOS_PER_RUN` | `500` | Stop before processing if more photos need work (1–2000; override per run with `--max-photos`) |
+| `MAX_PHOTOS_PER_RUN` | `500` | Process at most this many photos per run, first by path; the rest wait for the next run (1–2000; `--max-photos`) |
+| `CHUNK_SIZE` | `25` | Photos processed and saved together; an interruption loses at most one chunk (1–2000; `--chunk-size`) |
 | `SEND_EXIF_TO_LLM` | `true` | Send camera metadata as context |
 | `REDACT_GPS` | `true` | Never send GPS coordinates to the LLM |
 

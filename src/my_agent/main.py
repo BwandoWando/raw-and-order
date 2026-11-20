@@ -8,7 +8,7 @@ import typer
 
 from my_agent.bootstrap import Application, check_model
 from my_agent.config import MAX_PHOTOS_HARD_LIMIT, Settings, load_settings
-from my_agent.exceptions import BatchLimitExceededError, MyAgentError
+from my_agent.exceptions import MyAgentError
 from my_agent.logging_config import configure_logging
 from my_agent.pipeline import RunSummary
 
@@ -33,21 +33,33 @@ def process(
             min=1,
             max=MAX_PHOTOS_HARD_LIMIT,
             help=(
-                "Stop without processing if more photos than this need work. "
-                f"Default: MAX_PHOTOS_PER_RUN (500). Max {MAX_PHOTOS_HARD_LIMIT}."
+                "Process at most this many photos (first by path); the rest "
+                "wait for the next run. Default: MAX_PHOTOS_PER_RUN (500). "
+                f"Max {MAX_PHOTOS_HARD_LIMIT}."
+            ),
+        ),
+    ] = None,
+    chunk_size: Annotated[
+        int | None,
+        typer.Option(
+            "--chunk-size",
+            min=1,
+            max=MAX_PHOTOS_HARD_LIMIT,
+            help=(
+                "Photos processed and saved together; an interruption loses at "
+                "most one chunk. Default: CHUNK_SIZE (25)."
             ),
         ),
     ] = None,
 ) -> None:
-    """Process every new or changed photo in SOURCE_DIR."""
+    """Process new or changed photos in SOURCE_DIR, in chunks."""
     settings = _startup()
     limit = max_photos if max_photos is not None else settings.max_photos_per_run
+    chunk = chunk_size if chunk_size is not None else settings.chunk_size
     try:
         if not skip_model_check:
             check_model(settings.llm)
-        summary = _run(settings, source_dir, reprocess, limit)
-    except BatchLimitExceededError as exc:
-        _stop_over_limit(exc)
+        summary = _run(settings, source_dir, reprocess, limit, chunk)
     except MyAgentError as exc:
         _fail(exc)
     _print_summary(summary)
@@ -75,45 +87,37 @@ def _startup() -> Settings:
 
 
 def _run(
-    settings: Settings, source_dir: Path, reprocess: bool, max_photos: int
+    settings: Settings,
+    source_dir: Path,
+    reprocess: bool,
+    max_photos: int,
+    chunk_size: int,
 ) -> RunSummary:
     with Application(settings) as application:
         if application.pipeline is None:
             raise RuntimeError("Application did not build a pipeline")
         return application.pipeline.run(
-            source_dir, reprocess=reprocess, max_photos=max_photos
+            source_dir,
+            reprocess=reprocess,
+            max_photos=max_photos,
+            chunk_size=chunk_size,
         )
 
 
 def _print_summary(summary: RunSummary) -> None:
     typer.echo(
-        f"Run {summary.run_id}: {summary.discovered} found, "
+        f"Run {summary.run_id}: {summary.selected} processed in "
+        f"{summary.chunks} chunk(s) ({summary.saved} saved, "
+        f"{len(summary.failed)} failed), {summary.unchanged} unchanged, "
         f"{summary.skipped_pairs} skipped (RAW+JPEG pairs), "
-        f"{summary.unchanged} unchanged, "
-        f"{summary.saved} saved, {len(summary.failed)} failed."
+        f"{summary.deferred} remaining."
     )
     for failed in summary.failed:
         typer.echo(
             f"  FAILED [{failed.error.stage}] {failed.path}: {failed.error.message}"
         )
-
-
-def _stop_over_limit(exc: BatchLimitExceededError) -> NoReturn:
-    typer.echo(f"Stopped: {exc}", err=True)
-    if exc.limit < MAX_PHOTOS_HARD_LIMIT:
-        typer.echo(
-            "Process a smaller folder, or raise the limit with "
-            f"--max-photos N (up to {MAX_PHOTOS_HARD_LIMIT}) "
-            "or MAX_PHOTOS_PER_RUN in .env.",
-            err=True,
-        )
-    else:
-        typer.echo(
-            f"{MAX_PHOTOS_HARD_LIMIT} is the maximum per run; "
-            "split the folder into smaller ones.",
-            err=True,
-        )
-    raise typer.Exit(code=1) from exc
+    if summary.deferred:
+        typer.echo(f"{summary.deferred} photos are left; run again to continue.")
 
 
 def _fail(exc: MyAgentError) -> NoReturn:
