@@ -11,6 +11,7 @@ from pathlib import Path
 
 import streamlit as st
 
+from my_agent.analysis.tag_graph import build_tag_graph
 from my_agent.db.catalog import PhotoCatalog
 from my_agent.db.failure_repository import FailureRepository
 from my_agent.schemas import FailureRecord, PhotoRecord
@@ -21,8 +22,10 @@ from my_agent.schemas.query import (
     PhotoQuery,
     PhotoStats,
 )
+from my_agent.schemas.tags import TagGraph
 
 CACHE_TTL_S = 30  # pick up photos saved by a running pipeline
+PAGING_FIELDS = {"page", "page_size", "sort"}
 
 
 class CachedPhotoLibrary:
@@ -61,6 +64,20 @@ class CachedPhotoLibrary:
         """Return totals and breakdowns."""
         return _stats(self._catalog, self._key)
 
+    def tag_graph(
+        self, filters: PhotoQuery, top_n: int, min_strength: float
+    ) -> TagGraph:
+        """Return the network of the ``top_n`` most-used tags under ``filters``."""
+        # Paging and sort do not change the graph; reset them for more cache hits.
+        filters_only = PhotoQuery(**filters.model_dump(exclude=PAGING_FIELDS))
+        return _tag_graph(
+            self._catalog,
+            self._key,
+            filters_only.model_dump_json(),
+            top_n,
+            min_strength,
+        )
+
     def failures(self) -> list[FailureRecord]:
         """Return every logged failure."""
         return _failures(self._failures, self._key)
@@ -97,6 +114,18 @@ def _near_duplicates(
 @st.cache_data(ttl=CACHE_TTL_S, show_spinner=False)
 def _stats(_catalog: PhotoCatalog, key: str) -> PhotoStats:
     return _catalog.stats()
+
+
+@st.cache_data(ttl=CACHE_TTL_S, show_spinner=False)
+def _tag_graph(
+    _catalog: PhotoCatalog,
+    key: str,
+    filters_json: str,
+    top_n: int,
+    min_strength: float,
+) -> TagGraph:
+    tag_lists = _catalog.tag_lists(PhotoQuery.model_validate_json(filters_json))
+    return build_tag_graph(tag_lists, top_n, min_strength)
 
 
 @st.cache_data(ttl=CACHE_TTL_S, show_spinner=False)

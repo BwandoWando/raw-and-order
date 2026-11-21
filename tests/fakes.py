@@ -12,6 +12,7 @@ from langchain_core.runnables import Runnable, RunnableLambda
 from PIL import Image
 from pydantic import PrivateAttr
 
+from my_agent.analysis.tag_graph import build_tag_graph
 from my_agent.exceptions import ExifReadError, FingerprintError
 from my_agent.schemas import (
     Annotation,
@@ -27,6 +28,7 @@ from my_agent.schemas.query import (
     PhotoQuery,
     PhotoStats,
 )
+from my_agent.schemas.tags import TagGraph
 
 SAMPLE_ANNOTATION = Annotation(
     description="A mountain lake at sunset.",
@@ -194,6 +196,12 @@ class FakePhotoLibrary:
             by_camera=[],
             by_month=[],
         )
+
+    def tag_graph(
+        self, filters: PhotoQuery, top_n: int, min_strength: float
+    ) -> TagGraph:
+        tag_lists = [r.annotation.tags for r in self._records]
+        return build_tag_graph(tag_lists, top_n, min_strength)
 
     def failures(self) -> list[FailureRecord]:
         return list(self._failures)

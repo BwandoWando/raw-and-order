@@ -15,6 +15,7 @@ from my_agent.schemas.query import (
     PhotoQuery,
     PhotoStats,
 )
+from my_agent.schemas.tags import TagGraph
 
 
 class PhotoLibrary(Protocol):
@@ -38,6 +39,12 @@ class PhotoLibrary(Protocol):
 
     def stats(self) -> PhotoStats:
         """Return totals and breakdowns."""
+        ...
+
+    def tag_graph(
+        self, filters: PhotoQuery, top_n: int, min_strength: float
+    ) -> TagGraph:
+        """Return the network of the ``top_n`` most-used tags under ``filters``."""
         ...
 
     def failures(self) -> list[FailureRecord]:

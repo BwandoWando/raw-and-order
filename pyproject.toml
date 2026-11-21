@@ -26,7 +26,7 @@ ollama = ["langchain-ollama>=0.2"]
 openai = ["langchain-openai>=0.2"]
 anthropic = ["langchain-anthropic>=0.3"]
 heic = ["pillow-heif>=0.16"]
-ui = ["streamlit>=1.40"]
+ui = ["networkx>=3.3", "streamlit>=1.50"]
 all = ["my-agent[ollama,openai,anthropic,heic,ui]"]
 dev = [
     "mypy>=1.10",
@@ -85,7 +85,10 @@ plugins = ["pydantic.mypy"]
 mypy_path = "src"
 
 [[tool.mypy.overrides]]
-module = ["rawpy.*", "rawpy", "exiftool.*", "exiftool", "pandas", "pandas.*"]
+module = [
+    "rawpy.*", "rawpy", "exiftool.*", "exiftool", "pandas", "pandas.*",
+    "networkx", "networkx.*",
+]
 ignore_missing_imports = true
 
 # --------------------------------------------------------------------------- pytest

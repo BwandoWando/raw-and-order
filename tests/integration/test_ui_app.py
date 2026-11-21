@@ -99,7 +99,7 @@ def _captions(app: AppTest) -> list[str]:
 def test_gallery_lists_photos_and_all_tabs_render(app_with) -> None:  # type: ignore[no-untyped-def]
     app = app_with(3)
 
-    assert [tab.label for tab in app.tabs] == ["Gallery", "Failures", "Stats"]
+    assert [tab.label for tab in app.tabs] == ["Gallery", "TAGS", "Failures", "Stats"]
     assert "Showing 1–3 of 3 photos" in _captions(app)
     assert [m.value for m in app.metric] == [
         "3",

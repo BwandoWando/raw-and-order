@@ -119,6 +119,12 @@ my-agent ui --port 8600 --no-open-browser
   processing date. Click a photo (or **Details**) to see the large preview, description, tags,
   camera and lens settings, a map when the photo has GPS, its SHA-256 and dHash,
   and similar photos (dHash distance ≤ 10).
+- **TAGS:** a network of the most-used tags (20–100). Bubble size is the number
+  of photos; lines join tags that often appear together (Jaccard overlap above
+  the "Link strength" slider). Tags are grouped into clusters (Louvain
+  community detection), each drawn in its own colour and shape, and listed as
+  cards and in a table. Hover to highlight links, drag to rearrange, scroll to
+  zoom. The sidebar filters apply.
 - **Filters** (sidebar): text search over descriptions and tags, scene, tags
   (all of), people, camera, lens, capture-date range, white balance (K) range,
   GPS only, annotating model.

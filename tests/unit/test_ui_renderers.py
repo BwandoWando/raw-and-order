@@ -5,7 +5,7 @@ from pathlib import Path
 
 from streamlit.testing.v1 import AppTest
 
-from my_agent.schemas import ExifData, FailureRecord, PhotoRecord
+from my_agent.schemas import Annotation, ExifData, FailureRecord, PhotoRecord, SceneType
 from my_agent.ui.library import PhotoLibrary
 from tests.fakes import SAMPLE_ANNOTATION, FakePhotoLibrary
 
@@ -13,11 +13,11 @@ TIMEOUT_S = 30
 WHEN = datetime(2026, 11, 20, tzinfo=UTC)
 
 
-def _record(i: int) -> PhotoRecord:
+def _record(i: int, annotation: Annotation = SAMPLE_ANNOTATION) -> PhotoRecord:
     return PhotoRecord(
         path=Path(f"/photos/IMG_{i}.DNG"),
         exif=ExifData(model="GR IV"),
-        annotation=SAMPLE_ANNOTATION,
+        annotation=annotation,
         preview_path=Path(f"/missing/p{i}.jpg"),
         annotated_by="fake",
         processed_at=WHEN,
@@ -80,3 +80,40 @@ def test_refresh_button_asks_the_library_to_refresh() -> None:
     app.sidebar.button[0].click().run()
 
     assert library.refreshes == 1
+
+
+def _tagged(i: int, *tags: str) -> PhotoRecord:
+    annotation = Annotation(
+        description=f"Photo {i}.",
+        tags=list(tags),
+        scene=SceneType.STREET,
+        contains_people=False,
+    )
+    return _record(i, annotation)
+
+
+def test_tags_tab_draws_the_network_and_clusters() -> None:
+    photos = [_tagged(i, "city", "night", "neon") for i in range(3)]
+    photos += [_tagged(i + 3, "sea", "sand") for i in range(3)]
+    app = _app(FakePhotoLibrary(photos))
+
+    tags_tab = app.tabs[1]
+    assert tags_tab.label == "TAGS"
+    assert "**city · neon · night**" in [m.value for m in tags_tab.markdown]
+    assert any("5 most-used tags across 6 photos" in c.value for c in tags_tab.caption)
+
+
+def test_tags_tab_without_tags_shows_a_hint() -> None:
+    app = _app(FakePhotoLibrary([_tagged(0)]))
+
+    assert any("No tagged photos" in i.value for i in app.tabs[1].info)
+
+
+def test_tags_sliders_rebuild_the_graph() -> None:
+    photos = [_tagged(i, "a", "b") for i in range(3)] + [_tagged(9, "a", "c")]
+    app = _app(FakePhotoLibrary(photos))
+
+    app.slider(key="t_strength").set_value(0.5).run()
+
+    assert not app.exception
+    assert "**a · b**" in [m.value for m in app.tabs[1].markdown]

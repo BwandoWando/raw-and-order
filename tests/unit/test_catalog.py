@@ -227,3 +227,12 @@ def test_white_balance_options_and_buckets(catalog: SqlAlchemyPhotoCatalog) -> N
         ("4500", 0),
         ("5000", 1),
     ]
+
+
+def test_tag_lists_follow_the_filters(catalog: SqlAlchemyPhotoCatalog) -> None:
+    everything = catalog.tag_lists(PhotoQuery())
+    with_people = catalog.tag_lists(PhotoQuery(contains_people=True))
+
+    assert ["sunset", "beach", "sky"] in everything
+    assert len(everything) == len(_names(catalog))
+    assert sorted(map(tuple, with_people)) == [("city", "sunset-ish"), ("person",)]

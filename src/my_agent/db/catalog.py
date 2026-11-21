@@ -61,6 +61,10 @@ class PhotoCatalog(Protocol):
         """Return totals and breakdowns."""
         ...
 
+    def tag_lists(self, query: PhotoQuery) -> list[list[str]]:
+        """Return the tags of every photo matching ``query``'s filters."""
+        ...
+
 
 class SqlAlchemyPhotoCatalog:
     """:class:`PhotoCatalog` backed by SQLAlchemy.
@@ -123,6 +127,16 @@ class SqlAlchemyPhotoCatalog:
                 kelvin_min=kelvin_min,
                 kelvin_max=kelvin_max,
             )
+
+    def tag_lists(self, query: PhotoQuery) -> list[list[str]]:
+        """Return the tags of every photo matching ``query``'s filters.
+
+        Raises:
+            PersistenceError: If the query fails.
+        """
+        statement = apply_filters(select(PhotoRow.tags), query)
+        with self._read() as session:
+            return [list(tags) for tags in session.scalars(statement)]
 
     def get(self, path: Path) -> PhotoRecord | None:
         """Return one photo by path.

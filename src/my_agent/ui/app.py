@@ -17,6 +17,7 @@ from my_agent.ui.filters import render_filters
 from my_agent.ui.gallery import render_gallery
 from my_agent.ui.library import PhotoLibrary
 from my_agent.ui.stats import render_stats
+from my_agent.ui.tags import render_tags
 
 
 @st.cache_resource(show_spinner=False)
@@ -36,9 +37,12 @@ def main(library: PhotoLibrary) -> None:
     st.sidebar.button("↻ Refresh data", on_click=library.refresh, width="stretch")
     filters = render_filters(options)
 
-    gallery_tab, failures_tab, stats_tab = st.tabs(["Gallery", "Failures", "Stats"])
+    gallery_tab, tags_tab, failures_tab, stats_tab = st.tabs(
+        ["Gallery", "TAGS", "Failures", "Stats"]
+    )
     renderers: list[tuple[DeltaGenerator, Callable[[], None]]] = [
         (gallery_tab, partial(render_gallery, filters, library)),
+        (tags_tab, partial(render_tags, filters, library)),
         (failures_tab, partial(render_failures, library)),
         (stats_tab, partial(render_stats, library)),
     ]
