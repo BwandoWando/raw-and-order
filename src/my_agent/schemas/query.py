@@ -7,7 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from my_agent.schemas.photo import PhotoRecord
 
-PAGE_SIZES = (24, 48, 72, 96)
+PAGE_SIZES = (24, 48, 72, 99)
 
 
 class SortOrder(StrEnum):

@@ -27,7 +27,7 @@ from my_agent.schemas.query import (
 from my_agent.schemas.tags import TagGraph
 
 CACHE_TTL_S = 30  # pick up photos saved by a running pipeline
-THUMBNAIL_CACHE_ENTRIES = 3000  # about 30 full pages of 96
+THUMBNAIL_CACHE_ENTRIES = 3000  # about 30 full pages of 99
 PAGING_FIELDS = {"page", "page_size", "sort"}
 
 

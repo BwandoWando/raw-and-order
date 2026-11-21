@@ -203,10 +203,10 @@ Stop it with Ctrl+C. In VS Code, the **Streamlit UI** debug configuration in
   (all of), people, camera, lens, capture-date range, white balance (K) range,
   GPS only, annotating model. They apply to the Gallery and Tags tabs.
 
-- **Gallery:** a thumbnail grid (24 / 48 / 72 / 96 per page) sized so
+- **Gallery:** a thumbnail grid (24 / 48 / 72 / 99 per page) sized so
   a whole page fits on one screen, with the pager below it. Tiles shrink as the
   page size grows and follow the window when you resize it. The page size is
-  kept in the URL (`?g_page_size=96`), so you can bookmark it. Hover a photo
+  kept in the URL (`?g_page_size=99`), so you can bookmark it. Hover a photo
   for its date and scene; click it to see the large preview, description, tags,
   camera and lens settings, a map when the photo has GPS, its SHA-256 and pHash,
   exact copies of it stored elsewhere ("Also stored at"), and similar photos.

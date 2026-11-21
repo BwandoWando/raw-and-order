@@ -195,8 +195,8 @@ def test_page_sizes_and_tooltips_show_captions(
 ) -> None:
     app = app_with(3)
 
-    assert list(app.selectbox(key="g_page_size").options) == ["24", "48", "72", "96"]
-    app.selectbox(key="g_page_size").select(96).run()
+    assert list(app.selectbox(key="g_page_size").options) == ["24", "48", "72", "99"]
+    app.selectbox(key="g_page_size").select(99).run()
     assert "Showing 1–3 of 3 photos" in _captions(app)
     button = app.button(key=open_button_key(tmp_path / "IMG_0.ARW"))
     assert button.help == "2026-01-11 · landscape"
