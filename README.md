@@ -224,6 +224,10 @@ Stop it with Ctrl+C. In VS Code, the **Streamlit UI** debug configuration in
 - **Failures:** the `processing_failures` log, filterable by stage.
 - **Stats:** totals (including copies skipped) and photos by scene, lens,
   capture month and white balance.
+- **Light and dark theme:** switch with the ⋮ menu at the top right (System /
+  Light / Dark); the choice is remembered in the browser. The dark theme is a
+  neutral graphite, as in photo editors, so photos keep their true colours.
+  Both themes are defined in `src/my_agent/ui/theme.toml`.
 
 The UI only reads the database, so it is safe to keep open during a processing
 run (press **Refresh data** to see new photos). It listens on `localhost` only

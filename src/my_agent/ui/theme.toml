@@ -1,0 +1,36 @@
+# Streamlit theme for the photo browser: light and dark, switchable from the
+# top-right menu (System / Light / Dark). Loaded with `--theme.base=<this file>` by
+# `my-agent ui`, and through `.streamlit/config.toml` for `streamlit run`.
+
+[theme]
+# Tighter than the default so a full gallery page fits on one screen. The
+# top-right menu bar (60 px) sits above this padding, so 0 starts the page
+# right under it.
+paddingTop = "0rem"
+paddingBottom = "1rem"
+
+[theme.light]
+# Streamlit 1.67's built-in light theme, pinned so it stays as it was.
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F8F8F7"
+textColor = "#2F2D2B"
+primaryColor = "#C53948"
+
+[theme.dark]
+# Neutral graphite, as in photo editors: no colour cast, so photos look
+# true. Contrast (WCAG): text 13.4:1 on the background, the accent 3.7:1
+# on the background and 4.5:1 under white button text. The chart and tag
+# network colours were checked against this background too.
+backgroundColor = "#1E1E1E"
+secondaryBackgroundColor = "#2B2B2B"
+textColor = "#E6E6E6"
+primaryColor = "#D04451"
+borderColor = "#3D3D3D"
+codeBackgroundColor = "#252525"
+dataframeBorderColor = "#333333"
+dataframeHeaderBackgroundColor = "#262626"
+
+[theme.dark.sidebar]
+# Slightly darker than the main area, like an editor's side panels.
+backgroundColor = "#181818"
+secondaryBackgroundColor = "#262626"

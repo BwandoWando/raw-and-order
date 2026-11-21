@@ -16,8 +16,9 @@ OPEN_KEY_PREFIX = "thumbopen-"  # the overlay button itself (distinct prefix)
 GRID_KEY = "gallery-grid"
 # Height of everything on the page that is not the grid (title, tabs, sort
 # row, "Showing" caption, pager and page padding), so the grid fills the rest.
-# Measured at 371 px with the padding set in .streamlit/config.toml.
-CHROME_REM = 23.5
+# Height of everything but the tiles (title, tabs, controls, pager, menu bar),
+# measured with the padding in ui/theme.toml.
+CHROME_REM = 25.25
 ROW_GAP_REM = 0.25
 
 

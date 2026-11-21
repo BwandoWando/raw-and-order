@@ -7,15 +7,15 @@
 address = "localhost"
 
 [client]
-# Hide the "Deploy" button: this app is for local use only.
-toolbarMode = "minimal"
+# Show the top-right menu (System / Light / Dark theme switch) but hide
+# developer items such as "Deploy": this app is for local use only.
+toolbarMode = "viewer"
 
 [browser]
 # Streamlit sends usage statistics unless this is off.
 gatherUsageStats = false
 
 [theme]
-# Tighter than the default so a full gallery page fits on one screen
-# (`my-agent ui` passes the same values on the command line).
-paddingTop = "2rem"
-paddingBottom = "1rem"
+# Light and dark themes plus page padding (`my-agent ui` passes the same file).
+# The path is relative to the folder `streamlit run` is started from.
+base = "src/my_agent/ui/theme.toml"

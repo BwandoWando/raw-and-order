@@ -57,9 +57,8 @@
                 "run", "src/my_agent/ui/app.py",
                 "--server.address", "localhost",
                 "--browser.gatherUsageStats", "false",
-                "--client.toolbarMode", "minimal",
-                "--theme.paddingTop", "2rem",
-                "--theme.paddingBottom", "1rem",
+                "--client.toolbarMode", "viewer",
+                "--theme.base", "${workspaceFolder}/src/my_agent/ui/theme.toml",
                 "--server.runOnSave", "true"
             ],
             "cwd": "${workspaceFolder}",

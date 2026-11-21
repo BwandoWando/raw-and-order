@@ -1,3 +1,4 @@
+import tomllib
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -21,7 +22,7 @@ from my_agent.ui.formatting import (
     format_exposure,
     format_white_balance,
 )
-from my_agent.ui.launcher import APP_PATH, streamlit_command
+from my_agent.ui.launcher import APP_PATH, THEME_PATH, streamlit_command
 
 
 @pytest.mark.parametrize(
@@ -77,9 +78,8 @@ def test_streamlit_command_binds_localhost_without_telemetry() -> None:
         "--server.address": "localhost",
         "--server.port": "8600",
         "--browser.gatherUsageStats": "false",
-        "--client.toolbarMode": "minimal",
-        "--theme.paddingTop": "2rem",
-        "--theme.paddingBottom": "1rem",
+        "--client.toolbarMode": "viewer",
+        "--theme.base": str(THEME_PATH),
         "--server.headless": "true",
     }
 
@@ -145,3 +145,10 @@ def test_format_white_balance(exif: ExifData, expected: str | None) -> None:
 def test_escape_markdown_keeps_file_names_literal() -> None:
     assert escape_markdown("IMG_0001 [v2].jpg") == r"IMG\_0001 \[v2\]\.jpg"
     assert escape_markdown("/a:b*c") == r"/a\:b\*c"
+
+
+def test_theme_file_defines_light_and_dark() -> None:
+    theme = tomllib.loads(THEME_PATH.read_text())["theme"]
+
+    assert {"light", "dark"} <= theme.keys()  # both -> the switch is shown
+    assert (theme["paddingTop"], theme["paddingBottom"]) == ("0rem", "1rem")

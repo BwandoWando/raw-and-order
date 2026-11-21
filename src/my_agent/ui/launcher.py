@@ -7,10 +7,12 @@ from pathlib import Path
 from my_agent.exceptions import ConfigurationError
 
 APP_PATH = Path(__file__).with_name("app.py")
+# Light and dark themes plus the page padding (see the file).
+THEME_PATH = Path(__file__).with_name("theme.toml")
 DEFAULT_PORT = 8501
-# Tighter than Streamlit's default so a full gallery page fits on one screen.
-PADDING_TOP = "2rem"
-PADDING_BOTTOM = "1rem"
+# "viewer" shows the top-right menu (System / Light / Dark theme switch) but
+# hides developer items such as Rerun and Deploy.
+TOOLBAR_MODE = "viewer"
 
 
 def streamlit_command(port: int = DEFAULT_PORT, open_browser: bool = True) -> list[str]:
@@ -34,11 +36,9 @@ def streamlit_command(port: int = DEFAULT_PORT, open_browser: bool = True) -> li
         "--browser.gatherUsageStats",
         "false",
         "--client.toolbarMode",
-        "minimal",
-        "--theme.paddingTop",
-        PADDING_TOP,
-        "--theme.paddingBottom",
-        PADDING_BOTTOM,
+        TOOLBAR_MODE,
+        "--theme.base",
+        str(THEME_PATH),
         "--server.headless",
         "false" if open_browser else "true",
     ]
