@@ -5,7 +5,14 @@ from pathlib import Path
 
 from streamlit.testing.v1 import AppTest
 
-from my_agent.schemas import Annotation, ExifData, FailureRecord, PhotoRecord, SceneType
+from my_agent.schemas import (
+    Annotation,
+    ExifData,
+    FailureRecord,
+    GpsCoordinate,
+    PhotoRecord,
+    SceneType,
+)
 from my_agent.ui.gallery import open_button_key
 from my_agent.ui.library import PhotoLibrary
 from tests.fakes import SAMPLE_ANNOTATION, FakePhotoLibrary
@@ -65,6 +72,17 @@ def test_details_dialog_reads_from_the_library() -> None:
 
     assert not app.exception
     assert f"**{SAMPLE_ANNOTATION.description}**" in [m.value for m in app.markdown]
+
+
+def test_details_put_long_sections_in_tabs() -> None:
+    gps = GpsCoordinate(latitude=14.6, longitude=121.0)
+    located = _record(1).model_copy(update={"exif": ExifData(gps=gps)})
+    app = _app(FakePhotoLibrary([_record(0), located]))
+
+    app.button(key=open_button_key(_record(0).path)).click().run()
+    assert [t.label for t in app.tabs][-2:] == ["Similar photos", "Files"]
+    app.button(key=open_button_key(located.path)).click().run()
+    assert [t.label for t in app.tabs][-3:] == ["Similar photos", "Location", "Files"]
 
 
 def test_failures_and_stats_tabs_use_the_library() -> None:
@@ -127,6 +145,6 @@ def test_details_list_exact_copies() -> None:
     app.button(key=open_button_key(Path("/photos/IMG_0.DNG"))).click().run()
 
     assert not app.exception
-    assert "Also stored at" in [s.value for s in app.subheader]
+    assert any(c.value.startswith("Also stored at") for c in app.caption)
     assert str(copy) in [c.value for c in app.code]
     assert [m.value for m in app.metric][3] == "1"  # copies skipped
