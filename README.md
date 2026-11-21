@@ -1,12 +1,19 @@
-# my-agent
+# Raw photos cataloguer (`my-agent`)
 
-An ordered workflow that reads camera raw files and regular images, extracts
-EXIF metadata, creates an upright preview, asks a vision LLM to annotate it,
-and stores everything in SQLite.
+Catalogues a folder of camera raw files and regular images. It extracts EXIF
+metadata, makes an upright JPEG preview, asks a vision LLM (local Ollama,
+OpenAI or Anthropic) for a description and tags, and stores everything in
+SQLite. A local Streamlit app lets you browse, filter and explore the
+catalogue. The Python package and command are both called `my-agent`.
+
+Each run is a plain ordered workflow (`workflow/runner.py`):
 
 ```
-discover ─▶ extract_exif ─▶ decode ─▶ annotate ─▶ persist
+plan:     discover ─▶ fingerprint ─▶ skip_known ─▶ select_batch
+per chunk: extract_exif ─▶ decode ─▶ perceptual_hash ─▶ annotate ─▶ persist
 ```
+
+`--reprocess-failed` starts from the failure log instead of `discover`.
 
 **Supported files**
 - Raw (via LibRaw): CR2, CR3, NEF, ARW, RAF, ORF, RW2, DNG (`RAW_EXTENSIONS`)
@@ -45,6 +52,12 @@ called, so it is fast (about 15 s for 1,000 photos). Use it after an update adds
 or fixes EXIF fields. Missing files are listed and skipped. Previews stay in
 their original `YYYYMMDD` folder even if a corrected date differs.
 
+**Fingerprints:** every file gets a SHA-256 of its contents and a 64-bit
+perceptual hash (dHash) of its preview. A stored photo is skipped while its
+SHA-256 is unchanged, so edited files are processed again automatically and
+`--reprocess` forces everything. The dHash finds near-duplicates (Hamming
+distance ≤ 10), shown as "Similar photos" in the UI.
+
 **Lens:** `lens_model` (exiftool's lens database, then EXIF/maker-note/XMP lens
 tags; numeric codes and placeholders are skipped), `lens_make`, and
 `lens_spec` (e.g. `24-70mm f/2.8`).
@@ -67,53 +80,104 @@ is removed from the log.
 unreachable, bad API key, still rate-limited or failing after retries), the run
 stops at once with one message and exit code 1. No photo is logged as failed;
 photos saved in earlier chunks are kept, and running the same command again
-continues. Errors about one image (e.g. HTTP 400/413) are still logged per photo. Files already in the database are skipped unless `--reprocess`.
+continues. Errors about one image (e.g. HTTP 400/413) are still logged per
+photo. After `MAX_CONSECUTIVE_FAILURES` annotation failures in a row the run
+also stops, since that usually means the model is misbehaving.
 
 ## Requirements
 
-- Python 3.11+
-- [exiftool](https://exiftool.org/) **12.15 or newer** (`exiftool -ver`). Ubuntu 20.04's
-  apt package is 11.88, which is too old. Install a current release without sudo:
-  ```bash
-  V=$(curl -fsS https://exiftool.org/ver.txt)
-  curl -fsSL "https://github.com/exiftool/exiftool/archive/refs/tags/$V.tar.gz" \
-    | tar -xz -C ~/.local/opt
-  ln -sf ~/.local/opt/exiftool-$V/exiftool ~/.local/bin/exiftool
-  ```
-- An LLM: a local [Ollama](https://ollama.com/) vision model, or an OpenAI or
-  Anthropic API key
+| What | Version | Notes |
+|---|---|---|
+| Python | 3.11+ | Developed and tested on 3.12 in a conda env |
+| [exiftool](https://exiftool.org/) | **12.15+** | Must be on `PATH`; check with `exiftool -ver` |
+| An LLM with vision | - | A local [Ollama](https://ollama.com/) model (tested with Ollama 0.32 and `gemma3:12b`), or an OpenAI or Anthropic API key |
+| Git | - | To clone the repository |
 
-## Setup
+LibRaw (raw decoding) comes bundled with the `rawpy` wheel and HEIC support
+with `pillow-heif`, so they need no system packages. Ollama runs on CPU, but a
+GPU makes annotation much faster.
+
+**exiftool:** Ubuntu 20.04's apt package is 11.88, which is too old. Install a
+current release without sudo:
 
 ```bash
-conda create -n my-agent python=3.12 && conda activate my-agent
-pip install -e ".[dev,ollama]"      # or [dev,openai], [dev,anthropic], [dev,all]
-cp .env.example .env                # then edit
-alembic upgrade head                # create / migrate the database
-pre-commit install                  # lint + type-check on every commit
+mkdir -p ~/.local/opt ~/.local/bin
+V=$(curl -fsS https://exiftool.org/ver.txt)
+curl -fsSL "https://github.com/exiftool/exiftool/archive/refs/tags/$V.tar.gz" \
+  | tar -xz -C ~/.local/opt
+ln -sf ~/.local/opt/exiftool-$V/exiftool ~/.local/bin/exiftool
+exiftool -ver       # if not found, add ~/.local/bin to PATH
 ```
 
-For Ollama, pull a vision model first, e.g. `ollama pull llama3.2-vision`.
+## Installation
+
+```bash
+git clone git@github.com:BwandoWando/raw-photos-cataloguer.git
+cd raw-photos-cataloguer
+
+conda create -n my-agent python=3.12 && conda activate my-agent
+conda env config vars set PYTHONNOUSERSITE=1   # ignore packages in ~/.local
+conda deactivate && conda activate my-agent    # apply it
+
+pip install -e ".[dev,ollama,heic,ui]"
+cp .env.example .env                # then edit (model, provider, limits)
+alembic upgrade head                # create / migrate data/app.db
+pre-commit install                  # optional: lint + type-check on commit
+```
+
+Extras: `ollama`, `openai`, `anthropic` (one per LLM provider), `heic` (HEIC/HEIF
+images), `ui` (Streamlit browser; needs Streamlit 1.67+), `dev` (tests and
+linters) and `all` (every provider, `heic` and `ui`).
+
+`PYTHONNOUSERSITE=1` stops Python from also loading packages installed with
+`pip install --user`, which can shadow the env's own versions.
+
+**Pick a model.** For Ollama, pull a vision model and set it in `.env`:
+
+```bash
+ollama pull gemma3:12b              # LLM__MODEL=gemma3:12b (also gemma3:4b, gemma3:27b)
+my-agent check                      # config valid, model reachable, supports images
+```
+
+`llama3.2-vision` fails to load on recent Ollama versions ("unknown model
+architecture: 'mllama'"), so use `gemma3` or another vision model. For OpenAI
+or Anthropic, set `LLM__PROVIDER`, `LLM__MODEL` and `LLM__API_KEY` instead (see
+`.env.example`).
+
+Whenever you pull new code, run `pip install -e ".[dev,ollama,heic,ui]"` and
+`alembic upgrade head` again in case dependencies or tables changed.
 
 ## Usage
 
 ```bash
 my-agent check                      # config valid, model reachable, supports images
-my-agent process /path/to/raws      # process new files
-my-agent process /path/to/raws --reprocess
-my-agent process /path/to/raws --reprocess-failed   # retry only logged failures
-my-agent process /path/to/raws --reread-exif        # refresh EXIF of stored photos (no LLM)
-my-agent process /path/to/raws --max-photos 1500   # up to 1500 photos this run (max 5000)
-my-agent process /path/to/raws --chunk-size 10     # save every 10 photos
+my-agent process /path/to/photos    # process new and changed files
+my-agent process /path/to/photos --reprocess          # process everything again
+my-agent process /path/to/photos --reprocess-failed   # retry only logged failures
+my-agent process /path/to/photos --reread-exif        # refresh EXIF of stored photos (no LLM)
+my-agent process /path/to/photos --max-photos 1500    # up to 1500 photos this run (max 5000)
+my-agent process /path/to/photos --chunk-size 10      # save every 10 photos
+my-agent process /path/to/photos --skip-model-check   # skip the startup LLM check
 ```
+
+Folders are searched recursively. Each run prints a summary: photos processed
+(saved and failed), unchanged, previously failed, RAW+JPEG pairs skipped, and
+how many remain for the next run.
+`python -m my_agent` works the same as `my-agent`.
 
 ## Photo browser (Streamlit)
 
 ```bash
-pip install -e ".[ui]"     # once
-my-agent ui                # opens http://localhost:8501
+my-agent ui                # opens http://localhost:8501 (needs the ui extra)
 my-agent ui --port 8600 --no-open-browser
 ```
+
+Stop it with Ctrl+C. In VS Code, the **Streamlit UI** debug configuration in
+`.vscode/launch.json` runs it with breakpoints.
+
+- **Filters** (sidebar): text search over descriptions and tags, scene, tags
+  (all of), people, camera, lens, capture-date range, white balance (K) range,
+  GPS only, annotating model. They apply to the Gallery and Tags tabs.
 
 - **Gallery:** thumbnail grid (24 / 48 / 72 / 96 per page), sorted by capture or
   processing date. Click a photo (or **Details**) to see the large preview, description, tags,
@@ -125,9 +189,6 @@ my-agent ui --port 8600 --no-open-browser
   community detection), each drawn in its own colour and shape, and listed as
   cards and in a table. Hover to highlight links, drag to rearrange, scroll to
   zoom. The sidebar filters apply.
-- **Filters** (sidebar): text search over descriptions and tags, scene, tags
-  (all of), people, camera, lens, capture-date range, white balance (K) range,
-  GPS only, annotating model.
 - **Failures:** the `processing_failures` log, filterable by stage.
 - **Stats:** totals and photos by scene, lens, capture month and white balance.
 
@@ -142,16 +203,31 @@ All settings come from environment variables or `.env`
 
 | Setting | Default | Purpose |
 |---|---|---|
+| **LLM** | | |
 | `LLM__PROVIDER` | `ollama` | `ollama`, `openai` or `anthropic` |
-| `LLM__MODEL` | `llama3.2-vision` | Model name for the provider |
+| `LLM__MODEL` | `gemma3:12b` | Model name for the provider |
+| `LLM__BASE_URL` | provider default | e.g. `http://localhost:11434` for Ollama |
 | `LLM__API_KEY` | - | Required for OpenAI / Anthropic |
-| `DATABASE_URL` | `sqlite:///data/app.db` | App database (managed by Alembic) |
+| `LLM__TEMPERATURE` | provider default | Sampling temperature |
+| `LLM__TIMEOUT_SECONDS` | `120` | Per-request timeout (`.env.example` uses `300` for local models) |
+| `LLM__MAX_RETRIES` | `3` | Attempts for transient provider errors |
+| `LLM__MAX_OUTPUT_FIX_ATTEMPTS` | `2` | Attempts to get output that matches the annotation schema |
+| **Runs** | | |
 | `MAX_PHOTOS_PER_RUN` | `500` | Process at most this many photos per run, first by path; the rest wait for the next run (1–5000; `--max-photos`) |
 | `CHUNK_SIZE` | `25` | Photos processed and saved together; an interruption loses at most one chunk (1–5000; `--chunk-size`) |
 | `MAX_CONSECUTIVE_FAILURES` | `10` | Stop a run after this many annotation failures in a row (`0` = never) |
 | `MAX_TAGS` | `20` | Most tags the LLM may give one photo (1–50); sets both the prompt and the validation |
+| `DATE_SOURCES` | `exif_original,xmp,exif_create,filename` | Capture-date sources, in order |
 | `SEND_EXIF_TO_LLM` | `true` | Send camera metadata as context |
 | `REDACT_GPS` | `true` | Never send GPS coordinates to the LLM |
+| **Files and storage** | | |
+| `DATABASE_URL` | `sqlite:///data/app.db` | App database (managed by Alembic) |
+| `PREVIEW_DIR` | `data/previews` | Where preview JPEGs are written |
+| `PREVIEW_MAX_PX` | `1024` | Longest side of a preview, in pixels |
+| `PREVIEW_QUALITY` | `85` | JPEG quality of previews (1–100) |
+| `RAW_EXTENSIONS` | CR2, CR3, NEF, ARW, RAF, ORF, RW2, DNG | Files decoded as raw |
+| `IMAGE_EXTENSIONS` | JPG, JPEG, PNG, TIF, TIFF, WebP, HEIC, HEIF | Files decoded with Pillow |
+| `LOG_LEVEL` | `INFO` | `DEBUG`, `INFO`, `WARNING` or `ERROR` |
 
 ## Project layout
 
@@ -161,12 +237,15 @@ src/my_agent/
 ├── bootstrap.py      composition root: the only place concrete classes are built
 ├── config.py         pydantic-settings
 ├── exceptions.py     domain exception hierarchy
-├── pipeline.py       runs the graph, builds the run summary
+├── pipeline.py       runs the workflow, builds the run summary
+├── exif_reread.py    --reread-exif: refresh EXIF columns of stored photos
 ├── workflow/         state, steps (nodes/), routing, ordered runner
-├── media/            discovery, exiftool, rawpy, previews (no LLM code)
+├── media/            discovery, exiftool, rawpy/Pillow decoding, previews, hashing
 ├── llm/              provider factory, capability check, annotator, prompts
 ├── schemas/          Pydantic models shared across layers
-└── db/               SQLAlchemy models, session, repository
+├── db/               SQLAlchemy models, session, repositories, read-only catalog
+├── analysis/         pure computations (tag network and clusters)
+└── ui/               Streamlit app; renderers receive a PhotoLibrary
 migrations/           Alembic
 tests/                unit/ and integration/, using injected fakes
 ```
@@ -174,8 +253,13 @@ tests/                unit/ and integration/, using injected fakes
 ## Development
 
 ```bash
-pytest                    # tests
-ruff check . && ruff format .
-mypy src tests
-alembic revision --autogenerate -m "describe change"   # after editing db/models.py
+ruff format . && ruff check . && mypy src tests && pytest   # all must pass
+alembic revision --autogenerate -m "describe change"       # after editing db/models.py
 ```
+
+Tests never touch your real `data/`: a fixture points the database, previews
+and LLM at throwaway locations. Coding rules: PEP 8 via Ruff (line length 88),
+strict mypy, Pure DI (constructor injection; only `bootstrap.py` builds
+concrete classes), single-responsibility steps, and only the domain exceptions
+in `exceptions.py`. VS Code debug configurations for the CLI, the current test
+file and the UI are in `.vscode/launch.json`.

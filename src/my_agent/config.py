@@ -48,7 +48,7 @@ class LLMSettings(BaseModel):
     """Which model to use and how to reach it."""
 
     provider: LLMProvider = LLMProvider.OLLAMA
-    model: str = "llama3.2-vision"
+    model: str = "gemma3:12b"
     base_url: str | None = None
     api_key: SecretStr | None = None
     temperature: float | None = None
@@ -78,7 +78,6 @@ class Settings(BaseSettings):
     )
 
     log_level: str = "INFO"
-    data_dir: Path = Path("data")
     database_url: str = "sqlite:///data/app.db"
     preview_dir: Path = Path("data/previews")
     preview_max_px: int = Field(default=1024, ge=64)

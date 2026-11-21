@@ -37,7 +37,7 @@ class OllamaCapabilityChecker:
         if "vision" not in capabilities:
             raise ConfigurationError(
                 f"Ollama model '{model}' does not support images. "
-                "Use a vision model such as llama3.2-vision, qwen2.5vl or gemma3."
+                "Use a vision model such as gemma3, qwen2.5vl or llava."
             )
 
     def _fetch_capabilities(self, model: str) -> list[str]:

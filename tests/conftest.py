@@ -23,7 +23,6 @@ def isolate_from_real_settings(
     points at a closed local port, so an accidental call fails fast.
     """
     base = tmp_path_factory.mktemp("isolated")
-    monkeypatch.setenv("DATA_DIR", str(base))
     monkeypatch.setenv("DATABASE_URL", f"sqlite:///{base / 'app.db'}")
     monkeypatch.setenv("PREVIEW_DIR", str(base / "previews"))
     monkeypatch.setenv("LLM__PROVIDER", "ollama")
