@@ -1,4 +1,4 @@
-# Raw photos cataloguer (`my-agent`)
+# Raw and Order
 
 Catalogues a folder of camera raw files and regular images. It extracts EXIF
 metadata, makes an upright JPEG preview, asks a vision LLM (local Ollama,
