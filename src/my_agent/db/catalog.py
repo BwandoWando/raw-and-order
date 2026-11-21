@@ -66,6 +66,10 @@ class PhotoCatalog(Protocol):
         """Return the tags of every photo matching ``query``'s filters."""
         ...
 
+    def matching(self, query: PhotoQuery) -> list[PhotoRecord]:
+        """Return every photo matching ``query``'s filters, in its sort order."""
+        ...
+
     def copies_of(self, path: Path) -> list[Path]:
         """Return the exact copies found of the photo at ``path``."""
         ...
@@ -101,6 +105,16 @@ class SqlAlchemyPhotoCatalog:
         return PhotoPage(
             items=items, total=total, page=query.page, page_size=query.page_size
         )
+
+    def matching(self, query: PhotoQuery) -> list[PhotoRecord]:
+        """Return every photo matching ``query``'s filters, unpaged.
+
+        Raises:
+            PersistenceError: If the query fails.
+        """
+        statement = apply_sort(apply_filters(select(PhotoRow), query), query.sort)
+        with self._read() as session:
+            return [to_record(row) for row in session.scalars(statement)]
 
     def filter_options(self) -> FilterOptions:
         """Return the values available for each filter.

@@ -290,3 +290,13 @@ def test_copies_of_and_stats_count(
     ]
     assert catalog.copies_of(Path("/photos/street.arw")) == []
     assert catalog.stats().copies == 2
+
+
+def test_matching_returns_every_filtered_photo_unpaged(
+    catalog: SqlAlchemyPhotoCatalog,
+) -> None:
+    everything = catalog.matching(PhotoQuery(page_size=1))
+    people = catalog.matching(PhotoQuery(contains_people=True))
+
+    assert len(everything) == 4  # page_size does not limit it
+    assert {r.path.name for r in people} == {"street.arw", "portrait.jpg"}

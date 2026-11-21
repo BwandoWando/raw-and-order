@@ -201,6 +201,9 @@ class FakePhotoLibrary:
         self._similar = similar or {}
         self.refreshes = 0
 
+    def export_records(self, query: PhotoQuery) -> list[PhotoRecord]:
+        return list(self._records)
+
     def search(self, query: PhotoQuery) -> PhotoPage:
         start = (query.page - 1) * query.page_size
         return PhotoPage(

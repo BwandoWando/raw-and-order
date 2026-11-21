@@ -21,6 +21,10 @@ from my_agent.schemas.tags import TagGraph
 class PhotoLibrary(Protocol):
     """Everything the UI reads about stored photos and failures."""
 
+    def export_records(self, query: PhotoQuery) -> list[PhotoRecord]:
+        """Return every photo matching ``query``'s filters (not cached)."""
+        ...
+
     def search(self, query: PhotoQuery) -> PhotoPage:
         """Return one page of photos matching ``query``."""
         ...

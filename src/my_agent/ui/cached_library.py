@@ -53,6 +53,10 @@ class CachedPhotoLibrary:
         self._thumbnailer = thumbnailer
         self._key = cache_key
 
+    def export_records(self, query: PhotoQuery) -> list[PhotoRecord]:
+        """Every matching photo, read fresh: exports run rarely and off-script."""
+        return self._catalog.matching(query)
+
     def search(self, query: PhotoQuery) -> PhotoPage:
         """Return one page of photos matching ``query``."""
         return _search(self._catalog, self._key, query.model_dump_json())

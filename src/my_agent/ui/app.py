@@ -12,6 +12,7 @@ from streamlit.delta_generator import DeltaGenerator
 from my_agent.bootstrap import build_ui_library
 from my_agent.config import load_settings
 from my_agent.exceptions import MyAgentError
+from my_agent.ui.export import render_export
 from my_agent.ui.failures import render_failures
 from my_agent.ui.filters import render_filters
 from my_agent.ui.gallery import render_gallery
@@ -37,14 +38,15 @@ def main(library: PhotoLibrary) -> None:
     st.sidebar.button("↻ Refresh data", on_click=library.refresh, width="stretch")
     filters = render_filters(options)
 
-    gallery_tab, tags_tab, failures_tab, stats_tab = st.tabs(
-        ["Gallery", "Tags", "Failures", "Stats"]
+    gallery_tab, tags_tab, failures_tab, stats_tab, export_tab = st.tabs(
+        ["Gallery", "Tags", "Failures", "Stats", "Export"]
     )
     renderers: list[tuple[DeltaGenerator, Callable[[], None]]] = [
         (gallery_tab, partial(render_gallery, filters, library)),
         (tags_tab, partial(render_tags, filters, library)),
         (failures_tab, partial(render_failures, library)),
         (stats_tab, partial(render_stats, library)),
+        (export_tab, partial(render_export, filters, library)),
     ]
     for tab, render in renderers:
         with tab:

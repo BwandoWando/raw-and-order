@@ -148,7 +148,8 @@ pre-commit install                  # optional: lint + type-check on commit
 ```
 
 Extras: `ollama`, `openai`, `anthropic` (one per LLM provider), `heic` (HEIC/HEIF
-images), `ui` (Streamlit browser; needs Streamlit 1.67+), `dev` (tests and
+images), `ui` (Streamlit browser; needs Streamlit 1.67+, plus openpyxl for Excel
+exports), `dev` (tests and
 linters) and `all` (every provider, `heic` and `ui`).
 
 `PYTHONNOUSERSITE=1` stops Python from also loading packages installed with
@@ -224,6 +225,12 @@ Stop it with Ctrl+C. In VS Code, the **Streamlit UI** debug configuration in
 - **Failures:** the `processing_failures` log, filterable by stage.
 - **Stats:** totals (including copies skipped) and photos by scene, lens,
   capture month and white balance.
+- **Export:** download the photos matching the sidebar filters as Excel
+  (.xlsx), CSV or JSON, one row per photo: file, capture date, camera and lens
+  settings, GPS, description, tags, scene, people, model, processing time (UTC),
+  SHA-256, pHash and preview path. Excel gets a frozen, filterable header and
+  real dates; CSV joins tags with `; ` (UTF-8 with BOM, so Excel reads accents);
+  JSON keeps tags as lists. A preview of the first 10 rows shows the columns.
 - **Light and dark theme:** switch with the ⋮ menu at the top right (System /
   Light / Dark); the choice is remembered in the browser. The dark theme is a
   neutral graphite, as in photo editors, so photos keep their true colours.

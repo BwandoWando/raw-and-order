@@ -213,3 +213,13 @@ def test_details_photo_opens_full_screen_on_click(tmp_path: Path) -> None:
 
     assert app.button(key="detail-zoom-in").label == "Show full screen"
     assert not [b for b in app.button if b.key == "detail-full-screen-close"]
+
+
+def test_export_tab_counts_previews_and_offers_a_download() -> None:
+    app = _app(FakePhotoLibrary([_record(i) for i in range(3)]))
+
+    assert "**All 3 photos** (no filters set; narrow them in the sidebar)." in [
+        m.value for m in app.markdown
+    ]
+    assert app.segmented_control(key="x_format").value == "xlsx"
+    assert any(len(d.value) == 3 for d in app.dataframe if "file_name" in d.value)
