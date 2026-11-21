@@ -53,18 +53,6 @@ class ExifStore(Protocol):
         ...
 
 
-class PerceptualHashStore(Protocol):
-    """Reads previews and updates only the perceptual hash of stored photos."""
-
-    def stored_hashes(self) -> dict[Path, tuple[Path, str | None]]:
-        """Return ``{photo path: (preview path, dHash)}`` for every photo."""
-        ...
-
-    def update_dhash(self, path: Path, dhash: str) -> None:
-        """Replace the dHash of the photo at ``path``."""
-        ...
-
-
 class SqlAlchemyPhotoRepository:
     """:class:`PhotoRepository` backed by SQLAlchemy.
 
@@ -154,35 +142,6 @@ class SqlAlchemyPhotoRepository:
                 if row is None:
                     raise PersistenceError(f"{path} is not in the database")
                 apply_exif(row, exif)
-        except SQLAlchemyError as exc:
-            raise PersistenceError(f"Could not update {path}: {exc}") from exc
-
-    def stored_hashes(self) -> dict[Path, tuple[Path, str | None]]:
-        """Return ``{photo path: (preview path, dHash)}``, ordered by path.
-
-        Raises:
-            PersistenceError: If the query fails.
-        """
-        query = select(PhotoRow.path, PhotoRow.preview_path, PhotoRow.dhash)
-        try:
-            with self._session_factory() as session:
-                rows = session.execute(query.order_by(PhotoRow.path))
-                return {Path(p): (Path(preview), dhash) for p, preview, dhash in rows}
-        except SQLAlchemyError as exc:
-            raise PersistenceError(f"Could not list stored hashes: {exc}") from exc
-
-    def update_dhash(self, path: Path, dhash: str) -> None:
-        """Replace only the dHash; everything else stays.
-
-        Raises:
-            PersistenceError: If the photo is not stored or the write fails.
-        """
-        try:
-            with self._session_factory.begin() as session:
-                row = self._find_row(session, path)
-                if row is None:
-                    raise PersistenceError(f"{path} is not in the database")
-                row.dhash = dhash
         except SQLAlchemyError as exc:
             raise PersistenceError(f"Could not update {path}: {exc}") from exc
 

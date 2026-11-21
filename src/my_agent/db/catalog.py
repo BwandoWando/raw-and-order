@@ -32,7 +32,7 @@ from my_agent.schemas.query import (
 
 LIKE_ESCAPE = "\\"
 KELVIN_BUCKET = 500
-NEAR_DUPLICATE_DISTANCE = 64  # of 256 dHash bits; see analysis/similarity.py
+NEAR_DUPLICATE_DISTANCE = 10
 UNKNOWN_LABEL = "Unknown"
 
 

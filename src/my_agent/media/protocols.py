@@ -74,14 +74,6 @@ class PreviewLayout(Protocol):
         ...
 
 
-class PreviewReader(Protocol):
-    """Loads saved previews."""
-
-    def load(self, preview_path: Path) -> bytes:
-        """Return the JPEG bytes of a saved preview."""
-        ...
-
-
 class PreviewStore(Protocol):
     """Saves and loads downscaled JPEG previews."""
 

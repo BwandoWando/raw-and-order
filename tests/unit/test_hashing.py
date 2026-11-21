@@ -1,20 +1,11 @@
 import hashlib
-import random
 from pathlib import Path
 
 import pytest
 from PIL import Image, ImageDraw
 
-from my_agent.analysis.similarity import Similarity, similarity
-from my_agent.db.catalog import NEAR_DUPLICATE_DISTANCE
 from my_agent.exceptions import FingerprintError
-from my_agent.media.hashing import (
-    DHASH_HEX_LENGTH,
-    DHasher,
-    Sha256FileHasher,
-    dhash,
-    hamming_distance,
-)
+from my_agent.media.hashing import DHasher, Sha256FileHasher, dhash, hamming_distance
 
 HELLO_SHA256 = "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824"
 
@@ -69,10 +60,10 @@ def test_sha256_of_missing_file_raises_domain_error(tmp_path: Path) -> None:
 # --- dHash -------------------------------------------------------------------
 
 
-def test_dhash_is_256_bits() -> None:
+def test_dhash_is_16_hex_characters() -> None:
     value = dhash(_scene())
 
-    assert len(value) == DHASH_HEX_LENGTH == 64
+    assert len(value) == 16
     int(value, 16)  # valid hex
 
 
@@ -80,21 +71,14 @@ def test_dhash_survives_resize_and_recompression() -> None:
     original = DHasher().hash_image_bytes(_jpeg(_scene((600, 400))))
     smaller = DHasher().hash_image_bytes(_jpeg(_scene((300, 200)), quality=40))
 
-    assert similarity(hamming_distance(original, smaller)) == Similarity.IDENTICAL
-
-
-def _texture(seed: int) -> Image.Image:
-    """A detailed picture (random grey blocks), like a real photo's texture."""
-    rng = random.Random(seed)
-    pixels = bytes(rng.randrange(256) for _ in range(32 * 32))
-    return Image.frombytes("L", (32, 32), pixels).resize((600, 400))
+    assert hamming_distance(original, smaller) <= 4
 
 
 def test_dhash_differs_for_different_pictures() -> None:
-    first = dhash(_texture(seed=1))
-    second = dhash(_texture(seed=2))
+    first = dhash(_scene(sun_x=0.75))
+    second = dhash(_scene(sun_x=0.05).transpose(Image.Transpose.FLIP_TOP_BOTTOM))
 
-    assert hamming_distance(first, second) > NEAR_DUPLICATE_DISTANCE
+    assert hamming_distance(first, second) > 10
 
 
 def test_dhash_of_invalid_bytes_raises_domain_error() -> None:

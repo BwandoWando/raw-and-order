@@ -16,7 +16,7 @@ from my_agent.exceptions import (
 )
 from my_agent.llm.context import ExifContextFormatter
 from my_agent.media.discovery import FileSystemDiscoverer
-from my_agent.media.hashing import DHASH_HEX_LENGTH, DHasher
+from my_agent.media.hashing import DHasher
 from my_agent.media.pairing import RawPairFilter
 from my_agent.media.previews import DatedPreviewLayout, JpegPreviewStore
 from my_agent.pipeline import PhotoPipeline
@@ -205,7 +205,7 @@ def test_stores_sha256_and_dhash(
     assert record is not None
     assert record.sha256 == hashlib.sha256(b"raw bytes").hexdigest()
     assert record.dhash is not None
-    assert len(record.dhash) == DHASH_HEX_LENGTH
+    assert len(record.dhash) == 16
 
 
 def test_changed_file_is_reprocessed_unchanged_is_skipped(
