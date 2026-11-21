@@ -11,7 +11,9 @@ from my_agent.workflow.nodes.next_chunk import NextChunkNode
 from my_agent.workflow.nodes.perceptual_hash import PerceptualHashNode
 from my_agent.workflow.nodes.persist import PersistNode
 from my_agent.workflow.nodes.record_chunk import RecordChunkNode
+from my_agent.workflow.nodes.record_copies import RecordCopiesNode
 from my_agent.workflow.nodes.select_batch import SelectBatchNode
+from my_agent.workflow.nodes.skip_copies import SkipCopiesNode
 from my_agent.workflow.nodes.skip_known import SkipKnownNode
 
 __all__ = [
@@ -26,6 +28,8 @@ __all__ = [
     "PerceptualHashNode",
     "PersistNode",
     "RecordChunkNode",
+    "RecordCopiesNode",
     "SelectBatchNode",
+    "SkipCopiesNode",
     "SkipKnownNode",
 ]

@@ -5,8 +5,16 @@ import pytest
 from sqlalchemy.orm import Session, sessionmaker
 
 from my_agent.db.catalog import SqlAlchemyPhotoCatalog, escape_like
+from my_agent.db.copy_repository import SqlAlchemyCopyRepository
 from my_agent.db.repository import SqlAlchemyPhotoRepository
-from my_agent.schemas import Annotation, ExifData, GpsCoordinate, PhotoRecord, SceneType
+from my_agent.schemas import (
+    Annotation,
+    ExifData,
+    GpsCoordinate,
+    PhotoCopy,
+    PhotoRecord,
+    SceneType,
+)
 from my_agent.schemas.query import PhotoQuery, SortOrder
 
 
@@ -236,3 +244,23 @@ def test_tag_lists_follow_the_filters(catalog: SqlAlchemyPhotoCatalog) -> None:
     assert ["sunset", "beach", "sky"] in everything
     assert len(everything) == len(_names(catalog))
     assert sorted(map(tuple, with_people)) == [("city", "sunset-ish"), ("person",)]
+
+
+def test_copies_of_and_stats_count(
+    catalog: SqlAlchemyPhotoCatalog, copies: SqlAlchemyCopyRepository
+) -> None:
+    original = Path("/photos/beach.arw")
+    copies.record(
+        [
+            PhotoCopy(path=Path("/backup/beach.arw"), sha256="x", original=original),
+            PhotoCopy(path=Path("/card/beach.arw"), sha256="x", original=original),
+        ],
+        datetime(2026, 11, 21, tzinfo=UTC),
+    )
+
+    assert catalog.copies_of(original) == [
+        Path("/backup/beach.arw"),
+        Path("/card/beach.arw"),
+    ]
+    assert catalog.copies_of(Path("/photos/street.arw")) == []
+    assert catalog.stats().copies == 2

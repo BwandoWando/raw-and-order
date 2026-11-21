@@ -1,5 +1,6 @@
 """Interfaces for media adapters, used for constructor injection."""
 
+from collections.abc import Sequence
 from datetime import datetime
 from pathlib import Path
 from typing import Protocol
@@ -38,6 +39,14 @@ class ExifReader(Protocol):
 
     def read(self, path: Path) -> ExifData:
         """Return the EXIF metadata of ``path``."""
+        ...
+
+
+class CaptureTimeReader(Protocol):
+    """Reads only the capture time of many files at once."""
+
+    def capture_times(self, paths: Sequence[Path]) -> dict[Path, datetime | None]:
+        """Return each path's ``DateTimeOriginal``; ``None`` if it has none."""
         ...
 
 

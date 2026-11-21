@@ -16,7 +16,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, sessionmaker
 
 from my_agent.db.mappers import to_record
-from my_agent.db.models import PhotoRow
+from my_agent.db.models import CopyRow, PhotoRow
 from my_agent.exceptions import PersistenceError
 from my_agent.media.hashing import hamming_distance
 from my_agent.schemas import PhotoRecord
@@ -63,6 +63,10 @@ class PhotoCatalog(Protocol):
 
     def tag_lists(self, query: PhotoQuery) -> list[list[str]]:
         """Return the tags of every photo matching ``query``'s filters."""
+        ...
+
+    def copies_of(self, path: Path) -> list[Path]:
+        """Return the exact copies found of the photo at ``path``."""
         ...
 
 
@@ -138,6 +142,20 @@ class SqlAlchemyPhotoCatalog:
         with self._read() as session:
             return [list(tags) for tags in session.scalars(statement)]
 
+    def copies_of(self, path: Path) -> list[Path]:
+        """Return the exact copies found of the photo at ``path``, sorted.
+
+        Raises:
+            PersistenceError: If the query fails.
+        """
+        statement = (
+            select(CopyRow.path)
+            .where(CopyRow.original_path == str(path))
+            .order_by(CopyRow.path)
+        )
+        with self._read() as session:
+            return [Path(p) for p in session.scalars(statement)]
+
     def get(self, path: Path) -> PhotoRecord | None:
         """Return one photo by path.
 
@@ -210,6 +228,7 @@ class SqlAlchemyPhotoCatalog:
                 by_camera=self._counts(session, PhotoRow.model),
                 by_month=sorted(self._counts(session, month), key=lambda r: r.label),
                 by_white_balance=self._kelvin_buckets(session),
+                copies=session.scalar(select(func.count(CopyRow.id))) or 0,
             )
 
     def _read(self) -> "_ReadSession":

@@ -5,7 +5,7 @@ from pathlib import Path
 
 from pydantic import BaseModel, Field
 
-from my_agent.schemas import Annotation, ExifData
+from my_agent.schemas import Annotation, ExifData, PhotoCopy
 
 
 class Stage(StrEnum):
@@ -55,7 +55,8 @@ class FileFailure(BaseModel):
 class WorkflowState(BaseModel):
     """State shared by all nodes for one run.
 
-    Planning steps (discover -> fingerprint -> skip_unchanged -> select_batch)
+    Planning steps (discover -> fingerprint -> skip_known -> skip_copies ->
+    select_batch)
     work on every candidate in ``items``. ``select_batch`` then moves the
     photos to process into ``queue``, and the chunk loop works on one chunk
     at a time in ``items``. Finished chunks are reduced to counts and
@@ -91,6 +92,10 @@ class WorkflowState(BaseModel):
     unchanged: list[Path] = Field(
         default_factory=list,
         description="Files skipped because they are stored with the same SHA-256.",
+    )
+    copies: list[PhotoCopy] = Field(
+        default_factory=list,
+        description="Files skipped as exact copies of a photo stored elsewhere.",
     )
     previously_failed: list[Path] = Field(
         default_factory=list,

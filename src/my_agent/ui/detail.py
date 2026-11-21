@@ -38,6 +38,7 @@ def show_details(path: Path, library: PhotoLibrary) -> None:
     _exif_table(record.exif)
     _location(record)
     _fingerprints(record.sha256, record.dhash)
+    _copies(library.copies_of(path))
     _near_duplicates(path, library)
 
 
@@ -67,6 +68,14 @@ def _location(record: PhotoRecord) -> None:
 def _fingerprints(sha256: str | None, dhash: str | None) -> None:
     st.subheader("Fingerprints", divider="gray")
     st.code(f"SHA-256  {sha256 or '-'}\ndHash    {dhash or '-'}", language=None)
+
+
+def _copies(paths: list[Path]) -> None:
+    if not paths:
+        return
+    st.subheader("Also stored at", divider="gray")
+    st.caption("Exact copies (same SHA-256); not annotated again.")
+    st.code("\n".join(str(p) for p in paths), language=None)
 
 
 def _near_duplicates(path: Path, library: PhotoLibrary) -> None:

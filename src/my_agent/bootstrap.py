@@ -4,6 +4,7 @@ Everything else receives its dependencies through constructors.
 """
 
 from contextlib import ExitStack
+from pathlib import Path
 from types import TracebackType
 from typing import Self
 
@@ -11,6 +12,7 @@ import httpx
 
 from my_agent.config import LLMProvider, LLMSettings, Settings
 from my_agent.db.catalog import SqlAlchemyPhotoCatalog
+from my_agent.db.copy_repository import SqlAlchemyCopyRepository
 from my_agent.db.failure_repository import SqlAlchemyFailureRepository
 from my_agent.db.repository import SqlAlchemyPhotoRepository
 from my_agent.db.session import create_db_engine, create_session_factory
@@ -55,7 +57,9 @@ from my_agent.workflow.nodes import (
     PerceptualHashNode,
     PersistNode,
     RecordChunkNode,
+    RecordCopiesNode,
     SelectBatchNode,
+    SkipCopiesNode,
     SkipKnownNode,
 )
 from my_agent.workflow.runner import PhotoWorkflow, WorkflowSteps
@@ -116,10 +120,14 @@ class Application:
         )
         discoverer = FileSystemDiscoverer(s.raw_extensions | s.image_extensions)
         steps = WorkflowSteps(
-            discover=DiscoverNode(discoverer, RawPairFilter(s.raw_extensions)),
+            discover=DiscoverNode(
+                discoverer, RawPairFilter(s.raw_extensions), exif_reader
+            ),
             load_failures=LoadFailuresNode(failures),
             fingerprint=FingerprintNode(Sha256FileHasher()),
             skip_known=SkipKnownNode(repository, failures),
+            skip_copies=SkipCopiesNode(repository, Path.is_file),
+            record_copies=RecordCopiesNode(SqlAlchemyCopyRepository(session_factory)),
             select_batch=SelectBatchNode(),
             log_planning_failures=LogFailuresNode(failures),
             next_chunk=NextChunkNode(),

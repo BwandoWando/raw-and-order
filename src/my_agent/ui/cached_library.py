@@ -60,6 +60,10 @@ class CachedPhotoLibrary:
         """Return photos that look like the one at ``path``, closest first."""
         return _near_duplicates(self._catalog, self._key, str(path))
 
+    def copies_of(self, path: Path) -> list[Path]:
+        """Return the exact copies found of the photo at ``path``."""
+        return [Path(p) for p in _copies_of(self._catalog, self._key, str(path))]
+
     def stats(self) -> PhotoStats:
         """Return totals and breakdowns."""
         return _stats(self._catalog, self._key)
@@ -109,6 +113,11 @@ def _near_duplicates(
 ) -> list[NearDuplicate]:
     record = _catalog.get(Path(path))
     return _catalog.near_duplicates(record) if record else []
+
+
+@st.cache_data(ttl=CACHE_TTL_S, show_spinner=False)
+def _copies_of(_catalog: PhotoCatalog, key: str, path: str) -> list[str]:
+    return [str(p) for p in _catalog.copies_of(Path(path))]
 
 
 @st.cache_data(ttl=CACHE_TTL_S, show_spinner=False)

@@ -105,8 +105,9 @@ def test_gallery_lists_photos_and_all_tabs_render(app_with) -> None:  # type: ig
         "3",
         "1",
         "1",
+        "0",
         "1",
-    ]  # photos, GPS, people, failures
+    ]  # photos, GPS, people, copies, failures
     assert len(app.dataframe) >= 1  # failure log table
 
 

@@ -111,3 +111,14 @@ def test_reads_white_balance_mode_and_editor_temperature(tmp_path: Path) -> None
 
     assert (exif.white_balance, exif.white_balance_k) == ("Manual", 5650)
     assert exif.white_balance_k_source is WhiteBalanceSource.EDITED
+
+
+def test_capture_times_in_one_batch(tmp_path: Path) -> None:
+    shot = _write(tmp_path / "DSC_1.jpg", "-EXIF:DateTimeOriginal=2026:05:01 18:30:00")
+    undated = _write(tmp_path / "DSC_2.jpg")
+    mapper = ExifMapper(CaptureDateResolver(build_date_sources(ORDER), DateValidator()))
+
+    with PyExifToolReader(mapper) as reader:
+        times = reader.capture_times([shot, undated])
+
+    assert times == {shot: datetime(2026, 5, 1, 18, 30, 0), undated: None}

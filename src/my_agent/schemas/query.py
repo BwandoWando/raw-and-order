@@ -88,6 +88,7 @@ class PhotoStats(BaseModel):
     by_white_balance: list[CountRow] = Field(
         default_factory=list, description="500 K buckets, coolest light first."
     )
+    copies: int = Field(default=0, description="Exact copies skipped as duplicates.")
 
 
 class NearDuplicate(BaseModel):

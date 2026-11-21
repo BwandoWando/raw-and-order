@@ -6,6 +6,7 @@ import pytest
 from sqlalchemy.orm import Session, sessionmaker
 
 from my_agent.db.base import Base
+from my_agent.db.copy_repository import SqlAlchemyCopyRepository
 from my_agent.db.failure_repository import SqlAlchemyFailureRepository
 from my_agent.db.repository import SqlAlchemyPhotoRepository
 from my_agent.db.session import create_db_engine, create_session_factory
@@ -58,3 +59,8 @@ def repository(session_factory: sessionmaker[Session]) -> SqlAlchemyPhotoReposit
 @pytest.fixture
 def failures(session_factory: sessionmaker[Session]) -> SqlAlchemyFailureRepository:
     return SqlAlchemyFailureRepository(session_factory)
+
+
+@pytest.fixture
+def copies(session_factory: sessionmaker[Session]) -> SqlAlchemyCopyRepository:
+    return SqlAlchemyCopyRepository(session_factory)

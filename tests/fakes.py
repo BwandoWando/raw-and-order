@@ -1,7 +1,8 @@
 """Test doubles injected through constructors instead of monkeypatching."""
 
 import hashlib
-from collections.abc import Iterator, Sequence
+from collections.abc import Iterable, Iterator, Sequence
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -18,6 +19,7 @@ from my_agent.schemas import (
     Annotation,
     ExifData,
     FailureRecord,
+    PhotoCopy,
     PhotoRecord,
     SceneType,
 )
@@ -49,6 +51,40 @@ class FakeExifReader:
         if path.name in self._fail_for:
             raise ExifReadError(f"corrupt: {path.name}")
         return self._exif
+
+
+class FakeCaptureTimes:
+    """Capture times by file name; records which files were asked about."""
+
+    def __init__(
+        self, times: dict[str, datetime] | None = None, fail: bool = False
+    ) -> None:
+        self._times = times or {}
+        self._fail = fail
+        self.asked: list[Path] = []
+
+    def capture_times(self, paths: Sequence[Path]) -> dict[Path, datetime | None]:
+        self.asked.extend(paths)
+        if self._fail:
+            raise ExifReadError("exiftool crashed")
+        return {path: self._times.get(path.name) for path in paths}
+
+
+class InMemoryCopies:
+    """In-memory :class:`~my_agent.db.copy_repository.CopyRepository`."""
+
+    def __init__(self) -> None:
+        self.copies: dict[Path, PhotoCopy] = {}
+
+    def record(self, copies: Iterable[PhotoCopy], when: datetime) -> None:
+        self.copies.update((copy.path, copy) for copy in copies)
+
+    def remove(self, paths: Iterable[Path]) -> None:
+        for path in paths:
+            self.copies.pop(path, None)
+
+    def copies_under(self, folder: Path) -> list[Path]:
+        return sorted(p for p in self.copies if p.is_relative_to(folder))
 
 
 class FakeFileHasher:
@@ -155,9 +191,11 @@ class FakePhotoLibrary:
         self,
         records: Sequence[PhotoRecord] = (),
         failures: Sequence[FailureRecord] = (),
+        copies: dict[Path, list[Path]] | None = None,
     ) -> None:
         self._records = list(records)
         self._failures = list(failures)
+        self._copies = copies or {}
         self.refreshes = 0
 
     def search(self, query: PhotoQuery) -> PhotoPage:
@@ -186,6 +224,9 @@ class FakePhotoLibrary:
     def near_duplicates(self, path: Path) -> list[NearDuplicate]:
         return []
 
+    def copies_of(self, path: Path) -> list[Path]:
+        return self._copies.get(path, [])
+
     def stats(self) -> PhotoStats:
         return PhotoStats(
             total=len(self._records),
@@ -195,6 +236,7 @@ class FakePhotoLibrary:
             by_lens=[],
             by_camera=[],
             by_month=[],
+            copies=sum(len(paths) for paths in self._copies.values()),
         )
 
     def tag_graph(

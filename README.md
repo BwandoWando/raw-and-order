@@ -9,7 +9,7 @@ catalogue. The Python package and command are both called `my-agent`.
 Each run is a plain ordered workflow (`workflow/runner.py`):
 
 ```
-plan:     discover ─▶ fingerprint ─▶ skip_known ─▶ select_batch
+plan:     discover ─▶ fingerprint ─▶ skip_known ─▶ skip_copies ─▶ record_copies ─▶ select_batch
 per chunk: extract_exif ─▶ decode ─▶ perceptual_hash ─▶ annotate ─▶ persist
 ```
 
@@ -21,8 +21,14 @@ per chunk: extract_exif ─▶ decode ─▶ perceptual_hash ─▶ annotate ─
   extra (`IMAGE_EXTENSIONS`)
 
 **RAW+JPEG pairs:** if a raw file and an image with the same name are in the
-same folder (e.g. `DSC_0042.NEF` and `DSC_0042.JPG`), only the raw file is
-processed; the image is skipped and counted in the run summary.
+same folder (e.g. `DSC_0042.NEF` and `DSC_0042.JPG`) and were captured within
+one second of each other (EXIF `DateTimeOriginal`), only the raw file is
+processed; the image is skipped and counted in the run summary. Files are
+never paired across folders. Cameras reuse names (a Sony counter wraps from
+`DSC09999` back to `DSC00001`), so a same-name image with a different capture
+time is a different shot and is kept. If either file has no capture time, the
+name alone decides. Only same-name files have their capture time read, in one
+batch, so this adds about a second per thousand pairs.
 
 **Capture date** (used for the database and the preview folder
 `data/previews/YYYYMMDD/<extension>/`), first plausible source wins:
@@ -57,6 +63,16 @@ perceptual hash (dHash) of its preview. A stored photo is skipped while its
 SHA-256 is unchanged, so edited files are processed again automatically and
 `--reprocess` forces everything. The dHash finds near-duplicates (Hamming
 distance ≤ 10), shown as "Similar photos" in the UI.
+
+**Exact copies:** a file whose SHA-256 matches a photo stored at another path
+(e.g. the same shot copied to a backup folder) is not annotated again. It is
+skipped, counted in the run summary and logged in the `photo_copies` table with
+the path of its original. Within one run, the first file by path is the
+original. If the original file has since been deleted, the copy is processed as
+a normal photo. Copies are skipped even with `--reprocess`; logged copies that
+are no longer found (deleted, or edited so they differ) are forgotten on the
+next full run of their folder. A different image that happens to share a file
+name (a wrapped counter) has a different SHA-256, so it is always kept.
 
 **Lens:** `lens_model` (exiftool's lens database, then EXIF/maker-note/XMP lens
 tags; numeric codes and placeholders are skipped), `lens_make`, and
@@ -161,8 +177,9 @@ my-agent process /path/to/photos --skip-model-check   # skip the startup LLM che
 ```
 
 Folders are searched recursively. Each run prints a summary: photos processed
-(saved and failed), unchanged, previously failed, RAW+JPEG pairs skipped, and
-how many remain for the next run.
+(saved and failed), unchanged, previously failed, RAW+JPEG pairs skipped,
+exact copies skipped (the first five listed with their original), and how many
+remain for the next run.
 `python -m my_agent` works the same as `my-agent`.
 
 ## Photo browser (Streamlit)
@@ -182,7 +199,8 @@ Stop it with Ctrl+C. In VS Code, the **Streamlit UI** debug configuration in
 - **Gallery:** thumbnail grid (24 / 48 / 72 / 96 per page), sorted by capture or
   processing date. Click a photo (or **Details**) to see the large preview, description, tags,
   camera and lens settings, a map when the photo has GPS, its SHA-256 and dHash,
-  and similar photos (dHash distance ≤ 10).
+  exact copies of it stored elsewhere ("Also stored at"), and similar photos
+  (dHash distance ≤ 10).
 - **Tags:** a network of the most-used tags (20–100). Bubble size is the number
   of photos; lines join tags that often appear together (Jaccard overlap above
   the "Link strength" slider). Tags are grouped into clusters (Louvain
@@ -190,7 +208,8 @@ Stop it with Ctrl+C. In VS Code, the **Streamlit UI** debug configuration in
   cards and in a table. Hover to highlight links, drag to rearrange, scroll to
   zoom. The sidebar filters apply.
 - **Failures:** the `processing_failures` log, filterable by stage.
-- **Stats:** totals and photos by scene, lens, capture month and white balance.
+- **Stats:** totals (including copies skipped) and photos by scene, lens,
+  capture month and white balance.
 
 The UI only reads the database, so it is safe to keep open during a processing
 run (press **Refresh data** to see new photos). It listens on `localhost` only

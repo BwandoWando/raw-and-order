@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 
+from my_agent.db.copy_repository import CopyRepository, SqlAlchemyCopyRepository
 from my_agent.db.failure_repository import SqlAlchemyFailureRepository
 from my_agent.db.repository import SqlAlchemyPhotoRepository
 from my_agent.exceptions import (
@@ -32,12 +33,21 @@ from my_agent.workflow.nodes import (
     PerceptualHashNode,
     PersistNode,
     RecordChunkNode,
+    RecordCopiesNode,
     SelectBatchNode,
+    SkipCopiesNode,
     SkipKnownNode,
 )
 from my_agent.workflow.runner import PhotoWorkflow, WorkflowSteps
 from my_agent.workflow.state import Stage
-from tests.fakes import FakeAnnotator, FakeExifReader, FakeFileHasher, FakeImageDecoder
+from tests.fakes import (
+    FakeAnnotator,
+    FakeCaptureTimes,
+    FakeExifReader,
+    FakeFileHasher,
+    FakeImageDecoder,
+    InMemoryCopies,
+)
 
 
 def _pipeline(
@@ -49,15 +59,20 @@ def _pipeline(
     fail_exif_for: tuple[str, ...] = (),
     fail_hash_for: tuple[str, ...] = (),
     max_consecutive_failures: int = 0,
+    copies: CopyRepository | None = None,
 ) -> PhotoPipeline:
     previews = JpegPreviewStore(tmp_path / "previews", DatedPreviewLayout(), max_px=32)
     steps = WorkflowSteps(
         discover=DiscoverNode(
-            FileSystemDiscoverer({".nef", ".jpg"}), RawPairFilter({".nef"})
+            FileSystemDiscoverer({".nef", ".jpg"}),
+            RawPairFilter({".nef"}),
+            FakeCaptureTimes(),
         ),
         load_failures=LoadFailuresNode(failures),
         fingerprint=FingerprintNode(FakeFileHasher(fail_for=fail_hash_for)),
         skip_known=SkipKnownNode(repository, failures),
+        skip_copies=SkipCopiesNode(repository, Path.is_file),
+        record_copies=RecordCopiesNode(copies or InMemoryCopies()),
         select_batch=SelectBatchNode(),
         log_planning_failures=LogFailuresNode(failures),
         next_chunk=NextChunkNode(),
@@ -80,7 +95,7 @@ def _pipeline(
 def _make_photos(root: Path, *names: str) -> Path:
     root.mkdir()
     for name in names:
-        (root / name).touch()
+        (root / name).write_bytes(name.encode())  # distinct contents
     return root
 
 
@@ -214,24 +229,78 @@ def test_changed_file_is_reprocessed_unchanged_is_skipped(
     assert record.sha256 == hashlib.sha256(b"edited").hexdigest()
 
 
-def test_identical_copies_in_two_folders_are_both_stored(
+def test_identical_copy_in_another_folder_is_skipped_and_logged(
+    tmp_path: Path,
+    repository: SqlAlchemyPhotoRepository,
+    failures: SqlAlchemyFailureRepository,
+    copies: SqlAlchemyCopyRepository,
+    sample_exif: ExifData,
+) -> None:
+    photos = tmp_path / "in"
+    for folder in ("backup", "card"):
+        (photos / folder).mkdir(parents=True)
+        (photos / folder / "DSC_1.NEF").write_bytes(b"same bytes")
+    annotator = FakeAnnotator()
+    pipeline = _pipeline(
+        tmp_path, repository, failures, sample_exif, annotator, copies=copies
+    )
+
+    summary = pipeline.run(photos)
+
+    assert summary.saved == 1
+    assert len(annotator.calls) == 1
+    assert [(c.path, c.original) for c in summary.copies] == [
+        (photos / "card" / "DSC_1.NEF", photos / "backup" / "DSC_1.NEF")
+    ]
+    assert repository.known_paths() == {photos / "backup" / "DSC_1.NEF"}
+    assert copies.copies_under(photos) == [photos / "card" / "DSC_1.NEF"]
+
+    again = pipeline.run(photos)  # the copy is recognised again, not annotated
+    assert (again.selected, len(again.copies)) == (0, 1)
+    assert len(annotator.calls) == 1
+
+
+def test_copy_of_a_deleted_original_becomes_the_photo(
+    tmp_path: Path,
+    repository: SqlAlchemyPhotoRepository,
+    failures: SqlAlchemyFailureRepository,
+    copies: SqlAlchemyCopyRepository,
+    sample_exif: ExifData,
+) -> None:
+    photos = tmp_path / "in"
+    for folder in ("a", "b"):
+        (photos / folder).mkdir(parents=True)
+        (photos / folder / "DSC_1.NEF").write_bytes(b"same bytes")
+    pipeline = _pipeline(
+        tmp_path, repository, failures, sample_exif, FakeAnnotator(), copies=copies
+    )
+    pipeline.run(photos)
+    assert copies.copies_under(photos) == [photos / "b" / "DSC_1.NEF"]
+
+    (photos / "a" / "DSC_1.NEF").unlink()
+    summary = pipeline.run(photos)
+
+    assert (summary.saved, summary.copies) == (1, [])
+    assert photos / "b" / "DSC_1.NEF" in repository.known_paths()
+    assert copies.copies_under(photos) == []  # no longer a copy
+
+
+def test_same_name_in_two_folders_with_different_images_are_both_stored(
     tmp_path: Path,
     repository: SqlAlchemyPhotoRepository,
     failures: SqlAlchemyFailureRepository,
     sample_exif: ExifData,
 ) -> None:
     photos = tmp_path / "in"
-    for folder in ("card", "backup"):
+    for folder in ("2025", "2026"):  # camera counter wrapped around
         (photos / folder).mkdir(parents=True)
-        (photos / folder / "DSC_1.NEF").write_bytes(b"same bytes")
+        (photos / folder / "DSC09999.NEF").write_bytes(folder.encode())
 
     summary = _pipeline(
         tmp_path, repository, failures, sample_exif, FakeAnnotator()
     ).run(photos)
 
-    assert summary.saved == 2
-    fingerprints = set(repository.known_fingerprints().values())
-    assert fingerprints == {hashlib.sha256(b"same bytes").hexdigest()}
+    assert (summary.saved, summary.copies) == (2, [])
 
 
 def _names(repository: SqlAlchemyPhotoRepository) -> list[str]:

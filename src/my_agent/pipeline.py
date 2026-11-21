@@ -6,6 +6,7 @@ from pathlib import Path
 
 from pydantic import BaseModel
 
+from my_agent.schemas import PhotoCopy
 from my_agent.workflow.runner import PhotoWorkflow
 from my_agent.workflow.state import FileFailure, WorkflowState
 
@@ -17,6 +18,7 @@ class RunSummary(BaseModel):
     selected: int
     skipped_pairs: int
     unchanged: int
+    copies: list[PhotoCopy]
     previously_failed: int
     missing: list[Path]
     deferred: int
@@ -32,6 +34,7 @@ def summarise(run_id: str, state: WorkflowState) -> RunSummary:
         selected=state.selected,
         skipped_pairs=len(state.skipped_pairs),
         unchanged=len(state.unchanged),
+        copies=state.copies,
         previously_failed=len(state.previously_failed),
         missing=state.missing,
         deferred=state.deferred,

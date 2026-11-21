@@ -23,11 +23,12 @@ def render_stats(library: PhotoLibrary) -> None:
     """Draw the metrics row and the three breakdown charts."""
     summary = library.stats()
     failed = len(library.failures())
-    a, b, c, d = st.columns(4)
+    a, b, c, d, e = st.columns(5)
     a.metric("Photos", summary.total)
     b.metric("With GPS", summary.with_gps)
     c.metric("With people", summary.with_people)
-    d.metric("Logged failures", failed)
+    d.metric("Copies skipped", summary.copies)
+    e.metric("Logged failures", failed)
     if summary.total == 0:
         st.info("No photos yet.")
         return

@@ -15,6 +15,8 @@ from my_agent.logging_config import configure_logging
 from my_agent.pipeline import RunSummary
 from my_agent.ui.launcher import streamlit_command
 
+MAX_COPIES_LISTED = 5  # the rest are summarised as a count
+
 logger = logging.getLogger(__name__)
 
 app = typer.Typer(help="Extract EXIF from camera raw files and annotate them.")
@@ -196,12 +198,17 @@ def _print_summary(summary: RunSummary) -> None:
         f"{len(summary.failed)} failed), {summary.unchanged} unchanged, "
         f"{summary.previously_failed} previously failed (skipped), "
         f"{summary.skipped_pairs} skipped (RAW+JPEG pairs), "
+        f"{len(summary.copies)} skipped (copies of photos stored elsewhere), "
         f"{summary.deferred} remaining."
     )
     for failed in summary.failed:
         typer.echo(
             f"  FAILED [{failed.error.stage}] {failed.path}: {failed.error.message}"
         )
+    for copy in summary.copies[:MAX_COPIES_LISTED]:
+        typer.echo(f"  COPY {copy.path} (same as {copy.original})")
+    if len(summary.copies) > MAX_COPIES_LISTED:
+        typer.echo(f"  ... and {len(summary.copies) - MAX_COPIES_LISTED} more copies")
     for path in summary.missing:
         typer.echo(f"  MISSING (removed from failure log) {path}")
     if summary.deferred:

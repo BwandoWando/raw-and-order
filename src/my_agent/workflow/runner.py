@@ -2,7 +2,8 @@
 
 ```
 discover (or load_failures for --reprocess-failed)
-  -> fingerprint -> skip_known -> select_batch -> log_planning_failures
+  -> fingerprint -> skip_known -> skip_copies -> record_copies
+  -> select_batch -> log_planning_failures
   -> while photos are queued:
        next_chunk -> extract_exif -> decode -> perceptual_hash -> annotate -> persist
        (stop the chunk's remaining steps early if every photo in it failed)
@@ -30,7 +31,9 @@ from my_agent.workflow.nodes import (
     PerceptualHashNode,
     PersistNode,
     RecordChunkNode,
+    RecordCopiesNode,
     SelectBatchNode,
+    SkipCopiesNode,
     SkipKnownNode,
 )
 from my_agent.workflow.routing import has_pending_items, has_queued_photos
@@ -47,6 +50,8 @@ class WorkflowSteps:
     load_failures: LoadFailuresNode
     fingerprint: FingerprintNode
     skip_known: SkipKnownNode
+    skip_copies: SkipCopiesNode
+    record_copies: RecordCopiesNode
     select_batch: SelectBatchNode
     log_planning_failures: LogFailuresNode
     next_chunk: NextChunkNode
@@ -96,6 +101,8 @@ class PhotoWorkflow:
             entry,
             s.fingerprint,
             s.skip_known,
+            s.skip_copies,
+            s.record_copies,
             s.select_batch,
             s.log_planning_failures,
         ):

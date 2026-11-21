@@ -51,6 +51,18 @@ class PhotoRow(Base):
     processed_at: Mapped[datetime] = mapped_column(UtcDateTime)
 
 
+class CopyRow(Base):
+    """An exact copy (same SHA-256) of a catalogued photo, not annotated again."""
+
+    __tablename__ = "photo_copies"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    path: Mapped[str] = mapped_column(String(1024), unique=True, index=True)
+    sha256: Mapped[str] = mapped_column(String(64), index=True)
+    original_path: Mapped[str] = mapped_column(String(1024), index=True)
+    last_seen_at: Mapped[datetime] = mapped_column(UtcDateTime)
+
+
 class FailureRow(Base):
     """A file that failed processing; removed once it succeeds."""
 

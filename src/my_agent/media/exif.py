@@ -1,6 +1,8 @@
 """EXIF reader backed by the ``exiftool`` command-line program."""
 
 import logging
+from collections.abc import Sequence
+from datetime import datetime
 from pathlib import Path
 from types import TracebackType
 from typing import Any, Self
@@ -9,6 +11,7 @@ import exiftool
 from exiftool.exceptions import ExifToolException, ExifToolVersionError
 
 from my_agent.exceptions import ConfigurationError, ExifReadError
+from my_agent.media.capture_date import parse_exif_datetime
 from my_agent.media.exif_mapping import REQUESTED_TAGS, ExifMapper
 from my_agent.schemas.exif import ExifData
 
@@ -17,6 +20,8 @@ logger = logging.getLogger(__name__)
 # -G: prefix keys with their group (EXIF:, XMP:, ...). No -n: numeric tags are
 # requested individually with "#" so text tags (e.g. lens names) stay readable.
 EXIFTOOL_ARGS = ["-G"]
+CAPTURE_TIME_TAG = "EXIF:DateTimeOriginal"
+CAPTURE_TIME_BATCH = 500  # files per exiftool call
 MIN_EXIFTOOL_VERSION = "12.15"  # required by pyexiftool
 INSTALL_HINT = (
     "Install a current release from https://exiftool.org "
@@ -86,6 +91,35 @@ class PyExifToolReader:
             ExifReadError: If exiftool fails on this file.
         """
         return self._mapper.map(self._read_tags(path), path)
+
+    def capture_times(self, paths: Sequence[Path]) -> dict[Path, datetime | None]:
+        """Return each path's ``DateTimeOriginal``; ``None`` if it has none.
+
+        Reads only that one tag, in batches, so it is fast for many files.
+
+        Raises:
+            ExifReadError: If exiftool fails.
+        """
+        times: dict[Path, datetime | None] = {}
+        for start in range(0, len(paths), CAPTURE_TIME_BATCH):
+            batch = paths[start : start + CAPTURE_TIME_BATCH]
+            by_name = {str(path): path for path in batch}
+            for tags in self._get_tags(list(by_name), [CAPTURE_TIME_TAG]):
+                path = by_name.get(str(tags.get("SourceFile")))
+                if path is not None:
+                    times[path] = parse_exif_datetime(tags.get(CAPTURE_TIME_TAG))
+        return {path: times.get(path) for path in paths}
+
+    def _get_tags(self, files: list[str], tags: list[str]) -> list[dict[str, Any]]:
+        if self._helper is None:
+            raise ExifReadError("exiftool is not running; call start() first")
+        try:
+            results: list[dict[str, Any]] = self._helper.get_tags(files, tags)
+        except ExifToolException as exc:
+            raise ExifReadError(
+                f"exiftool failed on {len(files)} file(s): {exc}"
+            ) from exc
+        return results
 
     def _read_tags(self, path: Path) -> dict[str, Any]:
         if self._helper is None:

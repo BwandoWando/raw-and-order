@@ -37,6 +37,10 @@ class PhotoLibrary(Protocol):
         """Return photos that look like the one at ``path``, closest first."""
         ...
 
+    def copies_of(self, path: Path) -> list[Path]:
+        """Return the exact copies found of the photo at ``path``."""
+        ...
+
     def stats(self) -> PhotoStats:
         """Return totals and breakdowns."""
         ...

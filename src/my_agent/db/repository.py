@@ -33,6 +33,14 @@ class PhotoRepository(Protocol):
         ...
 
 
+class FingerprintStore(Protocol):
+    """Lists the SHA-256 of every stored photo."""
+
+    def known_fingerprints(self) -> dict[Path, str | None]:
+        """Return each stored photo's path and SHA-256."""
+        ...
+
+
 class ExifStore(Protocol):
     """Reads and updates only the EXIF part of stored photos."""
 

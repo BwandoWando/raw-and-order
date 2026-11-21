@@ -69,7 +69,7 @@ def test_details_dialog_reads_from_the_library() -> None:
 def test_failures_and_stats_tabs_use_the_library() -> None:
     app = _app(FakePhotoLibrary([_record(0)], failures=[_failure()]))
 
-    assert [m.value for m in app.metric] == ["1", "0", "0", "1"]
+    assert [m.value for m in app.metric] == ["1", "0", "0", "0", "1"]
     assert len(app.dataframe) >= 1
 
 
@@ -117,3 +117,15 @@ def test_tags_sliders_rebuild_the_graph() -> None:
 
     assert not app.exception
     assert "**a · b**" in [m.value for m in app.tabs[1].markdown]
+
+
+def test_details_list_exact_copies() -> None:
+    copy = Path("/backup/IMG_0.DNG")
+    app = _app(FakePhotoLibrary([_record(0)], copies={_record(0).path: [copy]}))
+
+    app.button(key="details-/photos/IMG_0.DNG").click().run()
+
+    assert not app.exception
+    assert "Also stored at" in [s.value for s in app.subheader]
+    assert str(copy) in [c.value for c in app.code]
+    assert [m.value for m in app.metric][3] == "1"  # copies skipped

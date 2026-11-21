@@ -1,10 +1,13 @@
 """Node: find files to process."""
 
 import logging
+from datetime import datetime
+from pathlib import Path
 from typing import Any
 
+from my_agent.exceptions import ExifReadError
 from my_agent.media.pairing import RawPairFilter
-from my_agent.media.protocols import PhotoDiscoverer
+from my_agent.media.protocols import CaptureTimeReader, PhotoDiscoverer
 from my_agent.workflow.state import PhotoItem, WorkflowState
 
 logger = logging.getLogger(__name__)
@@ -13,28 +16,51 @@ logger = logging.getLogger(__name__)
 class DiscoverNode:
     """Lists photo files and resolves RAW+JPEG pairs.
 
-    Files already stored are dropped later by ``skip_unchanged``, after they
-    have been fingerprinted, so edited files are picked up again.
+    Only files that share a folder and name with a file of the other kind
+    have their capture time read, so pairs are confirmed cheaply. Files
+    already stored are dropped later by ``skip_known``, after they have been
+    fingerprinted, so edited files are picked up again.
 
     Args:
         discoverer: Finds candidate files.
         pair_filter: Skips images that duplicate a raw file.
+        times: Reads capture times to confirm pairs.
     """
 
-    def __init__(self, discoverer: PhotoDiscoverer, pair_filter: RawPairFilter) -> None:
+    def __init__(
+        self,
+        discoverer: PhotoDiscoverer,
+        pair_filter: RawPairFilter,
+        times: CaptureTimeReader,
+    ) -> None:
         self._discoverer = discoverer
         self._pair_filter = pair_filter
+        self._times = times
 
     def __call__(self, state: WorkflowState) -> dict[str, Any]:
         """Return the candidate ``items`` and the skipped pairs."""
-        pairs = self._pair_filter.apply(self._discoverer.find(state.source_dir))
+        paths = self._discoverer.find(state.source_dir)
+        candidates = self._pair_filter.pair_candidates(paths)
+        pairs = self._pair_filter.apply(paths, self._capture_times(candidates))
         logger.info(
-            "Found %d file(s) in %s (%d skipped as RAW+JPEG pairs)",
+            "Found %d file(s) in %s (%d skipped as RAW+JPEG pairs, %d kept as "
+            "different shots with a raw file's name)",
             len(pairs.kept),
             state.source_dir,
             len(pairs.skipped),
+            len(pairs.different_shots),
         )
         return {
             "items": [PhotoItem(path=path) for path in pairs.kept],
             "skipped_pairs": pairs.skipped,
         }
+
+    def _capture_times(self, paths: list[Path]) -> dict[Path, datetime | None]:
+        """Capture times, or none if exiftool fails (the name then decides)."""
+        if not paths:
+            return {}
+        try:
+            return self._times.capture_times(paths)
+        except ExifReadError as exc:
+            logger.warning("Pairing by file name only: %s", exc)
+            return {}
