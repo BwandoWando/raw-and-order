@@ -14,6 +14,8 @@ import streamlit as st
 from my_agent.analysis.tag_graph import build_tag_graph
 from my_agent.db.catalog import PhotoCatalog
 from my_agent.db.failure_repository import FailureRepository
+from my_agent.exceptions import PreviewError
+from my_agent.media.protocols import Thumbnailer
 from my_agent.schemas import FailureRecord, PhotoRecord
 from my_agent.schemas.query import (
     FilterOptions,
@@ -25,6 +27,7 @@ from my_agent.schemas.query import (
 from my_agent.schemas.tags import TagGraph
 
 CACHE_TTL_S = 30  # pick up photos saved by a running pipeline
+THUMBNAIL_CACHE_ENTRIES = 3000  # about 30 full pages of 96
 PAGING_FIELDS = {"page", "page_size", "sort"}
 
 
@@ -34,14 +37,20 @@ class CachedPhotoLibrary:
     Args:
         catalog: Read-only photo queries.
         failures: The processing-failure log.
+        thumbnailer: Shrinks previews for the gallery grid.
         cache_key: Identifies the data source (e.g. the database URL).
     """
 
     def __init__(
-        self, catalog: PhotoCatalog, failures: FailureRepository, cache_key: str
+        self,
+        catalog: PhotoCatalog,
+        failures: FailureRepository,
+        thumbnailer: Thumbnailer,
+        cache_key: str,
     ) -> None:
         self._catalog = catalog
         self._failures = failures
+        self._thumbnailer = thumbnailer
         self._key = cache_key
 
     def search(self, query: PhotoQuery) -> PhotoPage:
@@ -63,6 +72,18 @@ class CachedPhotoLibrary:
     def copies_of(self, path: Path) -> list[Path]:
         """Return the exact copies found of the photo at ``path``."""
         return [Path(p) for p in _copies_of(self._catalog, self._key, str(path))]
+
+    def thumbnail(self, preview_path: Path, max_px: int) -> bytes | None:
+        """Return a small JPEG of a preview, or ``None`` if it is missing.
+
+        Cached per file version (modification time), so a re-saved preview
+        gets a fresh thumbnail.
+        """
+        try:
+            version = preview_path.stat().st_mtime_ns
+            return _thumbnail(self._thumbnailer, str(preview_path), max_px, version)
+        except (OSError, PreviewError):
+            return None
 
     def stats(self) -> PhotoStats:
         """Return totals and breakdowns."""
@@ -118,6 +139,13 @@ def _near_duplicates(
 @st.cache_data(ttl=CACHE_TTL_S, show_spinner=False)
 def _copies_of(_catalog: PhotoCatalog, key: str, path: str) -> list[str]:
     return [str(p) for p in _catalog.copies_of(Path(path))]
+
+
+@st.cache_data(max_entries=THUMBNAIL_CACHE_ENTRIES, show_spinner=False)
+def _thumbnail(
+    _thumbnailer: Thumbnailer, preview_path: str, max_px: int, version: int
+) -> bytes:
+    return _thumbnailer.thumbnail(Path(preview_path), max_px)
 
 
 @st.cache_data(ttl=CACHE_TTL_S, show_spinner=False)

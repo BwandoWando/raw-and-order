@@ -42,6 +42,7 @@ from my_agent.media.pillow_decoder import PillowDecoder
 from my_agent.media.previews import DatedPreviewLayout, JpegPreviewStore
 from my_agent.media.raw import RawpyDecoder
 from my_agent.media.routing import ExtensionRoutingDecoder
+from my_agent.media.thumbnails import JpegThumbnailer
 from my_agent.pipeline import PhotoPipeline
 from my_agent.schemas.annotation import annotation_schema
 from my_agent.ui.library import PhotoLibrary
@@ -235,5 +236,6 @@ def build_ui_library(settings: Settings) -> PhotoLibrary:
     return CachedPhotoLibrary(
         catalog=SqlAlchemyPhotoCatalog(session_factory),
         failures=SqlAlchemyFailureRepository(session_factory),
+        thumbnailer=JpegThumbnailer(),
         cache_key=settings.database_url,
     )

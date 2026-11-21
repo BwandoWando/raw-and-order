@@ -50,6 +50,14 @@ class CaptureTimeReader(Protocol):
         ...
 
 
+class Thumbnailer(Protocol):
+    """Makes small JPEG thumbnails of saved previews."""
+
+    def thumbnail(self, preview_path: Path, max_px: int) -> bytes:
+        """Return JPEG bytes no larger than ``max_px`` on the longest side."""
+        ...
+
+
 class ImageDecoder(Protocol):
     """Decodes a raw or regular image file into a viewable image."""
 

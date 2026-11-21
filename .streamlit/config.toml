@@ -13,3 +13,9 @@ toolbarMode = "minimal"
 [browser]
 # Streamlit sends usage statistics unless this is off.
 gatherUsageStats = false
+
+[theme]
+# Tighter than the default so a full gallery page fits on one screen
+# (`my-agent ui` passes the same values on the command line).
+paddingTop = "2rem"
+paddingBottom = "1rem"

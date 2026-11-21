@@ -77,6 +77,8 @@ def test_streamlit_command_binds_localhost_without_telemetry() -> None:
         "--server.port": "8600",
         "--browser.gatherUsageStats": "false",
         "--client.toolbarMode": "minimal",
+        "--theme.paddingTop": "2rem",
+        "--theme.paddingBottom": "1rem",
         "--server.headless": "true",
     }
 

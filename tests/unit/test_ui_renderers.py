@@ -6,6 +6,7 @@ from pathlib import Path
 from streamlit.testing.v1 import AppTest
 
 from my_agent.schemas import Annotation, ExifData, FailureRecord, PhotoRecord, SceneType
+from my_agent.ui.gallery import open_button_key
 from my_agent.ui.library import PhotoLibrary
 from tests.fakes import SAMPLE_ANNOTATION, FakePhotoLibrary
 
@@ -60,7 +61,7 @@ def test_gallery_pages_through_the_injected_library() -> None:
 def test_details_dialog_reads_from_the_library() -> None:
     app = _app(FakePhotoLibrary([_record(0)]))
 
-    app.button(key="details-/photos/IMG_0.DNG").click().run()
+    app.button(key=open_button_key(Path("/photos/IMG_0.DNG"))).click().run()
 
     assert not app.exception
     assert f"**{SAMPLE_ANNOTATION.description}**" in [m.value for m in app.markdown]
@@ -123,7 +124,7 @@ def test_details_list_exact_copies() -> None:
     copy = Path("/backup/IMG_0.DNG")
     app = _app(FakePhotoLibrary([_record(0)], copies={_record(0).path: [copy]}))
 
-    app.button(key="details-/photos/IMG_0.DNG").click().run()
+    app.button(key=open_button_key(Path("/photos/IMG_0.DNG"))).click().run()
 
     assert not app.exception
     assert "Also stored at" in [s.value for s in app.subheader]

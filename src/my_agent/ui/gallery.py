@@ -9,22 +9,43 @@ from my_agent.schemas import PhotoRecord
 from my_agent.schemas.query import PAGE_SIZES, PhotoQuery, SortOrder
 from my_agent.ui.detail import show_details
 from my_agent.ui.formatting import card_caption
+from my_agent.ui.grid import grid_shape, thumbnail_px
 from my_agent.ui.library import PhotoLibrary
 
-GRID_COLUMNS = 4
 THUMB_KEY_PREFIX = "thumb-"  # container holding the image and the overlay
 OPEN_KEY_PREFIX = "thumbopen-"  # the overlay button itself (distinct prefix)
+GRID_KEY = "gallery-grid"
+# Height of everything on the page that is not the grid (title, tabs, sort
+# row, "Showing" caption, pager and page padding), so the grid fills the rest.
+# Measured at 371 px with the padding set in .streamlit/config.toml.
+CHROME_REM = 23.5
+ROW_GAP_REM = 0.25
 
-# Makes each thumbnail clickable: a transparent, real button is laid over the
-# image inside a keyed container. Streamlit gives keyed elements the class
-# st-key-<key>, so the overlay is targeted by its own key (the image element
-# has a hidden fullscreen button too, so "contains a button" is not enough).
-# Being a real button, it is keyboard- and screen-reader-accessible.
-THUMBNAIL_CSS = f"""
+
+def thumbnail_css(rows: int) -> str:
+    """CSS that sizes tiles so ``rows`` rows fill the rest of the window.
+
+    Each tile is a keyed container holding the image and a transparent, real
+    button laid over it. Streamlit gives keyed elements the class
+    st-key-<key>, so the overlay is targeted by its own key (the image has a
+    hidden fullscreen button too). Being a real button, it is keyboard- and
+    screen-reader-accessible.
+    """
+    tile_height = (
+        f"calc((100vh - {CHROME_REM}rem - {rows - 1} * {ROW_GAP_REM}rem) / {rows})"
+    )
+    return f"""
 <style>
+.st-key-{GRID_KEY} {{ gap: {ROW_GAP_REM}rem; }}
 [class*="st-key-{THUMB_KEY_PREFIX}"] {{ position: relative; }}
-[class*="st-key-{THUMB_KEY_PREFIX}"] img {{ transition: filter 120ms ease-in-out; }}
-[class*="st-key-{THUMB_KEY_PREFIX}"]:hover img {{ filter: brightness(0.9); }}
+[class*="st-key-{THUMB_KEY_PREFIX}"] img {{
+    height: {tile_height};
+    width: 100%;
+    object-fit: cover;
+    border-radius: 0.375rem;
+    transition: filter 120ms ease-in-out;
+}}
+[class*="st-key-{THUMB_KEY_PREFIX}"]:hover img {{ filter: brightness(0.85); }}
 [class*="st-key-{OPEN_KEY_PREFIX}"] {{
     position: absolute;
     inset: 0;
@@ -44,6 +65,8 @@ THUMBNAIL_CSS = f"""
 }}
 </style>
 """
+
+
 SORT_LABELS = {
     SortOrder.CAPTURED_NEWEST: "Capture date, newest first",
     SortOrder.CAPTURED_OLDEST: "Capture date, oldest first",
@@ -57,7 +80,9 @@ def render_gallery(filters: PhotoQuery, library: PhotoLibrary) -> None:
     sort = sort_col.selectbox(
         "Sort", list(SORT_LABELS), format_func=SORT_LABELS.__getitem__, key="g_sort"
     )
-    page_size = size_col.selectbox("Per page", PAGE_SIZES, key="g_page_size")
+    page_size = size_col.selectbox(
+        "Per page", PAGE_SIZES, key="g_page_size", bind="query-params"
+    )
     query = filters.model_copy(update={"sort": sort, "page_size": page_size})
     page_number = _current_page(query)
     result = library.search(query.model_copy(update={"page": page_number}))
@@ -68,7 +93,7 @@ def render_gallery(filters: PhotoQuery, library: PhotoLibrary) -> None:
     first = (result.page - 1) * result.page_size + 1
     last = first + len(result.items) - 1
     st.caption(f"Showing {first}–{last} of {result.total} photos")
-    _grid(result.items, library)
+    _grid(result.items, query.page_size, library)
     _pager(result.pages)
 
 
@@ -86,29 +111,37 @@ def open_button_key(path: Path | str) -> str:
     return f"{OPEN_KEY_PREFIX}{_digest(path)}"
 
 
-def _grid(items: list[PhotoRecord], library: PhotoLibrary) -> None:
-    st.html(THUMBNAIL_CSS)
-    for start in range(0, len(items), GRID_COLUMNS):
-        columns = st.columns(GRID_COLUMNS)
-        for column, record in zip(
-            columns, items[start : start + GRID_COLUMNS], strict=False
-        ):
-            with column, st.container(border=True):
-                _thumbnail(record, library)
-                st.caption(card_caption(record))
-                if st.button("Details", key=f"details-{record.path}", width="stretch"):
-                    show_details(record.path, library)
+def _grid(items: list[PhotoRecord], page_size: int, library: PhotoLibrary) -> None:
+    """Thumbnails only, sized so a full page fits the window.
+
+    The shape comes from the page size, not the item count, so a short last
+    page keeps the same tile size.
+    """
+    columns, rows = grid_shape(page_size)
+    max_px = thumbnail_px(columns)
+    st.html(thumbnail_css(rows))
+    with st.container(key=GRID_KEY):
+        for start in range(0, len(items), columns):
+            cells = st.columns(columns, gap="xxsmall")
+            for cell, record in zip(
+                cells, items[start : start + columns], strict=False
+            ):
+                with cell:
+                    _thumbnail(record, max_px, library)
 
 
-def _thumbnail(record: PhotoRecord, library: PhotoLibrary) -> None:
-    """The photo itself, clickable to open its details."""
+def _thumbnail(record: PhotoRecord, max_px: int, library: PhotoLibrary) -> None:
+    """The photo itself, clickable to open its details; caption on hover."""
     with st.container(key=thumbnail_key(record.path)):
-        if record.preview_path.is_file():
-            st.image(str(record.preview_path), width="stretch")
-        else:
+        image = library.thumbnail(record.preview_path, max_px)
+        if image is None:
             st.caption("Preview missing")
+        else:
+            st.image(image, width="stretch")
         label = f"Open details for {record.path.name}"
-        if st.button(label, key=open_button_key(record.path)):
+        if st.button(
+            label, key=open_button_key(record.path), help=card_caption(record)
+        ):
             show_details(record.path, library)
 
 

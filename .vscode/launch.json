@@ -58,6 +58,8 @@
                 "--server.address", "localhost",
                 "--browser.gatherUsageStats", "false",
                 "--client.toolbarMode", "minimal",
+                "--theme.paddingTop", "2rem",
+                "--theme.paddingBottom", "1rem",
                 "--server.runOnSave", "true"
             ],
             "cwd": "${workspaceFolder}",

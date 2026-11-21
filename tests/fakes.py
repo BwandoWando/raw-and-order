@@ -227,6 +227,9 @@ class FakePhotoLibrary:
     def copies_of(self, path: Path) -> list[Path]:
         return self._copies.get(path, [])
 
+    def thumbnail(self, preview_path: Path, max_px: int) -> bytes | None:
+        return preview_path.read_bytes() if preview_path.is_file() else None
+
     def stats(self) -> PhotoStats:
         return PhotoStats(
             total=len(self._records),

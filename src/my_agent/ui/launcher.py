@@ -8,6 +8,9 @@ from my_agent.exceptions import ConfigurationError
 
 APP_PATH = Path(__file__).with_name("app.py")
 DEFAULT_PORT = 8501
+# Tighter than Streamlit's default so a full gallery page fits on one screen.
+PADDING_TOP = "2rem"
+PADDING_BOTTOM = "1rem"
 
 
 def streamlit_command(port: int = DEFAULT_PORT, open_browser: bool = True) -> list[str]:
@@ -32,6 +35,10 @@ def streamlit_command(port: int = DEFAULT_PORT, open_browser: bool = True) -> li
         "false",
         "--client.toolbarMode",
         "minimal",
+        "--theme.paddingTop",
+        PADDING_TOP,
+        "--theme.paddingBottom",
+        PADDING_BOTTOM,
         "--server.headless",
         "false" if open_browser else "true",
     ]

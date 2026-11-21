@@ -136,7 +136,7 @@ def test_page_size_and_pagination(app_with) -> None:  # type: ignore[no-untyped-
 def test_details_dialog_opens(app_with, tmp_path: Path) -> None:  # type: ignore[no-untyped-def]
     app = app_with(2)
 
-    app.button(key=f"details-{tmp_path / 'IMG_0.ARW'}").click().run()
+    app.button(key=open_button_key(tmp_path / "IMG_0.ARW")).click().run()
 
     assert not app.exception
     texts = [m.value for m in app.markdown]
@@ -158,7 +158,7 @@ def test_white_balance_slider_filters(app_with, tmp_path: Path) -> None:  # type
 
     assert not app.exception
     assert "Showing 1–2 of 2 photos" in _captions(app)
-    app.button(key=f"details-{tmp_path / 'IMG_1.ARW'}").click().run()
+    app.button(key=open_button_key(tmp_path / "IMG_1.ARW")).click().run()
     assert not app.exception
 
 
@@ -180,3 +180,15 @@ def test_thumbnail_button_is_labelled_for_screen_readers(
     button = app.button(key=open_button_key(tmp_path / "IMG_0.ARW"))
 
     assert button.label == "Open details for IMG_0.ARW"
+
+
+def test_page_sizes_and_tooltips_show_captions(
+    app_with: Callable[[int], AppTest], tmp_path: Path
+) -> None:
+    app = app_with(3)
+
+    assert list(app.selectbox(key="g_page_size").options) == ["24", "48", "72", "96"]
+    app.selectbox(key="g_page_size").select(96).run()
+    assert "Showing 1–3 of 3 photos" in _captions(app)
+    button = app.button(key=open_button_key(tmp_path / "IMG_0.ARW"))
+    assert button.help == "2026-01-11 · landscape"

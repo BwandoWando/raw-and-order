@@ -41,6 +41,10 @@ class PhotoLibrary(Protocol):
         """Return the exact copies found of the photo at ``path``."""
         ...
 
+    def thumbnail(self, preview_path: Path, max_px: int) -> bytes | None:
+        """Return a small JPEG of a preview, or ``None`` if it is missing."""
+        ...
+
     def stats(self) -> PhotoStats:
         """Return totals and breakdowns."""
         ...
