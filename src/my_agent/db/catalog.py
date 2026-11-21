@@ -109,8 +109,10 @@ class SqlAlchemyPhotoCatalog:
             PersistenceError: If the query fails.
         """
         with self._read() as session:
-            tags = Counter(
-                tag for row in session.scalars(select(PhotoRow.tags)) for tag in row
+            tags = Counter(  # each photo counts once per tag
+                tag
+                for row in session.scalars(select(PhotoRow.tags))
+                for tag in set(row)
             )
             earliest, latest = session.execute(
                 select(func.min(PhotoRow.captured_at), func.max(PhotoRow.captured_at))
@@ -124,6 +126,7 @@ class SqlAlchemyPhotoCatalog:
             return FilterOptions(
                 scenes=self._distinct(session, PhotoRow.scene),
                 tags=[tag for tag, _ in tags.most_common()],
+                tag_counts=dict(tags),
                 cameras=self._distinct(session, PhotoRow.model),
                 lenses=self._distinct(session, PhotoRow.lens_model),
                 annotated_by=self._distinct(session, PhotoRow.annotated_by),

@@ -23,6 +23,12 @@ FILTER_KEYS = (
 )
 
 
+def tag_label(tag: str, counts: dict[str, int]) -> str:
+    """``tag (photos)``, e.g. ``urban (1,204)``; just the tag if not counted."""
+    count = counts.get(tag)
+    return tag if count is None else f"{tag} ({count:,})"
+
+
 def render_filters(options: FilterOptions) -> PhotoQuery:
     """Draw the sidebar filters and return a query (page 1, default sort)."""
     sidebar = st.sidebar
@@ -30,7 +36,11 @@ def render_filters(options: FilterOptions) -> PhotoQuery:
     text = sidebar.text_input("Search", key="f_text", placeholder="description or tag")
     scenes = sidebar.multiselect("Scene", options.scenes, key="f_scenes")
     tags = sidebar.multiselect(
-        "Tags (all of)", options.tags, key="f_tags", placeholder="Most used first"
+        "Tags (all of)",
+        options.tags,
+        key="f_tags",
+        placeholder="Most used first",
+        format_func=lambda tag: tag_label(tag, options.tag_counts),
     )
     people = sidebar.segmented_control(
         "People", list(PEOPLE_CHOICES), default="Any", key="f_people"

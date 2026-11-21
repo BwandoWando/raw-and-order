@@ -1,6 +1,7 @@
 """Test doubles injected through constructors instead of monkeypatching."""
 
 import hashlib
+from collections import Counter
 from collections.abc import Iterable, Iterator, Sequence
 from datetime import datetime
 from pathlib import Path
@@ -210,9 +211,13 @@ class FakePhotoLibrary:
         )
 
     def filter_options(self) -> FilterOptions:
+        counts = Counter(
+            tag for record in self._records for tag in set(record.annotation.tags)
+        )
         return FilterOptions(
             scenes=[],
-            tags=[],
+            tags=[tag for tag, _ in counts.most_common()],
+            tag_counts=dict(counts),
             cameras=[],
             lenses=[],
             annotated_by=[],

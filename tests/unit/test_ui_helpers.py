@@ -14,6 +14,7 @@ from my_agent.schemas import (
 )
 from my_agent.schemas.query import CountRow
 from my_agent.ui.charts import DARK, LIGHT, columns_by_month, horizontal_bars, theme_for
+from my_agent.ui.filters import tag_label
 from my_agent.ui.formatting import (
     camera_settings,
     card_caption,
@@ -152,3 +153,11 @@ def test_theme_file_defines_light_and_dark() -> None:
 
     assert {"light", "dark"} <= theme.keys()  # both -> the switch is shown
     assert (theme["paddingTop"], theme["paddingBottom"]) == ("0rem", "1rem")
+
+
+def test_tag_label_adds_the_photo_count() -> None:
+    counts = {"urban": 1204, "people": 344}
+
+    assert tag_label("urban", counts) == "urban (1,204)"
+    assert tag_label("people", counts) == "people (344)"
+    assert tag_label("rare", counts) == "rare"  # not counted

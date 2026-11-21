@@ -173,7 +173,20 @@ def test_filter_options(catalog: SqlAlchemyPhotoCatalog) -> None:
     assert options.cameras == ["ILCE-6400", "Pixel 8"]
     assert options.lenses == ["Sigma 17-40mm F1.8 DC | A"]
     assert options.tags[0] == "sky"  # most frequent first
+    assert options.tag_counts["sky"] == 2
+    assert options.tag_counts["sunset"] == 1
     assert (options.earliest, options.latest) == (date(2025, 12, 31), date(2026, 2, 21))
+
+
+def test_tag_counts_count_each_photo_once(
+    session_factory: sessionmaker[Session], repository: SqlAlchemyPhotoRepository
+) -> None:
+    repository.upsert(_photo("twice.arw", tags=("sea", "sea", "sky")))
+    repository.upsert(_photo("once.arw", tags=("sea",)))
+
+    counts = SqlAlchemyPhotoCatalog(session_factory).filter_options().tag_counts
+
+    assert counts == {"sea": 2, "sky": 1}
 
 
 def test_near_duplicates_need_close_phash_and_shared_tags(

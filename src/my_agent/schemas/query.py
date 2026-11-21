@@ -59,6 +59,9 @@ class FilterOptions(BaseModel):
 
     scenes: list[str]
     tags: list[str] = Field(description="Most frequent first.")
+    tag_counts: dict[str, int] = Field(
+        default_factory=dict, description="Photos per tag."
+    )
     cameras: list[str]
     lenses: list[str]
     annotated_by: list[str]
