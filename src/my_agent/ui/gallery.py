@@ -7,7 +7,7 @@ import streamlit as st
 
 from my_agent.schemas import PhotoRecord
 from my_agent.schemas.query import PAGE_SIZES, PhotoQuery, SortOrder
-from my_agent.ui.detail import show_details
+from my_agent.ui.detail import open_details
 from my_agent.ui.formatting import card_caption
 from my_agent.ui.grid import grid_shape, thumbnail_px
 from my_agent.ui.library import PhotoLibrary
@@ -119,6 +119,7 @@ def _grid(items: list[PhotoRecord], page_size: int, library: PhotoLibrary) -> No
     """
     columns, rows = grid_shape(page_size)
     max_px = thumbnail_px(columns)
+    paths = [record.path for record in items]
     st.html(thumbnail_css(rows))
     with st.container(key=GRID_KEY):
         for start in range(0, len(items), columns):
@@ -127,11 +128,16 @@ def _grid(items: list[PhotoRecord], page_size: int, library: PhotoLibrary) -> No
                 cells, items[start : start + columns], strict=False
             ):
                 with cell:
-                    _thumbnail(record, max_px, library)
+                    _thumbnail(record, paths, max_px, library)
 
 
-def _thumbnail(record: PhotoRecord, max_px: int, library: PhotoLibrary) -> None:
-    """The photo itself, clickable to open its details; caption on hover."""
+def _thumbnail(
+    record: PhotoRecord, paths: list[Path], max_px: int, library: PhotoLibrary
+) -> None:
+    """The photo itself, clickable to open its details; caption on hover.
+
+    ``paths`` are the photos on this page, which the details can step through.
+    """
     with st.container(key=thumbnail_key(record.path)):
         image = library.thumbnail(record.preview_path, max_px)
         if image is None:
@@ -142,7 +148,7 @@ def _thumbnail(record: PhotoRecord, max_px: int, library: PhotoLibrary) -> None:
         if st.button(
             label, key=open_button_key(record.path), help=card_caption(record)
         ):
-            show_details(record.path, library)
+            open_details(record.path, paths, library)
 
 
 def _current_page(query: PhotoQuery) -> int:

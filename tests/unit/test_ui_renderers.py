@@ -148,3 +148,17 @@ def test_details_list_exact_copies() -> None:
     assert any(c.value.startswith("Also stored at") for c in app.caption)
     assert str(copy) in [c.value for c in app.code]
     assert [m.value for m in app.metric][3] == "1"  # copies skipped
+
+
+def test_details_offer_steps_only_within_the_page() -> None:
+    app = _app(FakePhotoLibrary([_record(i) for i in range(3)]))
+
+    app.button(key=open_button_key(_record(0).path)).click().run()
+    keys = {b.key for b in app.button}
+    assert "detail-next" in keys and "detail-previous" not in keys
+    assert any("Photo 1 of 3" in c.value for c in app.caption)
+
+    app.button(key=open_button_key(_record(2).path)).click().run()
+    keys = {b.key for b in app.button}
+    assert "detail-previous" in keys and "detail-next" not in keys
+    assert any("Photo 3 of 3" in c.value for c in app.caption)
