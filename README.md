@@ -119,7 +119,7 @@ my-agent ui --port 8600 --no-open-browser
   processing date. Click a photo (or **Details**) to see the large preview, description, tags,
   camera and lens settings, a map when the photo has GPS, its SHA-256 and dHash,
   and similar photos (dHash distance ≤ 10).
-- **TAGS:** a network of the most-used tags (20–100). Bubble size is the number
+- **Tags:** a network of the most-used tags (20–100). Bubble size is the number
   of photos; lines join tags that often appear together (Jaccard overlap above
   the "Link strength" slider). Tags are grouped into clusters (Louvain
   community detection), each drawn in its own colour and shape, and listed as

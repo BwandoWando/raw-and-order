@@ -38,7 +38,7 @@ def main(library: PhotoLibrary) -> None:
     filters = render_filters(options)
 
     gallery_tab, tags_tab, failures_tab, stats_tab = st.tabs(
-        ["Gallery", "TAGS", "Failures", "Stats"]
+        ["Gallery", "Tags", "Failures", "Stats"]
     )
     renderers: list[tuple[DeltaGenerator, Callable[[], None]]] = [
         (gallery_tab, partial(render_gallery, filters, library)),

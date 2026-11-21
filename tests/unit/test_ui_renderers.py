@@ -98,7 +98,7 @@ def test_tags_tab_draws_the_network_and_clusters() -> None:
     app = _app(FakePhotoLibrary(photos))
 
     tags_tab = app.tabs[1]
-    assert tags_tab.label == "TAGS"
+    assert tags_tab.label == "Tags"
     assert "**city · neon · night**" in [m.value for m in tags_tab.markdown]
     assert any("5 most-used tags across 6 photos" in c.value for c in tags_tab.caption)
 
