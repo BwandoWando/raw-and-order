@@ -3,6 +3,7 @@
 from datetime import UTC, datetime
 from pathlib import Path
 
+from PIL import Image
 from streamlit.testing.v1 import AppTest
 
 from my_agent.schemas import (
@@ -189,3 +190,26 @@ def test_details_show_the_file_name_first() -> None:
     app.button(key=open_button_key(_record(0).path)).click().run()
 
     assert r"**IMG\_0\.DNG** :gray[/photos]" in [m.value for m in app.markdown]
+
+
+def test_tag_filter_shows_photo_counts() -> None:
+    sea = SAMPLE_ANNOTATION.model_copy(update={"tags": ["sea", "sky"]})
+    only_sea = SAMPLE_ANNOTATION.model_copy(update={"tags": ["sea"]})
+    app = _app(FakePhotoLibrary([_record(0, sea), _record(1, only_sea)]))
+
+    tags = app.multiselect(key="f_tags")
+    assert list(tags.options) == ["sea (2)", "sky (1)"]
+    tags.select("sea").run()
+    assert app.multiselect(key="f_tags").value == ["sea"]  # the plain tag
+
+
+def test_details_photo_opens_full_screen_on_click(tmp_path: Path) -> None:
+    preview = tmp_path / "p0.jpg"
+    Image.new("RGB", (40, 30), (60, 120, 200)).save(preview)
+    record = _record(0).model_copy(update={"preview_path": preview})
+    app = _app(FakePhotoLibrary([record]))
+
+    app.button(key=open_button_key(record.path)).click().run()
+
+    assert app.button(key="detail-zoom-in").label == "Show full screen"
+    assert not [b for b in app.button if b.key == "detail-full-screen-close"]

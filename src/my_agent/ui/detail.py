@@ -5,7 +5,9 @@ sections (similar photos, location, files) sit in tabs below, so nothing
 needs scrolling on a normal screen. Buttons at the dialog's left and right
 edges (and the arrow keys) step to the previous or next photo shown in the
 gallery without closing the dialog. Clicking a similar photo shows it here;
-it can only be stepped from if it is on the gallery page too.
+it can only be stepped from if it is on the gallery page too. Clicking the
+photo shows its preview full screen, on a layer over the dialog (Streamlit
+allows only one dialog at a time).
 """
 
 from collections.abc import Sequence
@@ -39,6 +41,13 @@ SIMILAR_OPEN_PREFIX = "detail-simopen-"  # the overlay button (distinct prefix)
 STEP_BUTTON_PX = 44
 CURRENT_KEY = "detail_current"  # session state: path of the photo shown
 OPEN_KEY = "detail_open"  # session state: True while the dialog is open
+ZOOM_KEY = "detail_zoom"  # session state: True while the photo is full screen
+ZOOM_TARGET_KEY = "detail-zoom-target"  # the photo plus its zoom-in button
+ZOOM_IN_KEY = "detail-zoom-in"
+FULL_SCREEN_KEY = "detail-full-screen"
+ZOOM_OUT_KEY = "detail-zoom-out"  # click anywhere on the full-screen photo
+CLOSE_FULL_SCREEN_KEY = "detail-full-screen-close"  # the visible x
+FULL_SCREEN_Z = 1_000_100  # above Streamlit's dialog
 # Room left for the dialog title, summary, camera row and tabs.
 CHROME_REM = 41.5
 
@@ -102,6 +111,71 @@ DETAIL_CSS = f"""
     outline: 3px solid #2a78d6;
     outline-offset: 2px;
 }}
+.st-key-{ZOOM_TARGET_KEY} {{ position: relative; }}
+.st-key-{ZOOM_IN_KEY}, .st-key-{ZOOM_OUT_KEY} {{
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    width: 100% !important;  /* Streamlit sizes button wrappers to content */
+    height: 100% !important;
+}}
+.st-key-{ZOOM_IN_KEY} *, .st-key-{ZOOM_OUT_KEY} * {{
+    width: 100%;
+    height: 100%;
+}}
+.st-key-{ZOOM_IN_KEY} button, .st-key-{ZOOM_OUT_KEY} button {{
+    opacity: 0;
+    cursor: zoom-in;
+}}
+.st-key-{ZOOM_OUT_KEY} button {{ cursor: zoom-out; }}
+.st-key-{FULL_SCREEN_KEY} {{
+    position: fixed;
+    inset: 0;
+    z-index: {FULL_SCREEN_Z};
+    background: rgba(0, 0, 0, 0.92);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}}
+.st-key-{FULL_SCREEN_KEY} [data-testid="stImage"],
+.st-key-{FULL_SCREEN_KEY} [data-testid="stImage"] * {{
+    width: 100vw;
+    height: 100vh;
+}}
+.st-key-{FULL_SCREEN_KEY} img {{
+    width: 100vw !important;
+    height: 100vh !important;
+    max-width: none;
+    object-fit: contain;  /* as large as fits, no scrolling */
+}}
+.st-key-{ZOOM_OUT_KEY} {{ position: fixed; }}
+.st-key-{CLOSE_FULL_SCREEN_KEY} {{
+    position: fixed;
+    top: 1rem;
+    right: 1rem;
+    z-index: 2;
+    width: auto;
+}}
+.st-key-{CLOSE_FULL_SCREEN_KEY} button {{
+    width: {STEP_BUTTON_PX}px;
+    height: {STEP_BUTTON_PX}px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(255, 255, 255, 0.15);
+    color: #fff;
+}}
+.st-key-{CLOSE_FULL_SCREEN_KEY} button:hover {{
+    background: rgba(255, 255, 255, 0.3);
+    color: #fff;
+}}
+.st-key-{CLOSE_FULL_SCREEN_KEY} [data-testid="stMarkdownContainer"] {{
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+}}
 </style>
 """
 
@@ -124,6 +198,7 @@ def open_details(path: Path, paths: Sequence[Path], library: PhotoLibrary) -> No
     """
     st.session_state[CURRENT_KEY] = str(path)
     st.session_state[OPEN_KEY] = True
+    st.session_state[ZOOM_KEY] = False
     _details(tuple(paths), library)
 
 
@@ -134,6 +209,7 @@ def details_open() -> bool:
 
 def _closed() -> None:
     st.session_state[OPEN_KEY] = False
+    st.session_state[ZOOM_KEY] = False
 
 
 @st.dialog("Photo details", width="large", on_dismiss=_closed)
@@ -149,8 +225,10 @@ def _details(paths: tuple[Path, ...], library: PhotoLibrary) -> None:
     ):
         _step_button("Previous photo", previous, PREVIOUS_KEY, "chevron_left", "Left")
         with st.container(key=FRAME_KEY, horizontal_alignment="center"):
-            _image(record.preview_path if record else None)
+            _photo(record.preview_path if record else None)
         _step_button("Next photo", following, NEXT_KEY, "chevron_right", "Right")
+    if record is not None and st.session_state.get(ZOOM_KEY):
+        _full_screen(record.preview_path)
     if record is None:
         st.warning("This photo is no longer in the database.")
         return
@@ -191,11 +269,37 @@ def _show(path: Path) -> None:
     st.session_state[CURRENT_KEY] = str(path)
 
 
-def _image(preview_path: Path | None) -> None:
-    if preview_path is not None and preview_path.is_file():
-        st.image(str(preview_path), width="content")
-    else:
+def _photo(preview_path: Path | None) -> None:
+    """The preview; clicking it shows it full screen."""
+    if preview_path is None or not preview_path.is_file():
         st.info("Preview file not found.")
+        return
+    with st.container(key=ZOOM_TARGET_KEY, width="content"):
+        st.image(str(preview_path), width="content")
+        st.button("Show full screen", key=ZOOM_IN_KEY, on_click=_zoom, args=(True,))
+
+
+def _full_screen(preview_path: Path) -> None:
+    """The preview as large as the window allows, over the dialog.
+
+    A click on it or the x closes it; the arrow keys keep stepping photos.
+    """
+    if not preview_path.is_file():
+        return
+    with st.container(key=FULL_SCREEN_KEY):
+        st.image(str(preview_path), width="content")
+        st.button("Close full screen", key=ZOOM_OUT_KEY, on_click=_zoom, args=(False,))
+        st.button(
+            "Close full screen",
+            key=CLOSE_FULL_SCREEN_KEY,
+            icon=":material/close:",
+            on_click=_zoom,
+            args=(False,),
+        )
+
+
+def _zoom(full_screen: bool) -> None:
+    st.session_state[ZOOM_KEY] = full_screen
 
 
 def _summary(record: PhotoRecord, position: int, count: int) -> None:
