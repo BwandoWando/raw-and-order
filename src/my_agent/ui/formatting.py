@@ -92,3 +92,11 @@ def format_white_balance(exif: ExifData) -> str | None:
 def path_digest(path: Path | str) -> str:
     """Short stable id of a path, for widget keys."""
     return hashlib.sha1(str(path).encode(), usedforsecurity=False).hexdigest()[:16]
+
+
+MARKDOWN_SPECIAL = frozenset("\\`*_{}[]()#+-.!|~<>$:")
+
+
+def escape_markdown(text: str) -> str:
+    """Show ``text`` literally in Streamlit Markdown (file names, folders)."""
+    return "".join(f"\\{c}" if c in MARKDOWN_SPECIAL else c for c in text)

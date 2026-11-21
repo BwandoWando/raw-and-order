@@ -22,6 +22,7 @@ from my_agent.ui.formatting import (
     camera_settings,
     capture_label,
     date_source_label,
+    escape_markdown,
     path_digest,
 )
 from my_agent.ui.library import PhotoLibrary
@@ -38,13 +39,13 @@ SIMILAR_OPEN_PREFIX = "detail-simopen-"  # the overlay button (distinct prefix)
 STEP_BUTTON_PX = 44
 CURRENT_KEY = "detail_current"  # session state: path of the photo shown
 # Room left for the dialog title, summary, camera row and tabs.
-CHROME_REM = 39
+CHROME_REM = 41.5
 
 DETAIL_CSS = f"""
 <style>
 .st-key-{FRAME_KEY} img {{
     max-height: calc(100vh - {CHROME_REM}rem);
-    min-height: 9rem;
+    min-height: 7rem;
     width: auto !important;
     max-width: 100%;
     object-fit: contain;
@@ -130,6 +131,7 @@ def _details(paths: tuple[Path, ...], library: PhotoLibrary) -> None:
     current = Path(st.session_state[CURRENT_KEY])
     record = library.photo(current)
     st.html(DETAIL_CSS)
+    _file_heading(current)
     previous, following = neighbours(paths, current)
     with st.container(
         key=PHOTO_KEY, horizontal=True, vertical_alignment="center", gap="small"
@@ -164,6 +166,13 @@ def _step_button(
         shortcut=shortcut,
         on_click=_show,
         args=(target,),
+    )
+
+
+def _file_heading(path: Path) -> None:
+    """The file name in bold with its folder after it, above the photo."""
+    st.markdown(
+        f"**{escape_markdown(path.name)}** :gray[{escape_markdown(str(path.parent))}]"
     )
 
 

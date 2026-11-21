@@ -181,3 +181,11 @@ def test_similar_photos_show_a_bucket_not_a_distance() -> None:
     assert "IMG_1.DNG · Identical" in captions
     assert "IMG_2.DNG · Similar" in captions
     assert app.button(key=similar_button_key(_record(1).path))
+
+
+def test_details_show_the_file_name_first() -> None:
+    app = _app(FakePhotoLibrary([_record(0)]))
+
+    app.button(key=open_button_key(_record(0).path)).click().run()
+
+    assert r"**IMG\_0\.DNG** :gray[/photos]" in [m.value for m in app.markdown]

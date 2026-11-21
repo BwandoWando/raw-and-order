@@ -17,6 +17,7 @@ from my_agent.ui.formatting import (
     camera_settings,
     card_caption,
     date_source_label,
+    escape_markdown,
     format_exposure,
     format_white_balance,
 )
@@ -139,3 +140,8 @@ def test_horizontal_bars_leave_room_for_every_row() -> None:
 )
 def test_format_white_balance(exif: ExifData, expected: str | None) -> None:
     assert format_white_balance(exif) == expected
+
+
+def test_escape_markdown_keeps_file_names_literal() -> None:
+    assert escape_markdown("IMG_0001 [v2].jpg") == r"IMG\_0001 \[v2\]\.jpg"
+    assert escape_markdown("/a:b*c") == r"/a\:b\*c"
