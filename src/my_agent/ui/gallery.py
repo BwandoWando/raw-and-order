@@ -1,6 +1,5 @@
 """Gallery tab: sort, page size, thumbnail grid and pagination."""
 
-import hashlib
 from pathlib import Path
 
 import streamlit as st
@@ -8,7 +7,7 @@ import streamlit as st
 from my_agent.schemas import PhotoRecord
 from my_agent.schemas.query import PAGE_SIZES, PhotoQuery, SortOrder
 from my_agent.ui.detail import open_details
-from my_agent.ui.formatting import card_caption
+from my_agent.ui.formatting import card_caption, path_digest
 from my_agent.ui.grid import grid_shape, thumbnail_px
 from my_agent.ui.library import PhotoLibrary
 
@@ -97,18 +96,14 @@ def render_gallery(filters: PhotoQuery, library: PhotoLibrary) -> None:
     _pager(result.pages)
 
 
-def _digest(path: Path | str) -> str:
-    return hashlib.sha1(str(path).encode(), usedforsecurity=False).hexdigest()[:16]
-
-
 def thumbnail_key(path: Path | str) -> str:
     """Stable key of the container around a photo's thumbnail."""
-    return f"{THUMB_KEY_PREFIX}{_digest(path)}"
+    return f"{THUMB_KEY_PREFIX}{path_digest(path)}"
 
 
 def open_button_key(path: Path | str) -> str:
     """Stable key of the invisible button laid over a photo's thumbnail."""
-    return f"{OPEN_KEY_PREFIX}{_digest(path)}"
+    return f"{OPEN_KEY_PREFIX}{path_digest(path)}"
 
 
 def _grid(items: list[PhotoRecord], page_size: int, library: PhotoLibrary) -> None:

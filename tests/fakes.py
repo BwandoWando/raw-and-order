@@ -192,10 +192,12 @@ class FakePhotoLibrary:
         records: Sequence[PhotoRecord] = (),
         failures: Sequence[FailureRecord] = (),
         copies: dict[Path, list[Path]] | None = None,
+        similar: dict[Path, list[NearDuplicate]] | None = None,
     ) -> None:
         self._records = list(records)
         self._failures = list(failures)
         self._copies = copies or {}
+        self._similar = similar or {}
         self.refreshes = 0
 
     def search(self, query: PhotoQuery) -> PhotoPage:
@@ -222,7 +224,7 @@ class FakePhotoLibrary:
         return next((r for r in self._records if r.path == path), None)
 
     def near_duplicates(self, path: Path) -> list[NearDuplicate]:
-        return []
+        return self._similar.get(path, [])
 
     def copies_of(self, path: Path) -> list[Path]:
         return self._copies.get(path, [])

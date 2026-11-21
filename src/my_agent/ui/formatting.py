@@ -1,6 +1,8 @@
 """Pure display helpers (no Streamlit), so they are easy to unit-test."""
 
+import hashlib
 from fractions import Fraction
+from pathlib import Path
 
 from my_agent.schemas import DateSource, ExifData, PhotoRecord, WhiteBalanceSource
 
@@ -85,3 +87,8 @@ def format_white_balance(exif: ExifData) -> str | None:
         source = WB_SOURCE_LABELS.get(exif.white_balance_k_source)  # type: ignore[arg-type]
         parts.append(f"{kelvin} ({source})" if source else kelvin)
     return " · ".join(parts) or None
+
+
+def path_digest(path: Path | str) -> str:
+    """Short stable id of a path, for widget keys."""
+    return hashlib.sha1(str(path).encode(), usedforsecurity=False).hexdigest()[:16]

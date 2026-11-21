@@ -13,6 +13,8 @@ from my_agent.schemas import (
     PhotoRecord,
     SceneType,
 )
+from my_agent.schemas.query import NearDuplicate
+from my_agent.ui.detail import similar_button_key
 from my_agent.ui.gallery import open_button_key
 from my_agent.ui.library import PhotoLibrary
 from tests.fakes import SAMPLE_ANNOTATION, FakePhotoLibrary
@@ -162,3 +164,20 @@ def test_details_offer_steps_only_within_the_page() -> None:
     keys = {b.key for b in app.button}
     assert "detail-previous" in keys and "detail-next" not in keys
     assert any("Photo 3 of 3" in c.value for c in app.caption)
+
+
+def test_similar_photos_show_a_bucket_not_a_distance() -> None:
+    near = [NearDuplicate(record=_record(1), distance=0)]
+    near.append(NearDuplicate(record=_record(2), distance=7))
+    app = _app(
+        FakePhotoLibrary(
+            [_record(i) for i in range(3)], similar={_record(0).path: near}
+        )
+    )
+
+    app.button(key=open_button_key(_record(0).path)).click().run()
+
+    captions = [c.value for c in app.caption]
+    assert "IMG_1.DNG · Identical" in captions
+    assert "IMG_2.DNG · Similar" in captions
+    assert app.button(key=similar_button_key(_record(1).path))

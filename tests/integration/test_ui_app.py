@@ -141,7 +141,8 @@ def test_details_dialog_opens(app_with, tmp_path: Path) -> None:  # type: ignore
     assert not app.exception
     texts = [m.value for m in app.markdown]
     assert "**Sunset over the sea.**" in texts
-    assert any("distance" in c or "identical" in c for c in _captions(app))  # near-dup
+    buckets = ("Identical", "Very similar", "Similar")
+    assert any(c.endswith(buckets) for c in _captions(app))  # near-dup
 
 
 def test_empty_database_shows_hint(app_with) -> None:  # type: ignore[no-untyped-def]

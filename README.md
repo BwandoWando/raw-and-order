@@ -202,8 +202,12 @@ Stop it with Ctrl+C. In VS Code, the **Streamlit UI** debug configuration in
   kept in the URL (`?g_page_size=96`), so you can bookmark it. Hover a photo
   for its date and scene; click it to see the large preview, description, tags,
   camera and lens settings, a map when the photo has GPS, its SHA-256 and dHash,
-  exact copies of it stored elsewhere ("Also stored at"), and similar photos
-  (dHash distance ≤ 10).
+  exact copies of it stored elsewhere ("Also stored at"), and similar photos.
+  The dialog fits one screen. Step to the previous or next photo on the
+  gallery page with the buttons at its edges (shown on hover) or the arrow
+  keys; click a similar photo to show it in the dialog. Similar photos are
+  labelled by dHash distance: Identical (0), Very similar (1–5) and Similar
+  (6–10).
 - **Tags:** a network of the most-used tags (20–100). Bubble size is the number
   of photos; lines join tags that often appear together (Jaccard overlap above
   the "Link strength" slider). Tags are grouped into clusters (Louvain

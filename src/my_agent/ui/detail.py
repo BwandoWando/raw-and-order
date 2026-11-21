@@ -4,7 +4,8 @@ The photo comes first, then its description and camera settings. The longer
 sections (similar photos, location, files) sit in tabs below, so nothing
 needs scrolling on a normal screen. Buttons at the dialog's left and right
 edges (and the arrow keys) step to the previous or next photo shown in the
-gallery without closing the dialog.
+gallery without closing the dialog. Clicking a similar photo shows it here;
+it can only be stepped from if it is on the gallery page too.
 """
 
 from collections.abc import Sequence
@@ -14,8 +15,15 @@ import pandas as pd
 import streamlit as st
 from streamlit.delta_generator import DeltaGenerator
 
+from my_agent.analysis.similarity import similarity
 from my_agent.schemas import ExifData, PhotoRecord
-from my_agent.ui.formatting import camera_settings, capture_label, date_source_label
+from my_agent.schemas.query import NearDuplicate
+from my_agent.ui.formatting import (
+    camera_settings,
+    capture_label,
+    date_source_label,
+    path_digest,
+)
 from my_agent.ui.library import PhotoLibrary
 
 DUPLICATE_COLUMNS = 6
@@ -25,6 +33,8 @@ FRAME_KEY = "detail-frame"
 PREVIOUS_KEY = "detail-previous"
 NEXT_KEY = "detail-next"
 SIMILAR_KEY = "detail-similar"
+SIMILAR_TILE_PREFIX = "detail-sim-"  # image plus overlay button
+SIMILAR_OPEN_PREFIX = "detail-simopen-"  # the overlay button (distinct prefix)
 STEP_BUTTON_PX = 44
 CURRENT_KEY = "detail_current"  # session state: path of the photo shown
 # Room left for the dialog title, summary, camera row and tabs.
@@ -69,6 +79,26 @@ DETAIL_CSS = f"""
     height: 4.5rem;
     object-fit: cover;
     border-radius: 0.25rem;
+    transition: filter 120ms ease-in-out;
+}}
+[class*="st-key-{SIMILAR_TILE_PREFIX}"] {{ position: relative; }}
+[class*="st-key-{SIMILAR_TILE_PREFIX}"]:hover img {{ filter: brightness(0.85); }}
+[class*="st-key-{SIMILAR_OPEN_PREFIX}"] {{
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+}}
+[class*="st-key-{SIMILAR_OPEN_PREFIX}"] * {{
+    width: 100%;
+    height: 100%;
+}}
+[class*="st-key-{SIMILAR_OPEN_PREFIX}"] button {{
+    opacity: 0;
+    cursor: pointer;
+}}
+[class*="st-key-{SIMILAR_TILE_PREFIX}"]:has(button:focus-visible) img {{
+    outline: 3px solid #2a78d6;
+    outline-offset: 2px;
 }}
 </style>
 """
@@ -219,17 +249,32 @@ def _files(record: PhotoRecord, copies: list[Path]) -> None:
 
 
 def _near_duplicates(path: Path, library: PhotoLibrary) -> None:
+    """Up to a row of similar photos; clicking one shows it in this dialog."""
     matches = library.near_duplicates(path)[:DUPLICATE_COLUMNS]
     if not matches:
-        st.caption("No similar photos (dHash distance ≤ 10).")
+        st.caption("No similar photos found.")
         return
     with st.container(key=SIMILAR_KEY):
         columns = st.columns(DUPLICATE_COLUMNS, gap="small")
         for column, match in zip(columns, matches, strict=False):
             with column:
-                if match.record.preview_path.is_file():
-                    st.image(str(match.record.preview_path), width="stretch")
-                label = (
-                    "identical" if match.distance == 0 else f"distance {match.distance}"
-                )
-                st.caption(f"{match.record.path.name} · {label}")
+                _similar_tile(match)
+
+
+def _similar_tile(match: NearDuplicate) -> None:
+    record = match.record
+    with st.container(key=f"{SIMILAR_TILE_PREFIX}{path_digest(record.path)}"):
+        if record.preview_path.is_file():
+            st.image(str(record.preview_path), width="stretch")
+        st.button(
+            f"Show {record.path.name}",
+            key=similar_button_key(record.path),
+            on_click=_show,
+            args=(record.path,),
+        )
+    st.caption(f"{record.path.name} · {similarity(match.distance)}")
+
+
+def similar_button_key(path: Path | str) -> str:
+    """Stable key of the invisible button over a similar photo."""
+    return f"{SIMILAR_OPEN_PREFIX}{path_digest(path)}"
