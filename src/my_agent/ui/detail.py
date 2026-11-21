@@ -6,16 +6,16 @@ import pandas as pd
 import streamlit as st
 
 from my_agent.schemas import ExifData, PhotoRecord
-from my_agent.ui import services
 from my_agent.ui.formatting import camera_settings, capture_label, date_source_label
+from my_agent.ui.library import PhotoLibrary
 
 DUPLICATE_COLUMNS = 4
 
 
 @st.dialog("Photo details", width="large")
-def show_details(path: str) -> None:
+def show_details(path: Path, library: PhotoLibrary) -> None:
     """Render the details of the photo at ``path``."""
-    record = services.photo(path)
+    record = library.photo(path)
     if record is None:
         st.warning("This photo is no longer in the database.")
         return
@@ -38,7 +38,7 @@ def show_details(path: str) -> None:
     _exif_table(record.exif)
     _location(record)
     _fingerprints(record.sha256, record.dhash)
-    _near_duplicates(path)
+    _near_duplicates(path, library)
 
 
 def _image(preview_path: Path) -> None:
@@ -69,8 +69,8 @@ def _fingerprints(sha256: str | None, dhash: str | None) -> None:
     st.code(f"SHA-256  {sha256 or '-'}\ndHash    {dhash or '-'}", language=None)
 
 
-def _near_duplicates(path: str) -> None:
-    matches = services.near_duplicates(path)
+def _near_duplicates(path: Path, library: PhotoLibrary) -> None:
+    matches = library.near_duplicates(path)
     st.subheader("Similar photos", divider="gray")
     if not matches:
         st.caption("No similar photos (dHash distance ≤ 10).")

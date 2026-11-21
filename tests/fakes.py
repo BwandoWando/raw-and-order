@@ -13,7 +13,20 @@ from PIL import Image
 from pydantic import PrivateAttr
 
 from my_agent.exceptions import ExifReadError, FingerprintError
-from my_agent.schemas import Annotation, ExifData, SceneType
+from my_agent.schemas import (
+    Annotation,
+    ExifData,
+    FailureRecord,
+    PhotoRecord,
+    SceneType,
+)
+from my_agent.schemas.query import (
+    FilterOptions,
+    NearDuplicate,
+    PhotoPage,
+    PhotoQuery,
+    PhotoStats,
+)
 
 SAMPLE_ANNOTATION = Annotation(
     description="A mountain lake at sunset.",
@@ -128,3 +141,62 @@ class ScriptedChatModel(BaseChatModel):
         if isinstance(response, BaseException):
             raise response
         return response
+
+
+class FakePhotoLibrary:
+    """In-memory :class:`~my_agent.ui.library.PhotoLibrary` for UI tests.
+
+    Search ignores filters and sort; it only pages through ``records``.
+    """
+
+    def __init__(
+        self,
+        records: Sequence[PhotoRecord] = (),
+        failures: Sequence[FailureRecord] = (),
+    ) -> None:
+        self._records = list(records)
+        self._failures = list(failures)
+        self.refreshes = 0
+
+    def search(self, query: PhotoQuery) -> PhotoPage:
+        start = (query.page - 1) * query.page_size
+        return PhotoPage(
+            items=self._records[start : start + query.page_size],
+            total=len(self._records),
+            page=query.page,
+            page_size=query.page_size,
+        )
+
+    def filter_options(self) -> FilterOptions:
+        return FilterOptions(
+            scenes=[],
+            tags=[],
+            cameras=[],
+            lenses=[],
+            annotated_by=[],
+            earliest=None,
+            latest=None,
+        )
+
+    def photo(self, path: Path) -> PhotoRecord | None:
+        return next((r for r in self._records if r.path == path), None)
+
+    def near_duplicates(self, path: Path) -> list[NearDuplicate]:
+        return []
+
+    def stats(self) -> PhotoStats:
+        return PhotoStats(
+            total=len(self._records),
+            with_gps=sum(r.exif.gps is not None for r in self._records),
+            with_people=sum(r.annotation.contains_people for r in self._records),
+            by_scene=[],
+            by_lens=[],
+            by_camera=[],
+            by_month=[],
+        )
+
+    def failures(self) -> list[FailureRecord]:
+        return list(self._failures)
+
+    def refresh(self) -> None:
+        self.refreshes += 1

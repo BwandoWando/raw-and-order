@@ -7,9 +7,9 @@ import streamlit as st
 
 from my_agent.schemas import PhotoRecord
 from my_agent.schemas.query import PAGE_SIZES, PhotoQuery, SortOrder
-from my_agent.ui import services
 from my_agent.ui.detail import show_details
 from my_agent.ui.formatting import card_caption
+from my_agent.ui.library import PhotoLibrary
 
 GRID_COLUMNS = 4
 THUMB_KEY_PREFIX = "thumb-"  # container holding the image and the overlay
@@ -51,7 +51,7 @@ SORT_LABELS = {
 }
 
 
-def render_gallery(filters: PhotoQuery) -> None:
+def render_gallery(filters: PhotoQuery, library: PhotoLibrary) -> None:
     """Draw the gallery for the given filters."""
     sort_col, size_col, _ = st.columns([2, 1, 3])
     sort = sort_col.selectbox(
@@ -60,9 +60,7 @@ def render_gallery(filters: PhotoQuery) -> None:
     page_size = size_col.selectbox("Per page", PAGE_SIZES, key="g_page_size")
     query = filters.model_copy(update={"sort": sort, "page_size": page_size})
     page_number = _current_page(query)
-    result = services.search(
-        query.model_copy(update={"page": page_number}).model_dump_json()
-    )
+    result = library.search(query.model_copy(update={"page": page_number}))
 
     if result.total == 0:
         st.info("No photos match these filters.")
@@ -70,7 +68,7 @@ def render_gallery(filters: PhotoQuery) -> None:
     first = (result.page - 1) * result.page_size + 1
     last = first + len(result.items) - 1
     st.caption(f"Showing {first}–{last} of {result.total} photos")
-    _grid(result.items)
+    _grid(result.items, library)
     _pager(result.pages)
 
 
@@ -88,7 +86,7 @@ def open_button_key(path: Path | str) -> str:
     return f"{OPEN_KEY_PREFIX}{_digest(path)}"
 
 
-def _grid(items: list[PhotoRecord]) -> None:
+def _grid(items: list[PhotoRecord], library: PhotoLibrary) -> None:
     st.html(THUMBNAIL_CSS)
     for start in range(0, len(items), GRID_COLUMNS):
         columns = st.columns(GRID_COLUMNS)
@@ -96,13 +94,13 @@ def _grid(items: list[PhotoRecord]) -> None:
             columns, items[start : start + GRID_COLUMNS], strict=False
         ):
             with column, st.container(border=True):
-                _thumbnail(record)
+                _thumbnail(record, library)
                 st.caption(card_caption(record))
                 if st.button("Details", key=f"details-{record.path}", width="stretch"):
-                    show_details(str(record.path))
+                    show_details(record.path, library)
 
 
-def _thumbnail(record: PhotoRecord) -> None:
+def _thumbnail(record: PhotoRecord, library: PhotoLibrary) -> None:
     """The photo itself, clickable to open its details."""
     with st.container(key=thumbnail_key(record.path)):
         if record.preview_path.is_file():
@@ -111,7 +109,7 @@ def _thumbnail(record: PhotoRecord) -> None:
             st.caption("Preview missing")
         label = f"Open details for {record.path.name}"
         if st.button(label, key=open_button_key(record.path)):
-            show_details(str(record.path))
+            show_details(record.path, library)
 
 
 def _current_page(query: PhotoQuery) -> int:

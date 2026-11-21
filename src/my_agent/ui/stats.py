@@ -6,7 +6,6 @@ import altair as alt
 import streamlit as st
 
 from my_agent.schemas.query import CountRow
-from my_agent.ui import services
 from my_agent.ui.charts import (
     columns_by_month,
     horizontal_bars,
@@ -14,15 +13,16 @@ from my_agent.ui.charts import (
     rows_frame,
     theme_for,
 )
+from my_agent.ui.library import PhotoLibrary
 
 TOP_LENSES = 10
 UNKNOWN = "Unknown"
 
 
-def render_stats() -> None:
+def render_stats(library: PhotoLibrary) -> None:
     """Draw the metrics row and the three breakdown charts."""
-    summary = services.stats()
-    failed = len(services.failures())
+    summary = library.stats()
+    failed = len(library.failures())
     a, b, c, d = st.columns(4)
     a.metric("Photos", summary.total)
     b.metric("With GPS", summary.with_gps)

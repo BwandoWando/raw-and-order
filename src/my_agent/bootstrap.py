@@ -4,18 +4,14 @@ Everything else receives its dependencies through constructors.
 """
 
 from contextlib import ExitStack
-from dataclasses import dataclass
 from types import TracebackType
 from typing import Self
 
 import httpx
 
 from my_agent.config import LLMProvider, LLMSettings, Settings
-from my_agent.db.catalog import PhotoCatalog, SqlAlchemyPhotoCatalog
-from my_agent.db.failure_repository import (
-    FailureRepository,
-    SqlAlchemyFailureRepository,
-)
+from my_agent.db.catalog import SqlAlchemyPhotoCatalog
+from my_agent.db.failure_repository import SqlAlchemyFailureRepository
 from my_agent.db.repository import SqlAlchemyPhotoRepository
 from my_agent.db.session import create_db_engine, create_session_factory
 from my_agent.exif_reread import ExifRereader
@@ -46,6 +42,7 @@ from my_agent.media.raw import RawpyDecoder
 from my_agent.media.routing import ExtensionRoutingDecoder
 from my_agent.pipeline import PhotoPipeline
 from my_agent.schemas.annotation import annotation_schema
+from my_agent.ui.library import PhotoLibrary
 from my_agent.workflow.nodes import (
     AnnotateNode,
     DecodeNode,
@@ -217,21 +214,18 @@ def _ensure_vision(checker: CapabilityChecker, model: str) -> None:
     checker.ensure_vision_support(model)
 
 
-@dataclass(frozen=True)
-class UiServices:
-    """Read-only services the Streamlit UI needs."""
+def build_ui_library(settings: Settings) -> PhotoLibrary:
+    """Build the UI's read-only, cached photo library from settings.
 
-    catalog: PhotoCatalog
-    failures: FailureRepository
-
-
-def build_ui_services(settings: Settings) -> UiServices:
-    """Build the UI's read-only services from settings.
-
-    The engine lives as long as the UI process; Streamlit caches the result.
+    The engine lives as long as the UI process; the UI caches the result.
+    Streamlit is imported here, not at module level, so the CLI runs
+    without the ``ui`` extra installed.
     """
+    from my_agent.ui.cached_library import CachedPhotoLibrary
+
     session_factory = create_session_factory(create_db_engine(settings.database_url))
-    return UiServices(
+    return CachedPhotoLibrary(
         catalog=SqlAlchemyPhotoCatalog(session_factory),
         failures=SqlAlchemyFailureRepository(session_factory),
+        cache_key=settings.database_url,
     )

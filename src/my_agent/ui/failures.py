@@ -3,12 +3,12 @@
 import pandas as pd
 import streamlit as st
 
-from my_agent.ui import services
+from my_agent.ui.library import PhotoLibrary
 
 
-def render_failures() -> None:
+def render_failures(library: PhotoLibrary) -> None:
     """Draw the failure log as a table."""
-    records = services.failures()
+    records = library.failures()
     if not records:
         st.success("No logged failures.")
         return
