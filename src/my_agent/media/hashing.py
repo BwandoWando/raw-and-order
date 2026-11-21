@@ -16,7 +16,17 @@ from PIL import Image, UnidentifiedImageError
 from my_agent.exceptions import FingerprintError
 
 DEFAULT_CHUNK_SIZE = 1024 * 1024  # 1 MiB: low memory even for 80 MB raw files
-DHASH_SIZE = 8  # 8x8 comparisons -> 64-bit hash, 16 hex characters
+# 9x9 comparisons -> 81-bit hash, 21 hex characters. Against 8x8 (64 bits) it
+# found slightly more look-alikes with about a third of the chance matches.
+DHASH_SIZE = 9
+
+
+def hex_length(size: int) -> int:
+    """Hex characters for a ``size`` x ``size`` dHash (bits rounded up to 4)."""
+    return -(-size * size // 4)
+
+
+DHASH_HEX_LENGTH = hex_length(DHASH_SIZE)
 
 
 class Sha256FileHasher:
@@ -59,14 +69,15 @@ def dhash(image: Image.Image, size: int = DHASH_SIZE) -> str:
         for col in range(size):
             left, right = data[row * width + col], data[row * width + col + 1]
             value = (value << 1) | (left > right)
-    return f"{value:0{size * size // 4}x}"
+    return f"{value:0{hex_length(size)}x}"
 
 
 def hamming_distance(first: str, second: str) -> int:
     """Count differing bits between two equal-length hex hashes.
 
-    For 64-bit dHashes, 0 means visually identical and roughly 10 or less
-    usually means the same picture (resized, recompressed or lightly edited).
+    For 81-bit dHashes, 0 means the same picture (resized or recompressed)
+    and 14 or less a close variant; see
+    :mod:`my_agent.analysis.similarity`.
 
     Raises:
         ValueError: If the hashes differ in length or are not hex.
