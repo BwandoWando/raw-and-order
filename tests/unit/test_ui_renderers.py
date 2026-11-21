@@ -168,7 +168,7 @@ def test_details_offer_steps_only_within_the_page() -> None:
 
 def test_similar_photos_show_a_bucket_not_a_distance() -> None:
     near = [NearDuplicate(record=_record(1), distance=0)]
-    near.append(NearDuplicate(record=_record(2), distance=7))
+    near.append(NearDuplicate(record=_record(2), distance=40))
     app = _app(
         FakePhotoLibrary(
             [_record(i) for i in range(3)], similar={_record(0).path: near}

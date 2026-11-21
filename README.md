@@ -58,11 +58,15 @@ called, so it is fast (about 15 s for 1,000 photos). Use it after an update adds
 or fixes EXIF fields. Missing files are listed and skipped. Previews stay in
 their original `YYYYMMDD` folder even if a corrected date differs.
 
-**Fingerprints:** every file gets a SHA-256 of its contents and a 64-bit
-perceptual hash (dHash) of its preview. A stored photo is skipped while its
+**Fingerprints:** every file gets a SHA-256 of its contents and a 256-bit
+perceptual hash (dHash, 16×16) of its preview. A stored photo is skipped while its
 SHA-256 is unchanged, so edited files are processed again automatically and
 `--reprocess` forces everything. The dHash finds near-duplicates (Hamming
-distance ≤ 10), shown as "Similar photos" in the UI.
+distance ≤ 64 of 256 bits), shown as "Similar photos" in the UI. It compares
+greyscale brightness patterns, not colour or subject, so it finds copies and
+close variants of a shot rather than photos of the same kind of scene. After
+upgrading from the older 64-bit hash, run `my-agent rehash` once: it
+recomputes every stored hash from the saved previews (no LLM calls).
 
 **Exact copies:** a file whose SHA-256 matches a photo stored at another path
 (e.g. the same shot copied to a backup folder) is not annotated again. It is
@@ -174,6 +178,7 @@ my-agent process /path/to/photos --reread-exif        # refresh EXIF of stored p
 my-agent process /path/to/photos --max-photos 1500    # up to 1500 photos this run (max 5000)
 my-agent process /path/to/photos --chunk-size 10      # save every 10 photos
 my-agent process /path/to/photos --skip-model-check   # skip the startup LLM check
+my-agent rehash                                        # recompute similar-photo hashes (no LLM)
 ```
 
 Folders are searched recursively. Each run prints a summary: photos processed
@@ -206,8 +211,8 @@ Stop it with Ctrl+C. In VS Code, the **Streamlit UI** debug configuration in
   The dialog fits one screen. Step to the previous or next photo on the
   gallery page with the buttons at its edges (shown on hover) or the arrow
   keys; click a similar photo to show it in the dialog. Similar photos are
-  labelled by dHash distance: Identical (0), Very similar (1–5) and Similar
-  (6–10).
+  labelled by dHash distance (of 256 bits): Identical (0–12), Very similar
+  (13–32) and Similar (33–64).
 - **Tags:** a network of the most-used tags (20–100). Bubble size is the number
   of photos; lines join tags that often appear together (Jaccard overlap above
   the "Link strength" slider). Tags are grouped into clusters (Louvain
@@ -265,6 +270,7 @@ src/my_agent/
 ├── exceptions.py     domain exception hierarchy
 ├── pipeline.py       runs the workflow, builds the run summary
 ├── exif_reread.py    --reread-exif: refresh EXIF columns of stored photos
+├── rehash.py         my-agent rehash: recompute stored perceptual hashes
 ├── workflow/         state, steps (nodes/), routing, ordered runner
 ├── media/            discovery, exiftool, rawpy/Pillow decoding, previews, hashing
 ├── llm/              provider factory, capability check, annotator, prompts

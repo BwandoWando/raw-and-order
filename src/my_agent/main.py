@@ -7,12 +7,18 @@ from typing import Annotated, NoReturn
 
 import typer
 
-from my_agent.bootstrap import Application, ExifRereadApplication, check_model
+from my_agent.bootstrap import (
+    Application,
+    ExifRereadApplication,
+    RehashApplication,
+    check_model,
+)
 from my_agent.config import MAX_PHOTOS_HARD_LIMIT, Settings, load_settings
 from my_agent.exceptions import ModelUnavailableError, MyAgentError, RunAbortedError
 from my_agent.exif_reread import RereadSummary
 from my_agent.logging_config import configure_logging
 from my_agent.pipeline import RunSummary
+from my_agent.rehash import RehashSummary
 from my_agent.ui.launcher import streamlit_command
 
 MAX_COPIES_LISTED = 5  # the rest are summarised as a count
@@ -116,6 +122,24 @@ def check() -> None:
 
 
 @app.command()
+def rehash() -> None:
+    """Recompute every stored photo's perceptual hash from its preview.
+
+    Run after upgrading the similar-photo fingerprint. No LLM calls;
+    annotations and EXIF stay.
+    """
+    settings = _startup()
+    try:
+        with RehashApplication(settings) as application:
+            if application.rehasher is None:
+                raise RuntimeError("Application did not build the rehasher")
+            summary = application.rehasher.run()
+    except MyAgentError as exc:
+        _fail(exc)
+    _print_rehash_summary(summary)
+
+
+@app.command()
 def ui(
     port: Annotated[int, typer.Option(min=1024, max=65535, help="Local port.")] = 8501,
     open_browser: Annotated[
@@ -189,6 +213,19 @@ def _print_reread_summary(summary: RereadSummary) -> None:
         typer.echo(
             "No stored photos in that folder; run it without --reread-exif first."
         )
+
+
+def _print_rehash_summary(summary: RehashSummary) -> None:
+    typer.echo(
+        f"Rehash: {summary.checked} stored photo(s) checked, "
+        f"{summary.updated} updated, {summary.unchanged} unchanged, "
+        f"{len(summary.missing_previews)} missing previews, "
+        f"{len(summary.failed)} failed."
+    )
+    for path in summary.missing_previews:
+        typer.echo(f"  MISSING PREVIEW {path}")
+    for failed in summary.failed:
+        typer.echo(f"  FAILED {failed.path}: {failed.message}")
 
 
 def _print_summary(summary: RunSummary) -> None:

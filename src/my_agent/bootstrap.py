@@ -44,6 +44,7 @@ from my_agent.media.raw import RawpyDecoder
 from my_agent.media.routing import ExtensionRoutingDecoder
 from my_agent.media.thumbnails import JpegThumbnailer
 from my_agent.pipeline import PhotoPipeline
+from my_agent.rehash import PerceptualRehasher
 from my_agent.schemas.annotation import annotation_schema
 from my_agent.ui.library import PhotoLibrary
 from my_agent.workflow.nodes import (
@@ -188,6 +189,40 @@ class ExifRereadApplication:
         )
         reader = self._stack.enter_context(PyExifToolReader(ExifMapper(date_resolver)))
         return ExifRereader(store, reader)
+
+
+class RehashApplication:
+    """Owns the resources for ``my-agent rehash``: the database only.
+
+    Hashes come from saved previews, so no exiftool, decoder or LLM is built.
+
+    Args:
+        settings: Validated application settings.
+    """
+
+    def __init__(self, settings: Settings) -> None:
+        self._settings = settings
+        self._stack = ExitStack()
+        self.rehasher: PerceptualRehasher | None = None
+
+    def __enter__(self) -> Self:
+        s = self._settings
+        engine = create_db_engine(s.database_url)
+        self._stack.callback(engine.dispose)
+        store = SqlAlchemyPhotoRepository(create_session_factory(engine))
+        previews = JpegPreviewStore(
+            s.preview_dir, DatedPreviewLayout(), s.preview_max_px, s.preview_quality
+        )
+        self.rehasher = PerceptualRehasher(store, DHasher(), previews)
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        tb: TracebackType | None,
+    ) -> None:
+        self._stack.close()
 
 
 def build_annotator(llm: LLMSettings, max_tags: int) -> LLMAnnotator:

@@ -30,7 +30,7 @@ def _photo(
     captured: datetime | None = datetime(2026, 1, 11, 14, 0),
     gps: bool = False,
     model: str = "ollama:gemma3:12b",
-    dhash: str | None = "0000000000000000",
+    dhash: str | None = "0" * 64,
     processed_day: int = 1,
     kelvin: int | None = None,
 ) -> PhotoRecord:
@@ -68,7 +68,7 @@ def catalog(
             description="Sunset over the sea.",
             captured=datetime(2026, 2, 21, 18, 0),
             gps=True,
-            dhash="000000000000000f",
+            dhash="0" * 63 + "f",
             kelvin=5400,
         ),
         _photo(
@@ -89,7 +89,7 @@ def catalog(
             lens=None,
             captured=None,
             model="openai:x",
-            dhash="ffffffffffffffff",
+            dhash="f" * 64,
             processed_day=2,
         ),
         _photo(
@@ -185,7 +185,7 @@ def test_near_duplicates_closest_first(catalog: SqlAlchemyPhotoCatalog) -> None:
     assert [(m.record.path.name, m.distance) for m in matches] == [
         ("odd_100%.arw", 0),
         ("beach.arw", 4),
-    ]  # portrait.jpg is 64 bits away
+    ]  # portrait.jpg is 256 bits away
 
 
 def test_stats(catalog: SqlAlchemyPhotoCatalog) -> None:
