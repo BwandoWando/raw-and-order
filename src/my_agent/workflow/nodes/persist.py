@@ -48,7 +48,7 @@ class PersistNode:
         return PhotoRecord(
             path=item.path,
             sha256=item.sha256,
-            dhash=item.dhash,
+            phash=item.phash,
             exif=item.exif,
             annotation=item.annotation,
             preview_path=item.preview_path,

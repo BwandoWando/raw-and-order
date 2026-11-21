@@ -43,7 +43,7 @@ def _store(
         PhotoRecord(
             path=path,
             sha256="sha",
-            dhash="0" * 16,
+            phash="0" * 16,
             exif=exif,
             annotation=SAMPLE_ANNOTATION,
             preview_path=path.with_suffix(".jpg"),
@@ -90,7 +90,7 @@ def test_exif_is_replaced_but_annotation_and_hashes_are_kept(
     assert record is not None
     assert record.exif == NEW
     assert record.annotation == SAMPLE_ANNOTATION
-    assert (record.sha256, record.dhash, record.annotated_by) == (
+    assert (record.sha256, record.phash, record.annotated_by) == (
         "sha",
         "0" * 16,
         "ollama:gemma3:12b",

@@ -7,12 +7,12 @@ from pathlib import Path
 from PIL import Image
 
 from my_agent.db.repository import SqlAlchemyPhotoRepository
-from my_agent.media.hashing import DHASH_HEX_LENGTH, DHasher
+from my_agent.media.hashing import PHASH_HEX_LENGTH, PHasher
 from my_agent.rehash import PerceptualRehasher
 from my_agent.schemas import ExifData, PhotoRecord
 from tests.fakes import SAMPLE_ANNOTATION
 
-OLD_HASH = "0" * 16  # a 64-bit hash from before the upgrade
+OLD_HASH = "0" * 21  # an 81-bit hash from before the switch to 64 bits
 
 
 class FilePreviews:
@@ -27,7 +27,7 @@ def _store(repository: SqlAlchemyPhotoRepository, path: Path, preview: Path) -> 
         PhotoRecord(
             path=path,
             sha256="sha",
-            dhash=OLD_HASH,
+            phash=OLD_HASH,
             exif=ExifData(model="GR IV"),
             annotation=SAMPLE_ANNOTATION,
             preview_path=preview,
@@ -46,7 +46,7 @@ def _jpeg(path: Path) -> Path:
 
 
 def _rehasher(repository: SqlAlchemyPhotoRepository) -> PerceptualRehasher:
-    return PerceptualRehasher(repository, DHasher(), FilePreviews())
+    return PerceptualRehasher(repository, PHasher(), FilePreviews())
 
 
 def test_rehash_updates_hashes_and_lists_problems(
@@ -63,11 +63,11 @@ def test_rehash_updates_hashes_and_lists_problems(
     assert summary.missing_previews == [Path("/p/gone.arw")]
     assert [f.path for f in summary.failed] == [Path("/p/bad.arw")]
     good = repository.get_by_path(Path("/p/good.arw"))
-    assert good is not None and good.dhash is not None
-    assert len(good.dhash) == DHASH_HEX_LENGTH
+    assert good is not None and good.phash is not None
+    assert len(good.phash) == PHASH_HEX_LENGTH
     assert good.annotated_by == "fake"  # nothing else changes
     bad = repository.get_by_path(Path("/p/bad.arw"))
-    assert bad is not None and bad.dhash == OLD_HASH
+    assert bad is not None and bad.phash == OLD_HASH
 
 
 def test_second_rehash_changes_nothing(

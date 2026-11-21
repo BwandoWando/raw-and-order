@@ -16,7 +16,7 @@ class PhotoRecord(BaseModel):
 
     path: Path
     sha256: str | None = None
-    dhash: str | None = None
+    phash: str | None = None
     exif: ExifData
     annotation: Annotation
     preview_path: Path

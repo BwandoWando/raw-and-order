@@ -23,11 +23,11 @@ class PerceptualHashNode:
         self._preview_store = preview_store
 
     def __call__(self, state: WorkflowState) -> dict[str, Any]:
-        """Return ``items`` with ``dhash`` filled in."""
+        """Return ``items`` with ``phash`` filled in."""
         return {"items": apply_step(state.items, Stage.PERCEPTUAL_HASH, self._hash)}
 
     def _hash(self, item: PhotoItem) -> PhotoItem:
         if item.preview_path is None:
             raise ValueError(f"No preview for {item.path}; decode must run first")
         data = self._preview_store.load(item.preview_path)
-        return item.model_copy(update={"dhash": self._hasher.hash_image_bytes(data)})
+        return item.model_copy(update={"phash": self._hasher.hash_image_bytes(data)})

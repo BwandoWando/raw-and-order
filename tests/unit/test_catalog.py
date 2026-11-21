@@ -30,14 +30,14 @@ def _photo(
     captured: datetime | None = datetime(2026, 1, 11, 14, 0),
     gps: bool = False,
     model: str = "ollama:gemma3:12b",
-    dhash: str | None = "0" * 21,
+    phash: str | None = "0" * 16,
     processed_day: int = 1,
     kelvin: int | None = None,
 ) -> PhotoRecord:
     return PhotoRecord(
         path=Path(f"/photos/{name}"),
         sha256=name,
-        dhash=dhash,
+        phash=phash,
         exif=ExifData(
             model=camera,
             lens_model=lens,
@@ -68,7 +68,7 @@ def catalog(
             description="Sunset over the sea.",
             captured=datetime(2026, 2, 21, 18, 0),
             gps=True,
-            dhash="0" * 20 + "f",
+            phash="0" * 15 + "f",
             kelvin=5400,
         ),
         _photo(
@@ -89,7 +89,7 @@ def catalog(
             lens=None,
             captured=None,
             model="openai:x",
-            dhash="1" + "f" * 20,
+            phash="f" * 16,
             processed_day=2,
         ),
         _photo(
@@ -176,16 +176,29 @@ def test_filter_options(catalog: SqlAlchemyPhotoCatalog) -> None:
     assert (options.earliest, options.latest) == (date(2025, 12, 31), date(2026, 2, 21))
 
 
-def test_near_duplicates_closest_first(catalog: SqlAlchemyPhotoCatalog) -> None:
-    street = catalog.get(Path("/photos/street.arw"))
-    assert street is not None
+def test_near_duplicates_need_close_phash_and_shared_tags(
+    session_factory: sessionmaker[Session], repository: SqlAlchemyPhotoRepository
+) -> None:
+    tags = ("sea", "sky", "boat", "pier", "sunset")
+    photos = [
+        _photo("target.arw", tags=tags),
+        _photo("burst.arw", tags=tags, phash="0" * 15 + "f"),  # 4 bits, same tags
+        _photo("copy.arw", tags=(*tags[:3], "dusk", "calm")),  # 0 bits, 60% tags
+        _photo("lookalike.arw", tags=("city", "car", "road")),  # 0 bits, no tags
+        _photo("far.arw", tags=tags, phash="f" * 16),  # same tags, 64 bits
+    ]
+    for photo in photos:
+        repository.upsert(photo)
+    catalog = SqlAlchemyPhotoCatalog(session_factory)
+    target = catalog.get(Path("/photos/target.arw"))
+    assert target is not None
 
-    matches = catalog.near_duplicates(street)
+    matches = catalog.near_duplicates(target)
 
     assert [(m.record.path.name, m.distance) for m in matches] == [
-        ("odd_100%.arw", 0),
-        ("beach.arw", 4),
-    ]  # portrait.jpg is 81 bits away
+        ("copy.arw", 0),
+        ("burst.arw", 4),
+    ]
 
 
 def test_stats(catalog: SqlAlchemyPhotoCatalog) -> None:

@@ -92,7 +92,7 @@ class PhotoStats(BaseModel):
 
 
 class NearDuplicate(BaseModel):
-    """A visually similar photo and its dHash distance (0 = identical)."""
+    """A visually similar photo and its pHash distance (0 = identical)."""
 
     record: PhotoRecord
     distance: int

@@ -58,13 +58,15 @@ called, so it is fast (about 15 s for 1,000 photos). Use it after an update adds
 or fixes EXIF fields. Missing files are listed and skipped. Previews stay in
 their original `YYYYMMDD` folder even if a corrected date differs.
 
-**Fingerprints:** every file gets a SHA-256 of its contents and an 81-bit
-perceptual hash (dHash, 9×9) of its preview. A stored photo is skipped while its
+**Fingerprints:** every file gets a SHA-256 of its contents and a 64-bit
+perceptual hash (pHash: the 8×8 lowest frequencies of a DCT) of its preview. A stored photo is skipped while its
 SHA-256 is unchanged, so edited files are processed again automatically and
-`--reprocess` forces everything. The dHash finds near-duplicates (Hamming
-distance ≤ 14 of 81 bits), shown as "Similar photos" in the UI. It compares
-greyscale brightness patterns, not colour or subject, so it finds copies and
-close variants of a shot rather than photos of the same kind of scene. After
+`--reprocess` forces everything. Two photos count as similar (shown as
+"Similar photos" in the UI) when their pHashes differ in at most 14 of 64 bits
+**and** they share at least 25% of each photo's tags. The pHash describes the
+overall structure of light and dark (it barely changes with resizing,
+compression or brightness edits), so on its own it can also match unrelated
+photos with a similar layout; the tags confirm the content. After
 upgrading from an older hash size, run `my-agent rehash` once: it
 recomputes every stored hash from the saved previews (no LLM calls).
 
@@ -206,13 +208,13 @@ Stop it with Ctrl+C. In VS Code, the **Streamlit UI** debug configuration in
   page size grows and follow the window when you resize it. The page size is
   kept in the URL (`?g_page_size=96`), so you can bookmark it. Hover a photo
   for its date and scene; click it to see the large preview, description, tags,
-  camera and lens settings, a map when the photo has GPS, its SHA-256 and dHash,
+  camera and lens settings, a map when the photo has GPS, its SHA-256 and pHash,
   exact copies of it stored elsewhere ("Also stored at"), and similar photos.
   The dialog fits one screen. Step to the previous or next photo on the
   gallery page with the buttons at its edges (shown on hover) or the arrow
   keys; click a similar photo to show it in the dialog. Similar photos are
-  labelled by dHash distance (of 81 bits): Identical (0), Very similar (1–7)
-  and Similar (8–14).
+  labelled by pHash distance (of 64 bits): Identical (0–2), Very similar
+  (3–8) and Similar (9–14); all of them share at least 25% of their tags.
 - **Tags:** a network of the most-used tags (20–100). Bubble size is the number
   of photos; lines join tags that often appear together (Jaccard overlap above
   the "Link strength" slider). Tags are grouped into clusters (Louvain

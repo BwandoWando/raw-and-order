@@ -41,7 +41,7 @@ def _seed(tmp_path: Path, photos: int) -> str:
             PhotoRecord(
                 path=tmp_path / f"IMG_{i}.ARW",
                 sha256=f"sha{i}",
-                dhash="0000000000000000",
+                phash="0000000000000000",
                 exif=ExifData(
                     model="ILCE-6400",
                     lens_model="Sigma 17-40mm F1.8 DC | A",
@@ -134,15 +134,22 @@ def test_page_size_and_pagination(app_with) -> None:  # type: ignore[no-untyped-
 
 
 def test_details_dialog_opens(app_with, tmp_path: Path) -> None:  # type: ignore[no-untyped-def]
-    app = app_with(2)
+    app = app_with(3)
 
     app.button(key=open_button_key(tmp_path / "IMG_0.ARW")).click().run()
 
     assert not app.exception
-    texts = [m.value for m in app.markdown]
-    assert "**Sunset over the sea.**" in texts
-    buckets = ("Identical", "Very similar", "Similar")
-    assert any(c.endswith(buckets) for c in _captions(app))  # near-dup
+    assert "**Sunset over the sea.**" in [m.value for m in app.markdown]
+    assert "No similar photos found." in _captions(app)  # same pHash, other tags
+
+
+def test_details_list_tag_matches(app_with, tmp_path: Path) -> None:  # type: ignore[no-untyped-def]
+    app = app_with(3)
+
+    app.button(key=open_button_key(tmp_path / "IMG_1.ARW")).click().run()
+
+    assert not app.exception
+    assert "IMG_2.ARW · Identical" in _captions(app)  # both tagged "city"
 
 
 def test_empty_database_shows_hint(app_with) -> None:  # type: ignore[no-untyped-def]

@@ -1,6 +1,6 @@
 """Recompute the perceptual hash of stored photos (``my-agent rehash``).
 
-Needed after the dHash changes (e.g. its size), so similar-photo search
+Needed after the pHash changes (e.g. its size), so similar-photo search
 compares like with like. Each hash comes from the saved preview: no raw
 decoding and no LLM calls; annotations and EXIF stay.
 """
@@ -30,14 +30,14 @@ class RehashSummary(BaseModel):
     """Outcome of recomputing perceptual hashes."""
 
     checked: int = 0
-    updated: int = Field(default=0, description="Rows whose dHash changed.")
+    updated: int = Field(default=0, description="Rows whose pHash changed.")
     unchanged: int = 0
     missing_previews: list[Path] = Field(default_factory=list)
     failed: list[FailedRehash] = Field(default_factory=list)
 
 
 class PerceptualRehasher:
-    """Recomputes every stored photo's dHash from its preview.
+    """Recomputes every stored photo's pHash from its preview.
 
     Args:
         store: Lists stored previews and saves hashes.
@@ -63,7 +63,7 @@ class PerceptualRehasher:
         """
         stored = self._store.stored_hashes()
         summary = RehashSummary()
-        logger.info("Recomputing the dHash of %d stored photo(s)", len(stored))
+        logger.info("Recomputing the pHash of %d stored photo(s)", len(stored))
         for number, (path, (preview, old)) in enumerate(stored.items(), start=1):
             self._rehash_one(path, preview, old, summary)
             if number % PROGRESS_EVERY == 0:
@@ -85,5 +85,5 @@ class PerceptualRehasher:
         if new == old:
             summary.unchanged += 1
             return
-        self._store.update_dhash(path, new)
+        self._store.update_phash(path, new)
         summary.updated += 1

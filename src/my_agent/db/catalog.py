@@ -15,6 +15,7 @@ from sqlalchemy import Select, Text, cast, func, or_, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, sessionmaker
 
+from my_agent.analysis.similarity import shares_tags
 from my_agent.db.mappers import to_record
 from my_agent.db.models import CopyRow, PhotoRow
 from my_agent.exceptions import PersistenceError
@@ -32,7 +33,7 @@ from my_agent.schemas.query import (
 
 LIKE_ESCAPE = "\\"
 KELVIN_BUCKET = 500
-NEAR_DUPLICATE_DISTANCE = 14  # of 81 dHash bits; see analysis/similarity.py
+NEAR_DUPLICATE_DISTANCE = 14  # of 64 pHash bits; see analysis/similarity.py
 UNKNOWN_LABEL = "Unknown"
 
 
@@ -54,7 +55,7 @@ class PhotoCatalog(Protocol):
     def near_duplicates(
         self, record: PhotoRecord, max_distance: int = NEAR_DUPLICATE_DISTANCE
     ) -> list[NearDuplicate]:
-        """Return photos that look like ``record``, closest first."""
+        """Return similar photos (close pHash and shared tags), closest first."""
         ...
 
     def stats(self) -> PhotoStats:
@@ -171,37 +172,49 @@ class SqlAlchemyPhotoCatalog:
     def near_duplicates(
         self, record: PhotoRecord, max_distance: int = NEAR_DUPLICATE_DISTANCE
     ) -> list[NearDuplicate]:
-        """Return other photos within ``max_distance`` dHash bits, closest first.
+        """Return similar photos, closest first.
+
+        Similar means within ``max_distance`` pHash bits *and* sharing enough
+        tags (:func:`~my_agent.analysis.similarity.shares_tags`).
 
         Raises:
             PersistenceError: If the query fails.
         """
-        if record.dhash is None:
+        if record.phash is None:
             return []
         with self._read() as session:
-            candidates = session.execute(
-                select(PhotoRow.path, PhotoRow.dhash).where(
-                    PhotoRow.dhash.is_not(None), PhotoRow.path != str(record.path)
-                )
-            ).all()
-            target = record.dhash
-            close = sorted(
-                (hamming_distance(target, dhash), path)
-                for path, dhash in candidates
-                if dhash is not None and len(dhash) == len(target)
-            )
-            matches = [(d, p) for d, p in close if d <= max_distance]
+            close = self._close_by_phash(session, record, max_distance)
             rows = {
                 row.path: row
                 for row in session.scalars(
-                    select(PhotoRow).where(PhotoRow.path.in_([p for _, p in matches]))
+                    select(PhotoRow).where(PhotoRow.path.in_([p for _, p in close]))
                 )
             }
-            return [
+            matches = [
                 NearDuplicate(record=to_record(rows[path]), distance=distance)
-                for distance, path in matches
+                for distance, path in close
                 if path in rows
             ]
+        tags = record.annotation.tags
+        return [m for m in matches if shares_tags(tags, m.record.annotation.tags)]
+
+    @staticmethod
+    def _close_by_phash(
+        session: Session, record: PhotoRecord, max_distance: int
+    ) -> list[tuple[int, str]]:
+        """``(distance, path)`` of other photos within ``max_distance`` bits."""
+        candidates = session.execute(
+            select(PhotoRow.path, PhotoRow.phash).where(
+                PhotoRow.phash.is_not(None), PhotoRow.path != str(record.path)
+            )
+        ).all()
+        target = record.phash or ""
+        close = sorted(
+            (hamming_distance(target, phash), path)
+            for path, phash in candidates
+            if phash is not None and len(phash) == len(target)
+        )
+        return [(d, p) for d, p in close if d <= max_distance]
 
     def stats(self) -> PhotoStats:
         """Return totals and breakdowns.

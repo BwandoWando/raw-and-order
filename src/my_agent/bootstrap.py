@@ -35,7 +35,7 @@ from my_agent.media.capture_date import (
 from my_agent.media.discovery import FileSystemDiscoverer
 from my_agent.media.exif import PyExifToolReader
 from my_agent.media.exif_mapping import ExifMapper
-from my_agent.media.hashing import DHasher, Sha256FileHasher
+from my_agent.media.hashing import PHasher, Sha256FileHasher
 from my_agent.media.heif import enable_heif_support
 from my_agent.media.pairing import RawPairFilter
 from my_agent.media.pillow_decoder import PillowDecoder
@@ -135,7 +135,7 @@ class Application:
             next_chunk=NextChunkNode(),
             extract_exif=ExtractExifNode(exif_reader),
             decode=DecodeNode(decoder, preview_store),
-            perceptual_hash=PerceptualHashNode(DHasher(), preview_store),
+            perceptual_hash=PerceptualHashNode(PHasher(), preview_store),
             annotate=AnnotateNode(
                 build_annotator(s.llm, s.max_tags),
                 preview_store,
@@ -213,7 +213,7 @@ class RehashApplication:
         previews = JpegPreviewStore(
             s.preview_dir, DatedPreviewLayout(), s.preview_max_px, s.preview_quality
         )
-        self.rehasher = PerceptualRehasher(store, DHasher(), previews)
+        self.rehasher = PerceptualRehasher(store, PHasher(), previews)
         return self
 
     def __exit__(

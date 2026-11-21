@@ -2,31 +2,35 @@
 
 - SHA-256 of the file bytes identifies *this exact file*; any byte change,
   including metadata edits, changes it.
-- dHash (difference hash) of the image identifies *what it looks like*;
-  resized or recompressed copies get the same or a very similar hash.
-  Compare two dHashes with :func:`hamming_distance`.
+- pHash (perceptual hash, from the image's low frequencies) identifies *what
+  it looks like*; resized, recompressed or lightly edited copies get the same
+  or a very similar hash.
+  Compare two pHashes with :func:`hamming_distance`.
 """
 
 import hashlib
 import io
+from functools import cache
 from pathlib import Path
 
+import numpy as np
 from PIL import Image, UnidentifiedImageError
 
 from my_agent.exceptions import FingerprintError
 
 DEFAULT_CHUNK_SIZE = 1024 * 1024  # 1 MiB: low memory even for 80 MB raw files
-# 9x9 comparisons -> 81-bit hash, 21 hex characters. Against 8x8 (64 bits) it
-# found slightly more look-alikes with about a third of the chance matches.
-DHASH_SIZE = 9
+# 8x8 low frequencies -> 64-bit hash, 16 hex characters. Its few chance
+# matches are filtered out by also requiring shared tags (analysis/similarity.py).
+PHASH_SIZE = 8
+PHASH_DCT_SIZE = 32  # the image is shrunk to 32x32 before the DCT
 
 
 def hex_length(size: int) -> int:
-    """Hex characters for a ``size`` x ``size`` dHash (bits rounded up to 4)."""
+    """Hex characters for a ``size`` x ``size`` pHash (bits rounded up to 4)."""
     return -(-size * size // 4)
 
 
-DHASH_HEX_LENGTH = hex_length(DHASH_SIZE)
+PHASH_HEX_LENGTH = hex_length(PHASH_SIZE)
 
 
 class Sha256FileHasher:
@@ -55,28 +59,40 @@ class Sha256FileHasher:
         return digest.hexdigest()
 
 
-def dhash(image: Image.Image, size: int = DHASH_SIZE) -> str:
-    """Return the difference hash of ``image`` as a hex string.
+@cache
+def _dct_matrix(n: int) -> np.ndarray:
+    """The n x n DCT-II basis (unscaled; scale does not change the bits)."""
+    k = np.arange(n)[:, None]
+    i = np.arange(n)[None, :]
+    return np.cos(np.pi * (2 * i + 1) * k / (2 * n))
 
-    The image is shrunk to ``(size + 1) x size`` greyscale pixels; each bit
-    records whether a pixel is brighter than its right-hand neighbour.
+
+def phash(
+    image: Image.Image, size: int = PHASH_SIZE, dct_size: int = PHASH_DCT_SIZE
+) -> str:
+    """Return the perceptual hash of ``image`` as a hex string.
+
+    The image is shrunk to ``dct_size`` x ``dct_size`` greyscale pixels and
+    turned into frequencies (a 2-D DCT). The ``size`` x ``size`` lowest
+    frequencies describe its overall structure; each bit records whether one
+    of them is above their median. Brightness, contrast and compression
+    changes barely move these, unlike pixel-by-pixel comparisons.
     """
-    width = size + 1
-    pixels = image.convert("L").resize((width, size), Image.Resampling.LANCZOS)
-    data = pixels.tobytes()
+    grey = image.convert("L").resize((dct_size, dct_size), Image.Resampling.LANCZOS)
+    pixels = np.asarray(grey, dtype=np.float64)
+    basis = _dct_matrix(dct_size)
+    low = (basis @ pixels @ basis.T)[:size, :size]
     value = 0
-    for row in range(size):
-        for col in range(size):
-            left, right = data[row * width + col], data[row * width + col + 1]
-            value = (value << 1) | (left > right)
+    for bit in (low > np.median(low)).flatten():
+        value = (value << 1) | int(bit)
     return f"{value:0{hex_length(size)}x}"
 
 
 def hamming_distance(first: str, second: str) -> int:
     """Count differing bits between two equal-length hex hashes.
 
-    For 81-bit dHashes, 0 means the same picture (resized or recompressed)
-    and 14 or less a close variant; see
+    For 64-bit pHashes, about 2 or less means the same picture (resized or
+    recompressed) and 14 or less a close variant; see
     :mod:`my_agent.analysis.similarity`.
 
     Raises:
@@ -87,17 +103,17 @@ def hamming_distance(first: str, second: str) -> int:
     return (int(first, 16) ^ int(second, 16)).bit_count()
 
 
-class DHasher:
+class PHasher:
     """Computes the perceptual hash of an encoded image (e.g. a JPEG preview)."""
 
     def hash_image_bytes(self, data: bytes) -> str:
-        """Return the dHash of the image encoded in ``data``.
+        """Return the pHash of the image encoded in ``data``.
 
         Raises:
             FingerprintError: If ``data`` is not a readable image.
         """
         try:
             with Image.open(io.BytesIO(data)) as image:
-                return dhash(image)
+                return phash(image)
         except (UnidentifiedImageError, OSError) as exc:
             raise FingerprintError(f"Could not compute perceptual hash: {exc}") from exc

@@ -249,7 +249,7 @@ def _files(record: PhotoRecord, copies: list[Path]) -> None:
     st.code(
         f"File     {record.path}\n"
         f"SHA-256  {record.sha256 or '-'}\n"
-        f"dHash    {record.dhash or '-'}",
+        f"pHash    {record.phash or '-'}",
         language=None,
     )
     if copies:

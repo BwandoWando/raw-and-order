@@ -18,7 +18,7 @@ def apply_record(row: PhotoRow, record: PhotoRecord) -> PhotoRow:
     annotation = record.annotation
     row.path = str(record.path)
     row.sha256 = record.sha256
-    row.dhash = record.dhash
+    row.phash = record.phash
     row.preview_path = str(record.preview_path)
     apply_exif(row, record.exif)
     row.description = annotation.description
@@ -62,7 +62,7 @@ def to_record(row: PhotoRow) -> PhotoRecord:
     return PhotoRecord(
         path=Path(row.path),
         sha256=row.sha256,
-        dhash=row.dhash,
+        phash=row.phash,
         preview_path=Path(row.preview_path),
         exif=to_exif(row),
         annotation=Annotation(

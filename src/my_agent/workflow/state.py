@@ -34,7 +34,7 @@ class PhotoItem(BaseModel):
     sha256: str | None = None
     exif: ExifData | None = None
     preview_path: Path | None = None
-    dhash: str | None = None
+    phash: str | None = None
     annotation: Annotation | None = None
     saved: bool = False
     error: FileError | None = None

@@ -3,18 +3,18 @@ import random
 from pathlib import Path
 
 import pytest
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageEnhance
 
 from my_agent.analysis.similarity import Similarity, similarity
 from my_agent.db.catalog import NEAR_DUPLICATE_DISTANCE
 from my_agent.exceptions import FingerprintError
 from my_agent.media.hashing import (
-    DHASH_HEX_LENGTH,
-    DHasher,
+    PHASH_HEX_LENGTH,
+    PHasher,
     Sha256FileHasher,
-    dhash,
     hamming_distance,
     hex_length,
+    phash,
 )
 
 HELLO_SHA256 = "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824"
@@ -67,30 +67,35 @@ def test_sha256_of_missing_file_raises_domain_error(tmp_path: Path) -> None:
         Sha256FileHasher().hash_file(tmp_path / "missing.nef")
 
 
-# --- dHash -------------------------------------------------------------------
+# --- pHash -------------------------------------------------------------------
 
 
-def test_dhash_is_81_bits() -> None:
-    value = dhash(_scene())
+def test_phash_is_64_bits() -> None:
+    value = phash(_scene())
 
-    assert len(value) == DHASH_HEX_LENGTH == 21
+    assert len(value) == PHASH_HEX_LENGTH == 16
     int(value, 16)  # valid hex
 
 
-def test_dhash_length_is_fixed_when_bits_are_not_a_multiple_of_four() -> None:
-    falling = Image.linear_gradient("L").rotate(270)  # every pixel > right one
-    lengths = {len(dhash(img)) for img in (falling, Image.new("L", (90, 80)))}
+def test_phash_length_is_fixed_when_bits_are_not_a_multiple_of_four() -> None:
+    hashes = [phash(_texture(seed), size=9) for seed in range(20)]
 
     assert hex_length(9) == 21
-    assert lengths == {21}
-    assert int(dhash(falling), 16).bit_length() == 81  # top bit set
+    assert {len(h) for h in hashes} == {21}
 
 
-def test_dhash_survives_resize_and_recompression() -> None:
-    original = DHasher().hash_image_bytes(_jpeg(_scene((600, 400))))
-    smaller = DHasher().hash_image_bytes(_jpeg(_scene((300, 200)), quality=40))
+def test_phash_survives_resize_and_recompression() -> None:
+    original = PHasher().hash_image_bytes(_jpeg(_scene((600, 400))))
+    smaller = PHasher().hash_image_bytes(_jpeg(_scene((300, 200)), quality=40))
 
     assert similarity(hamming_distance(original, smaller)) == Similarity.IDENTICAL
+
+
+def test_phash_survives_a_brightness_edit() -> None:
+    photo = _texture(seed=3).convert("RGB")
+    brighter = ImageEnhance.Brightness(photo).enhance(1.1)  # +10%, no clipping
+
+    assert hamming_distance(phash(photo), phash(brighter)) <= 2
 
 
 def _texture(seed: int) -> Image.Image:
@@ -100,16 +105,16 @@ def _texture(seed: int) -> Image.Image:
     return Image.frombytes("L", (32, 32), pixels).resize((600, 400))
 
 
-def test_dhash_differs_for_different_pictures() -> None:
-    first = dhash(_texture(seed=1))
-    second = dhash(_texture(seed=2))
+def test_phash_differs_for_different_pictures() -> None:
+    first = phash(_texture(seed=1))
+    second = phash(_texture(seed=2))
 
     assert hamming_distance(first, second) > NEAR_DUPLICATE_DISTANCE
 
 
-def test_dhash_of_invalid_bytes_raises_domain_error() -> None:
+def test_phash_of_invalid_bytes_raises_domain_error() -> None:
     with pytest.raises(FingerprintError):
-        DHasher().hash_image_bytes(b"not an image")
+        PHasher().hash_image_bytes(b"not an image")
 
 
 def test_hamming_distance() -> None:
