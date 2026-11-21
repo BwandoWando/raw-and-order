@@ -6,7 +6,7 @@ import streamlit as st
 
 from my_agent.schemas import PhotoRecord
 from my_agent.schemas.query import PAGE_SIZES, PhotoQuery, SortOrder
-from my_agent.ui.detail import open_details
+from my_agent.ui.detail import details_open, open_details
 from my_agent.ui.formatting import card_caption, path_digest
 from my_agent.ui.grid import grid_shape, thumbnail_px
 from my_agent.ui.library import PhotoLibrary
@@ -156,13 +156,21 @@ def _current_page(query: PhotoQuery) -> int:
 
 
 def _pager(pages: int) -> None:
+    """Previous and next page buttons, also on the left and right arrow keys.
+
+    While the photo details are open the arrow keys step photos instead, so
+    these shortcuts are off then (Streamlit would fire both). The grid is
+    drawn first, so a click that opens the details is already known here.
+    """
     if pages <= 1:
         return
     page = int(st.session_state.get("g_page", 1))
+    keys_free = not details_open()
     previous, label, following = st.columns([1, 2, 1])
     previous.button(
-        "← Previous",
+        "Previous",
         key="g_prev",
+        shortcut="Left" if keys_free else None,
         on_click=_go,
         args=(page - 1,),
         disabled=page <= 1,
@@ -173,8 +181,9 @@ def _pager(pages: int) -> None:
         unsafe_allow_html=True,
     )
     following.button(
-        "Next →",
+        "Next",
         key="g_next",
+        shortcut="Right" if keys_free else None,
         on_click=_go,
         args=(page + 1,),
         disabled=page >= pages,

@@ -38,6 +38,7 @@ SIMILAR_TILE_PREFIX = "detail-sim-"  # image plus overlay button
 SIMILAR_OPEN_PREFIX = "detail-simopen-"  # the overlay button (distinct prefix)
 STEP_BUTTON_PX = 44
 CURRENT_KEY = "detail_current"  # session state: path of the photo shown
+OPEN_KEY = "detail_open"  # session state: True while the dialog is open
 # Room left for the dialog title, summary, camera row and tabs.
 CHROME_REM = 41.5
 
@@ -122,10 +123,20 @@ def open_details(path: Path, paths: Sequence[Path], library: PhotoLibrary) -> No
     the dialog never steps to a photo the gallery does not show.
     """
     st.session_state[CURRENT_KEY] = str(path)
+    st.session_state[OPEN_KEY] = True
     _details(tuple(paths), library)
 
 
-@st.dialog("Photo details", width="large")
+def details_open() -> bool:
+    """True while the photo details are open (they own the arrow keys then)."""
+    return bool(st.session_state.get(OPEN_KEY, False))
+
+
+def _closed() -> None:
+    st.session_state[OPEN_KEY] = False
+
+
+@st.dialog("Photo details", width="large", on_dismiss=_closed)
 def _details(paths: tuple[Path, ...], library: PhotoLibrary) -> None:
     """Render the current photo. The step buttons rerun only this dialog."""
     current = Path(st.session_state[CURRENT_KEY])
