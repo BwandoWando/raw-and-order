@@ -736,9 +736,32 @@ def test_too_many_failures_in_a_row_stops_the_run(
 
     assert isinstance(caught.value.cause, TooManyFailuresError)
     assert "3 photos in a row" in str(caught.value)
+    assert "the last error was: rejected (HTTP 400)" in str(caught.value)
     assert len(annotator.calls) == 3  # stopped at the 3rd failure, mid-chunk
     # chunk 1 finished normally, so its 2 failures were logged; chunk 2 was not
     assert len(failures.failures_under(photos)) == 2
+
+
+def test_a_limit_of_zero_never_stops_the_run(
+    tmp_path: Path,
+    repository: SqlAlchemyPhotoRepository,
+    failures: SqlAlchemyFailureRepository,
+    sample_exif: ExifData,
+) -> None:
+    photos = _make_distinct(tmp_path / "in", *(f"p{i}.nef" for i in range(5)))
+    annotator = FakeAnnotator(always=ModelRejectedError("rejected"))
+
+    summary = _pipeline(
+        tmp_path,
+        repository,
+        failures,
+        sample_exif,
+        annotator,
+        max_consecutive_failures=0,
+    ).run(photos, chunk_size=2)
+
+    assert len(annotator.calls) == 5  # every photo was tried
+    assert (summary.saved, len(summary.failed)) == (0, 5)
 
 
 def test_a_success_resets_the_failure_streak(

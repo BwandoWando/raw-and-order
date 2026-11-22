@@ -1,4 +1,4 @@
-"""Shared helper: run one step over every healthy item, isolating failures."""
+"""Shared helpers: run a step on photos, recording failures instead of raising."""
 
 import logging
 from collections.abc import Callable
@@ -19,10 +19,17 @@ def apply_step(items: list[PhotoItem], stage: Stage, step: ItemStep) -> list[Pho
     :class:`FatalRunError` (e.g. the model is missing) stops the whole run
     instead of being blamed on one photo.
     """
-    return [_run_one(item, stage, step) if item.is_ok else item for item in items]
+    return [apply_to_photo(item, stage, step) for item in items]
 
 
-def _run_one(item: PhotoItem, stage: Stage, step: ItemStep) -> PhotoItem:
+def apply_to_photo(item: PhotoItem, stage: Stage, step: ItemStep) -> PhotoItem:
+    """Apply ``step`` to one photo, like :func:`apply_step` does for each.
+
+    A photo that already failed is returned unchanged; a domain error is
+    recorded on the returned photo as a :class:`StepFailure`.
+    """
+    if not item.is_ok:
+        return item
     try:
         return step(item)
     except FatalRunError:

@@ -11,7 +11,7 @@ from raw_and_order.llm.annotator import LLMAnnotator
 from raw_and_order.llm.errors import is_unavailable, status_code
 from raw_and_order.workflow.state import PhotoItem, Stage, StepFailure
 from raw_and_order.workflow.steps._per_item import apply_step
-from raw_and_order.workflow.steps.annotate import consecutive_failures
+from raw_and_order.workflow.steps.annotate import next_streak
 from tests.fakes import SAMPLE_ANNOTATION, ScriptedChatModel
 
 
@@ -100,7 +100,7 @@ def test_apply_step_still_isolates_per_photo_errors() -> None:
     assert item.error.error_type == "ModelRejectedError"
 
 
-def test_consecutive_failures() -> None:
+def test_next_streak() -> None:
     def failed(stage: Stage) -> PhotoItem:
         return _item(error=StepFailure(stage=stage, error_type="E", message="m"))
 
@@ -108,10 +108,10 @@ def test_consecutive_failures() -> None:
     annotate_fail = failed(Stage.ANNOTATE)
     decode_fail = failed(Stage.DECODE)  # failed an earlier step: neutral
 
-    assert consecutive_failures(0, [annotate_fail, annotate_fail]) == 2
-    assert consecutive_failures(2, [annotate_fail, decode_fail]) == 3
-    assert consecutive_failures(5, [annotate_fail, ok]) == 0
-    assert consecutive_failures(1, [ok, annotate_fail]) == 1
+    assert next_streak(0, annotate_fail) == 1
+    assert next_streak(2, annotate_fail) == 3
+    assert next_streak(3, decode_fail) == 3
+    assert next_streak(5, ok) == 0
 
 
 def test_status_is_not_repeated_when_already_in_the_message() -> None:

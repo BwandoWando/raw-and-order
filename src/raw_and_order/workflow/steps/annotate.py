@@ -7,7 +7,7 @@ from raw_and_order.llm.annotator import Annotator
 from raw_and_order.llm.context import ExifContextFormatter
 from raw_and_order.media.protocols import PreviewStore
 from raw_and_order.workflow.state import PhotoItem, Stage, WorkflowState
-from raw_and_order.workflow.steps._per_item import apply_step
+from raw_and_order.workflow.steps._per_item import apply_to_photo
 
 
 class AnnotateStep:
@@ -45,15 +45,21 @@ class AnnotateStep:
         streak = state.consecutive_annotate_failures
         items: list[PhotoItem] = []
         for item in state.items:
-            [done] = apply_step([item], Stage.ANNOTATE, self._annotate)
+            done = apply_to_photo(item, Stage.ANNOTATE, self._annotate)
             items.append(done)
-            streak = consecutive_failures(streak, [done])
-            if 0 < self._max_consecutive_failures <= streak:
+            streak = next_streak(streak, done)
+            if self._streak_limit_reached(streak):
+                last_error = done.error.message if done.error else "unknown"
                 raise TooManyFailuresError(
                     f"{streak} photos in a row failed annotation; the last error "
-                    f"was: {_last_annotate_error(items)}"
+                    f"was: {last_error}"
                 )
         return {"items": items, "consecutive_annotate_failures": streak}
+
+    def _streak_limit_reached(self, streak: int) -> bool:
+        """True once ``streak`` reaches the limit; a limit of 0 means never."""
+        limit = self._max_consecutive_failures
+        return limit > 0 and streak >= limit
 
     def _annotate(self, item: PhotoItem) -> PhotoItem:
         if item.preview_path is None:
@@ -64,20 +70,14 @@ class AnnotateStep:
         return item.model_copy(update={"annotation": annotation})
 
 
-def consecutive_failures(streak: int, items: list[PhotoItem]) -> int:
-    """Continue the failure streak over ``items`` (in order).
+def next_streak(streak: int, item: PhotoItem) -> int:
+    """The annotation-failure streak after ``item`` (annotated or not).
 
-    An annotation failure extends it, a successful annotation resets it, and
-    files that failed an earlier step are neutral.
+    A successful annotation resets it to 0, an annotation failure adds 1,
+    and a photo that failed an earlier step leaves it as it was.
     """
-    for item in items:
-        if item.annotation is not None:
-            streak = 0
-        elif item.error is not None and item.error.stage is Stage.ANNOTATE:
-            streak += 1
+    if item.annotation is not None:
+        return 0
+    if item.error is not None and item.error.stage is Stage.ANNOTATE:
+        return streak + 1
     return streak
-
-
-def _last_annotate_error(items: list[PhotoItem]) -> str:
-    errors = [i.error for i in items if i.error and i.error.stage is Stage.ANNOTATE]
-    return errors[-1].message if errors else "unknown"
