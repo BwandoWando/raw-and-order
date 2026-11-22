@@ -1,8 +1,9 @@
 """Pop-up with everything known about one photo, sized to fit one screen.
 
-The photo comes first, then its description and camera settings. The longer
-sections (similar photos, location, files) sit in tabs below, so nothing
-needs scrolling on a normal screen. Buttons at the dialog's left and right
+Under the file name, the photo sits on the left and its description, tags
+and camera settings on the right. The longer sections (similar photos,
+location, files) sit in tabs below, full width, so nothing needs scrolling
+on a normal screen. Buttons at the dialog's left and right
 edges (and the arrow keys) step to the previous or next photo shown in the
 gallery without closing the dialog. Clicking a similar photo shows it here;
 it can only be stepped from if it is on the gallery page too. Clicking the
@@ -48,8 +49,10 @@ FULL_SCREEN_KEY = "detail-full-screen"
 ZOOM_OUT_KEY = "detail-zoom-out"  # click anywhere on the full-screen photo
 CLOSE_FULL_SCREEN_KEY = "detail-full-screen-close"  # the visible x
 FULL_SCREEN_Z = 1_000_100  # above Streamlit's dialog
-# Room left for the dialog title, summary, camera row and tabs.
-CHROME_REM = 41.5
+# Room left for the dialog title, file name and tabs (the description and
+# camera settings sit beside the photo, so they take no height).
+CHROME_REM = 30
+PHOTO_SHARE = (3, 2)  # widths of the photo and text columns
 
 DETAIL_CSS = f"""
 <style>
@@ -219,22 +222,31 @@ def _details(paths: tuple[Path, ...], library: PhotoLibrary) -> None:
     record = library.photo(current)
     st.html(DETAIL_CSS)
     _file_heading(current)
+    photo_column, text_column = st.columns(PHOTO_SHARE, gap="medium")
+    with photo_column:
+        _stepper(paths, current, record.preview_path if record else None)
+    if record is not None and st.session_state.get(ZOOM_KEY):
+        _full_screen(record.preview_path)
+    if record is None:
+        st.warning("This photo is no longer in the database.")
+        return
+    with text_column:
+        position = paths.index(current) + 1 if current in paths else 0
+        _summary(record, position, len(paths))
+        _camera(record.exif)
+    _sections(record, library)
+
+
+def _stepper(paths: tuple[Path, ...], current: Path, preview: Path | None) -> None:
+    """The photo between its previous and next buttons."""
     previous, following = neighbours(paths, current)
     with st.container(
         key=PHOTO_KEY, horizontal=True, vertical_alignment="center", gap="small"
     ):
         _step_button("Previous photo", previous, PREVIOUS_KEY, "chevron_left", "Left")
         with st.container(key=FRAME_KEY, horizontal_alignment="center"):
-            _photo(record.preview_path if record else None)
+            _photo(preview)
         _step_button("Next photo", following, NEXT_KEY, "chevron_right", "Right")
-    if record is not None and st.session_state.get(ZOOM_KEY):
-        _full_screen(record.preview_path)
-    if record is None:
-        st.warning("This photo is no longer in the database.")
-        return
-    _summary(record, paths.index(current) + 1 if current in paths else 0, len(paths))
-    _camera(record.exif)
-    _sections(record, library)
 
 
 def _step_button(
