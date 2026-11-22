@@ -15,7 +15,7 @@ from raw_and_order.schemas import (
     PhotoRecord,
     SceneType,
 )
-from raw_and_order.schemas.query import NearDuplicate
+from raw_and_order.schemas.query import SimilarPhoto
 from raw_and_order.ui.css import PINNED_MULTISELECT_BUTTONS
 from raw_and_order.ui.detail import (
     FAVORITE_OFF_KEY,
@@ -177,11 +177,11 @@ def test_details_offer_steps_only_within_the_page() -> None:
 
 
 def test_similar_photos_show_a_bucket_not_a_distance() -> None:
-    near = [NearDuplicate(record=_record(1), distance=0)]
-    near.append(NearDuplicate(record=_record(2), distance=10))
+    similar = [SimilarPhoto(record=_record(1), distance=0)]
+    similar.append(SimilarPhoto(record=_record(2), distance=10))
     app = _app(
         FakePhotoLibrary(
-            [_record(i) for i in range(3)], similar={_record(0).path: near}
+            [_record(i) for i in range(3)], similar={_record(0).path: similar}
         )
     )
 

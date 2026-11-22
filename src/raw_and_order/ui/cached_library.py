@@ -21,10 +21,10 @@ from raw_and_order.media.protocols import Thumbnailer
 from raw_and_order.schemas import FailureRecord, PhotoRecord
 from raw_and_order.schemas.query import (
     FilterOptions,
-    NearDuplicate,
     PhotoPage,
     PhotoQuery,
     PhotoStats,
+    SimilarPhoto,
 )
 from raw_and_order.schemas.tags import TagGraph
 
@@ -75,9 +75,9 @@ class CachedPhotoLibrary:
         """Return one photo by path, or ``None`` if it is not stored."""
         return _photo(self._catalog, self._key, str(path))
 
-    def near_duplicates(self, path: Path) -> list[NearDuplicate]:
+    def similar_photos(self, path: Path) -> list[SimilarPhoto]:
         """Return photos that look like the one at ``path``, closest first."""
-        return _near_duplicates(self._catalog, self._key, str(path))
+        return _similar_photos(self._catalog, self._key, str(path))
 
     def copies_of(self, path: Path) -> list[Path]:
         """Return the exact copies found of the photo at ``path``."""
@@ -163,11 +163,9 @@ def _photo(_catalog: PhotoCatalog, key: str, path: str) -> PhotoRecord | None:
 
 
 @st.cache_data(ttl=CACHE_TTL_S, show_spinner=False)
-def _near_duplicates(
-    _catalog: PhotoCatalog, key: str, path: str
-) -> list[NearDuplicate]:
+def _similar_photos(_catalog: PhotoCatalog, key: str, path: str) -> list[SimilarPhoto]:
     record = _catalog.get(Path(path))
-    return _catalog.near_duplicates(record) if record else []
+    return _catalog.similar_photos(record) if record else []
 
 
 @st.cache_data(ttl=CACHE_TTL_S, show_spinner=False)

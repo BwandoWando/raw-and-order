@@ -190,7 +190,7 @@ def test_tag_counts_count_each_photo_once(
     assert counts == {"sea": 2, "sky": 1}
 
 
-def test_near_duplicates_need_close_phash_and_shared_tags(
+def test_similar_photos_need_close_phash_and_shared_tags(
     session_factory: sessionmaker[Session], repository: SqlAlchemyPhotoRepository
 ) -> None:
     tags = ("sea", "sky", "boat", "pier", "sunset")
@@ -207,7 +207,7 @@ def test_near_duplicates_need_close_phash_and_shared_tags(
     target = catalog.get(Path("/photos/target.arw"))
     assert target is not None
 
-    matches = catalog.near_duplicates(target)
+    matches = catalog.similar_photos(target)
 
     assert [(m.record.path.name, m.distance) for m in matches] == [
         ("copy.arw", 0),

@@ -11,10 +11,10 @@ from typing import Protocol
 from raw_and_order.schemas import FailureRecord, PhotoRecord
 from raw_and_order.schemas.query import (
     FilterOptions,
-    NearDuplicate,
     PhotoPage,
     PhotoQuery,
     PhotoStats,
+    SimilarPhoto,
 )
 from raw_and_order.schemas.tags import TagGraph
 
@@ -38,7 +38,7 @@ class PhotoLibrary(Protocol):
         """Return one photo by path, or ``None`` if it is not stored."""
         ...
 
-    def near_duplicates(self, path: Path) -> list[NearDuplicate]:
+    def similar_photos(self, path: Path) -> list[SimilarPhoto]:
         """Return photos that look like the one at ``path``, closest first."""
         ...
 

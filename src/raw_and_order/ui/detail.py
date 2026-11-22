@@ -20,7 +20,7 @@ from streamlit.delta_generator import DeltaGenerator
 
 from raw_and_order.analysis.similarity import similarity
 from raw_and_order.schemas import ExifData, PhotoRecord
-from raw_and_order.schemas.query import NearDuplicate
+from raw_and_order.schemas.query import SimilarPhoto
 from raw_and_order.ui.css import (
     clickable_tile,
     keyed,
@@ -36,7 +36,7 @@ from raw_and_order.ui.formatting import (
 )
 from raw_and_order.ui.library import PhotoLibrary
 
-DUPLICATE_COLUMNS = 6
+SIMILAR_COLUMNS = 6
 TAB_HEIGHT_PX = 130  # fits a row of similar photos with captions
 PHOTO_KEY = "detail-photo"
 FRAME_KEY = "detail-frame"
@@ -412,7 +412,7 @@ def _sections(record: PhotoRecord, library: PhotoLibrary) -> None:
         names.insert(1, "Location")
     tabs = dict(zip(names, st.tabs(names), strict=True))
     with tabs["Similar photos"], _panel():
-        _near_duplicates(record.path, library)
+        _similar_photos(record.path, library)
     if "Location" in tabs:
         with tabs["Location"], _panel():
             _location(record)
@@ -452,20 +452,20 @@ def _files(record: PhotoRecord, copies: list[Path]) -> None:
         st.code("\n".join(str(p) for p in copies), language=None)
 
 
-def _near_duplicates(path: Path, library: PhotoLibrary) -> None:
+def _similar_photos(path: Path, library: PhotoLibrary) -> None:
     """Up to a row of similar photos; clicking one shows it in this dialog."""
-    matches = library.near_duplicates(path)[:DUPLICATE_COLUMNS]
+    matches = library.similar_photos(path)[:SIMILAR_COLUMNS]
     if not matches:
         st.caption("No similar photos found.")
         return
     with st.container(key=SIMILAR_KEY):
-        columns = st.columns(DUPLICATE_COLUMNS, gap="small")
+        columns = st.columns(SIMILAR_COLUMNS, gap="small")
         for column, match in zip(columns, matches, strict=False):
             with column:
                 _similar_tile(match)
 
 
-def _similar_tile(match: NearDuplicate) -> None:
+def _similar_tile(match: SimilarPhoto) -> None:
     record = match.record
     with st.container(key=f"{SIMILAR_TILE_PREFIX}{path_digest(record.path)}"):
         if record.preview_path.is_file():

@@ -119,7 +119,7 @@ class PhotoStats(BaseModel):
     copies: int = Field(default=0, description="Exact copies skipped as duplicates.")
 
 
-class NearDuplicate(BaseModel):
+class SimilarPhoto(BaseModel):
     """A visually similar photo and its pHash distance (0 = identical)."""
 
     record: PhotoRecord

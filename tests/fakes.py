@@ -26,10 +26,10 @@ from raw_and_order.schemas import (
 )
 from raw_and_order.schemas.query import (
     FilterOptions,
-    NearDuplicate,
     PhotoPage,
     PhotoQuery,
     PhotoStats,
+    SimilarPhoto,
 )
 from raw_and_order.schemas.tags import TagGraph
 
@@ -193,7 +193,7 @@ class FakePhotoLibrary:
         records: Sequence[PhotoRecord] = (),
         failures: Sequence[FailureRecord] = (),
         copies: dict[Path, list[Path]] | None = None,
-        similar: dict[Path, list[NearDuplicate]] | None = None,
+        similar: dict[Path, list[SimilarPhoto]] | None = None,
     ) -> None:
         self._records = list(records)
         self._failures = list(failures)
@@ -232,7 +232,7 @@ class FakePhotoLibrary:
     def photo(self, path: Path) -> PhotoRecord | None:
         return next((r for r in self._records if r.path == path), None)
 
-    def near_duplicates(self, path: Path) -> list[NearDuplicate]:
+    def similar_photos(self, path: Path) -> list[SimilarPhoto]:
         return self._similar.get(path, [])
 
     def copies_of(self, path: Path) -> list[Path]:

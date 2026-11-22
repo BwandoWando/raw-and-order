@@ -27,10 +27,10 @@ from raw_and_order.schemas.query import (
     UNKNOWN_LABEL,
     CountRow,
     FilterOptions,
-    NearDuplicate,
     PhotoPage,
     PhotoQuery,
     PhotoStats,
+    SimilarPhoto,
     SortOrder,
 )
 
@@ -52,9 +52,9 @@ class PhotoCatalog(Protocol):
         """Return one photo by path."""
         ...
 
-    def near_duplicates(
+    def similar_photos(
         self, record: PhotoRecord, max_distance: int = SIMILAR_MAX_DISTANCE
-    ) -> list[NearDuplicate]:
+    ) -> list[SimilarPhoto]:
         """Return similar photos (close pHash and shared tags), closest first."""
         ...
 
@@ -186,9 +186,9 @@ class SqlAlchemyPhotoCatalog:
             ).one_or_none()
             return to_record(row) if row else None
 
-    def near_duplicates(
+    def similar_photos(
         self, record: PhotoRecord, max_distance: int = SIMILAR_MAX_DISTANCE
-    ) -> list[NearDuplicate]:
+    ) -> list[SimilarPhoto]:
         """Return similar photos, closest first.
 
         Similar means within ``max_distance`` pHash bits *and* sharing enough
@@ -208,7 +208,7 @@ class SqlAlchemyPhotoCatalog:
                 )
             }
             matches = [
-                NearDuplicate(record=to_record(rows[path]), distance=distance)
+                SimilarPhoto(record=to_record(rows[path]), distance=distance)
                 for distance, path in close
                 if path in rows
             ]
