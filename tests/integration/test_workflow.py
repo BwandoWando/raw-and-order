@@ -74,7 +74,7 @@ def _pipeline(
         skip_copies=SkipCopiesStep(repository, Path.is_file),
         sync_copy_log=SyncCopyLogStep(copies or InMemoryCopies()),
         select_batch=SelectBatchStep(),
-        sync_planning_failures=SyncFailureLogStep(failures),
+        sync_planning_failures=SyncFailureLogStep(failures, clear_copies=True),
         next_chunk=NextChunkStep(),
         extract_exif=ExtractExifStep(FakeExifReader(exif, fail_for=fail_exif_for)),
         decode=DecodeStep(FakeImageDecoder(), previews),
@@ -514,6 +514,36 @@ def test_reprocess_failed_retries_only_failures_and_clears_them(
     assert (summary.selected, summary.saved) == (1, 1)  # only bad.nef, not new.nef
     assert _names(repository) == ["bad.nef", "good.nef"]
     assert failures.failures_under(photos) == []
+
+
+@pytest.mark.parametrize("reprocess_failed", [False, True])
+def test_a_failure_that_became_a_copy_leaves_the_failure_log(
+    tmp_path: Path,
+    repository: SqlAlchemyPhotoRepository,
+    failures: SqlAlchemyFailureRepository,
+    copies: SqlAlchemyCopyRepository,
+    sample_exif: ExifData,
+    reprocess_failed: bool,
+) -> None:
+    photos = _make_distinct(tmp_path / "in", "good.nef", "bad.nef")
+    _pipeline(
+        tmp_path,
+        repository,
+        failures,
+        sample_exif,
+        FakeAnnotator(),
+        fail_exif_for=("bad.nef",),
+    ).run(photos)
+    assert [f.path.name for f in failures.failures_under(photos)] == ["bad.nef"]
+    # bad.nef is replaced by an exact copy of the stored good.nef.
+    (photos / "bad.nef").write_bytes((photos / "good.nef").read_bytes())
+
+    summary = _pipeline(
+        tmp_path, repository, failures, sample_exif, FakeAnnotator(), copies=copies
+    ).run(photos, reprocess_failed=reprocess_failed)
+
+    assert [c.path.name for c in summary.copies] == ["bad.nef"]
+    assert failures.failures_under(photos) == []  # a copy is not a failure
 
 
 def test_repeat_failure_increases_attempts(

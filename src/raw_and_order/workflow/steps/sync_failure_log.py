@@ -18,13 +18,20 @@ class SyncFailureLogStep:
 
     Args:
         failures: The failure log.
+        clear_copies: Also clear the entries of files found to be exact copies
+            this run: a copy is skipped, so it is no longer a failure. Set for
+            the planning run only (copies are found then, once per run).
         clock: Returns the current time; injectable for tests.
     """
 
     def __init__(
-        self, failures: FailureRepository, clock: Callable[[], datetime] = utc_now
+        self,
+        failures: FailureRepository,
+        clear_copies: bool = False,
+        clock: Callable[[], datetime] = utc_now,
     ) -> None:
         self._failures = failures
+        self._clear_copies = clear_copies
         self._clock = clock
 
     def __call__(self, state: WorkflowState) -> StateUpdate:
@@ -45,5 +52,8 @@ class SyncFailureLogStep:
                     item.error.message,
                     now,
                 )
-        self._failures.resolve(item.path for item in state.items if item.saved)
+        cleared = [item.path for item in state.items if item.saved]
+        if self._clear_copies:
+            cleared += [copy.path for copy in state.copies]
+        self._failures.resolve(cleared)
         return {}

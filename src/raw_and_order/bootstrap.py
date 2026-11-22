@@ -162,7 +162,7 @@ def _build_workflow(
         skip_copies=SkipCopiesStep(repository, Path.is_file),
         sync_copy_log=SyncCopyLogStep(SqlAlchemyCopyRepository(session_factory)),
         select_batch=SelectBatchStep(),
-        sync_planning_failures=SyncFailureLogStep(failures),
+        sync_planning_failures=SyncFailureLogStep(failures, clear_copies=True),
         next_chunk=NextChunkStep(),
         extract_exif=ExtractExifStep(exif_reader),
         decode=DecodeStep(decoder, preview_store),
