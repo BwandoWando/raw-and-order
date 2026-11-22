@@ -36,7 +36,7 @@ name alone decides. Only same-name files have their capture time read, in one
 batch, so this adds about a second per thousand pairs.
 
 **Capture date** (used for the database and the preview folder
-`data/previews/YYYYMMDD/<extension>/`), first plausible source wins:
+`data/previews/YYYY/MM/DD/<extension>/`), first plausible source wins:
 
 1. EXIF `DateTimeOriginal`
 2. XMP `DateCreated` / `DateTimeOriginal` (e.g. Lightroom exports)
@@ -61,7 +61,7 @@ from the folder and updates only those columns (dates, lens, white balance,
 GPS, camera settings). Annotations, previews and hashes are kept and no LLM is
 called, so it is fast (about 15 s for 1,000 photos). Use it after an update adds
 or fixes EXIF fields. Missing files are listed and skipped. Previews stay in
-their original `YYYYMMDD` folder even if a corrected date differs.
+their original `YYYY/MM/DD` folder even if a corrected date differs.
 
 **Fingerprints:** every file gets a SHA-256 of its contents and a 64-bit
 perceptual hash (pHash: the 8×8 lowest frequencies of a DCT) of its preview. A

@@ -187,7 +187,7 @@ def test_previews_are_filed_by_capture_date_and_type(
         assert record is not None
         assert record.preview_path.is_file()
         folders.add(record.preview_path.parent.relative_to(tmp_path / "previews"))
-    assert folders == {Path("20240501/nef"), Path("20240501/jpg")}
+    assert folders == {Path("2024/05/01/nef"), Path("2024/05/01/jpg")}
 
 
 def test_stores_sha256_and_phash(

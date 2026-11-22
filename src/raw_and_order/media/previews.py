@@ -14,7 +14,6 @@ from PIL import Image
 from raw_and_order.exceptions import PreviewError
 from raw_and_order.media.protocols import PreviewLayout
 
-DATE_FOLDER_FORMAT = "%Y%m%d"
 UNKNOWN_DATE_FOLDER = "unknown-date"
 NO_EXTENSION_FOLDER = "no-extension"
 
@@ -37,11 +36,11 @@ def preview_filename(source: Path) -> str:
     return f"{source.stem}-{digest}.jpg"
 
 
-def date_folder(captured_at: datetime | None) -> str:
-    """Return ``YYYYMMDD`` for the capture date, or ``unknown-date``."""
+def date_folder(captured_at: datetime | None) -> Path:
+    """Return ``YYYY/MM/DD`` for the capture date, or ``unknown-date``."""
     if captured_at is None:
-        return UNKNOWN_DATE_FOLDER
-    return captured_at.strftime(DATE_FOLDER_FORMAT)
+        return Path(UNKNOWN_DATE_FOLDER)
+    return Path(f"{captured_at:%Y}", f"{captured_at:%m}", f"{captured_at:%d}")
 
 
 def type_folder(source: Path) -> str:
@@ -50,7 +49,7 @@ def type_folder(source: Path) -> str:
 
 
 class DatedPreviewLayout:
-    """Places previews at ``YYYYMMDD/<extension>/<stem>-<hash>.jpg``.
+    """Places previews at ``YYYY/MM/DD/<extension>/<stem>-<hash>.jpg``.
 
     The date is the photo's resolved capture date (``ExifData.captured_at``,
     which may come from EXIF, XMP or the file name); photos without one go
@@ -60,11 +59,7 @@ class DatedPreviewLayout:
 
     def relative_path(self, source: Path, captured_at: datetime | None) -> Path:
         """Return the preview path for ``source``, relative to the store root."""
-        return (
-            Path(date_folder(captured_at))
-            / type_folder(source)
-            / preview_filename(source)
-        )
+        return date_folder(captured_at) / type_folder(source) / preview_filename(source)
 
 
 class JpegPreviewStore:

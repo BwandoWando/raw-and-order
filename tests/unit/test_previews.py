@@ -48,8 +48,8 @@ def test_load_missing_preview_raises_domain_error(tmp_path: Path) -> None:
 
 
 def test_date_folder_uses_capture_date_or_unknown() -> None:
-    assert date_folder(datetime(2024, 5, 1, 23, 59)) == "20240501"
-    assert date_folder(None) == "unknown-date"
+    assert date_folder(datetime(2024, 5, 1, 23, 59)) == Path("2024/05/01")
+    assert date_folder(None) == Path("unknown-date")
 
 
 def test_type_folder_keeps_extension_as_written_but_lowercase() -> None:
@@ -64,7 +64,7 @@ def test_layout_combines_date_type_and_file_name(tmp_path: Path) -> None:
 
     relative = DatedPreviewLayout().relative_path(source, datetime(2023, 12, 31))
 
-    assert relative.parent == Path("20231231/heic")
+    assert relative.parent == Path("2023/12/31/heic")
     assert relative.name == preview_filename(source)
 
 
