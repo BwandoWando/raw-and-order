@@ -1,13 +1,13 @@
-"""Node: read EXIF metadata."""
+"""Step: read EXIF metadata."""
 
 from typing import Any
 
 from raw_and_order.media.protocols import ExifReader
-from raw_and_order.workflow.nodes._per_item import apply_step
 from raw_and_order.workflow.state import PhotoItem, Stage, WorkflowState
+from raw_and_order.workflow.steps._per_item import apply_step
 
 
-class ExtractExifNode:
+class ExtractExifStep:
     """Reads EXIF for each file.
 
     Args:

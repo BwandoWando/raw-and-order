@@ -1,15 +1,15 @@
-"""Node: keep the copy log in sync with what this run found."""
+"""Step: keep the copy log in sync with what this run found."""
 
 from collections.abc import Callable
 from datetime import datetime
 from typing import Any
 
 from raw_and_order.db.copy_repository import CopyRepository
-from raw_and_order.workflow.nodes.persist import utc_now
 from raw_and_order.workflow.state import WorkflowState
+from raw_and_order.workflow.steps.persist import utc_now
 
 
-class RecordCopiesNode:
+class RecordCopiesStep:
     """Logs the copies found and forgets ones that are no longer copies.
 
     After a full scan, every logged copy under the folder that was not found

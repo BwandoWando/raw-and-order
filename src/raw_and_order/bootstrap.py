@@ -50,24 +50,24 @@ from raw_and_order.media.thumbnails import JpegThumbnailer
 from raw_and_order.pipeline import PhotoPipeline
 from raw_and_order.schemas.annotation import annotation_schema
 from raw_and_order.ui.library import PhotoLibrary
-from raw_and_order.workflow.nodes import (
-    AnnotateNode,
-    DecodeNode,
-    DiscoverNode,
-    ExtractExifNode,
-    FingerprintNode,
-    LoadFailuresNode,
-    LogFailuresNode,
-    NextChunkNode,
-    PerceptualHashNode,
-    PersistNode,
-    RecordChunkNode,
-    RecordCopiesNode,
-    SelectBatchNode,
-    SkipCopiesNode,
-    SkipKnownNode,
-)
 from raw_and_order.workflow.runner import PhotoWorkflow, WorkflowSteps
+from raw_and_order.workflow.steps import (
+    AnnotateStep,
+    DecodeStep,
+    DiscoverStep,
+    ExtractExifStep,
+    FingerprintStep,
+    LoadFailuresStep,
+    LogFailuresStep,
+    NextChunkStep,
+    PerceptualHashStep,
+    PersistStep,
+    RecordChunkStep,
+    RecordCopiesStep,
+    SelectBatchStep,
+    SkipCopiesStep,
+    SkipKnownStep,
+)
 
 CAPABILITY_CHECK_TIMEOUT_S = 10.0
 
@@ -155,27 +155,27 @@ def _build_workflow(
     decoder = ExtensionRoutingDecoder(RawpyDecoder(), PillowDecoder(), s.raw_extensions)
     discoverer = FileSystemDiscoverer(s.raw_extensions | s.image_extensions)
     steps = WorkflowSteps(
-        discover=DiscoverNode(discoverer, RawPairFilter(s.raw_extensions), exif_reader),
-        load_failures=LoadFailuresNode(failures),
-        fingerprint=FingerprintNode(Sha256FileHasher()),
-        skip_known=SkipKnownNode(repository, failures),
-        skip_copies=SkipCopiesNode(repository, Path.is_file),
-        record_copies=RecordCopiesNode(SqlAlchemyCopyRepository(session_factory)),
-        select_batch=SelectBatchNode(),
-        log_planning_failures=LogFailuresNode(failures),
-        next_chunk=NextChunkNode(),
-        extract_exif=ExtractExifNode(exif_reader),
-        decode=DecodeNode(decoder, preview_store),
-        perceptual_hash=PerceptualHashNode(PHasher(), preview_store),
-        annotate=AnnotateNode(
+        discover=DiscoverStep(discoverer, RawPairFilter(s.raw_extensions), exif_reader),
+        load_failures=LoadFailuresStep(failures),
+        fingerprint=FingerprintStep(Sha256FileHasher()),
+        skip_known=SkipKnownStep(repository, failures),
+        skip_copies=SkipCopiesStep(repository, Path.is_file),
+        record_copies=RecordCopiesStep(SqlAlchemyCopyRepository(session_factory)),
+        select_batch=SelectBatchStep(),
+        log_planning_failures=LogFailuresStep(failures),
+        next_chunk=NextChunkStep(),
+        extract_exif=ExtractExifStep(exif_reader),
+        decode=DecodeStep(decoder, preview_store),
+        perceptual_hash=PerceptualHashStep(PHasher(), preview_store),
+        annotate=AnnotateStep(
             build_annotator(s.llm, s.max_tags),
             preview_store,
             ExifContextFormatter(s.send_exif_to_llm, include_gps=not s.redact_gps),
             max_consecutive_failures=s.max_consecutive_failures,
         ),
-        persist=PersistNode(repository, annotated_by=s.llm.label),
-        log_failures=LogFailuresNode(failures),
-        record_chunk=RecordChunkNode(),
+        persist=PersistStep(repository, annotated_by=s.llm.label),
+        log_failures=LogFailuresStep(failures),
+        record_chunk=RecordChunkStep(),
     )
     return PhotoWorkflow(steps)
 

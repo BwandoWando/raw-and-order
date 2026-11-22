@@ -1,4 +1,4 @@
-"""Node: save results to the database."""
+"""Step: save results to the database."""
 
 from collections.abc import Callable
 from datetime import UTC, datetime
@@ -6,8 +6,8 @@ from typing import Any
 
 from raw_and_order.db.repository import PhotoRepository
 from raw_and_order.schemas import PhotoRecord
-from raw_and_order.workflow.nodes._per_item import apply_step
 from raw_and_order.workflow.state import PhotoItem, Stage, WorkflowState
+from raw_and_order.workflow.steps._per_item import apply_step
 
 
 def utc_now() -> datetime:
@@ -15,7 +15,7 @@ def utc_now() -> datetime:
     return datetime.now(UTC)
 
 
-class PersistNode:
+class PersistStep:
     """Upserts each annotated photo.
 
     Args:

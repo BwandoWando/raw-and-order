@@ -9,7 +9,11 @@ from raw_and_order.schemas import Annotation, ExifData, PhotoCopy
 
 
 class Stage(StrEnum):
-    """Pipeline steps, used to report where a file failed."""
+    """The workflow step a file failed in.
+
+    Stored as text in ``processing_failures.stage`` and shown on the
+    Failures tab, so the values must not change.
+    """
 
     FINGERPRINT = "fingerprint"
     EXTRACT_EXIF = "extract_exif"

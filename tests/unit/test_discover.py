@@ -3,8 +3,8 @@ from pathlib import Path
 
 from raw_and_order.media.discovery import FileSystemDiscoverer
 from raw_and_order.media.pairing import RawPairFilter
-from raw_and_order.workflow.nodes import DiscoverNode
 from raw_and_order.workflow.state import WorkflowState
+from raw_and_order.workflow.steps import DiscoverStep
 from tests.fakes import FakeCaptureTimes
 
 SHOT = datetime(2026, 5, 1, 18, 30, 0)
@@ -17,7 +17,7 @@ def _folder(tmp_path: Path, *names: str) -> Path:
 
 
 def _discover(root: Path, times: FakeCaptureTimes) -> list[str]:
-    node = DiscoverNode(
+    node = DiscoverStep(
         FileSystemDiscoverer({".arw", ".jpg"}), RawPairFilter({".arw"}), times
     )
     update = node(WorkflowState(source_dir=root))

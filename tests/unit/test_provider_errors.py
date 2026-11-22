@@ -9,9 +9,9 @@ from raw_and_order.exceptions import (
 )
 from raw_and_order.llm.annotator import LLMAnnotator
 from raw_and_order.llm.errors import is_unavailable, status_code
-from raw_and_order.workflow.nodes._per_item import apply_step
-from raw_and_order.workflow.nodes.annotate import consecutive_failures
 from raw_and_order.workflow.state import FileError, PhotoItem, Stage
+from raw_and_order.workflow.steps._per_item import apply_step
+from raw_and_order.workflow.steps.annotate import consecutive_failures
 from tests.fakes import SAMPLE_ANNOTATION, ScriptedChatModel
 
 

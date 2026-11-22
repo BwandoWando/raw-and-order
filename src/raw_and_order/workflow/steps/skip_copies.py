@@ -1,4 +1,4 @@
-"""Node: drop exact copies of photos that are catalogued elsewhere."""
+"""Step: drop exact copies of photos that are catalogued elsewhere."""
 
 import logging
 from collections.abc import Callable, Iterable
@@ -12,7 +12,7 @@ from raw_and_order.workflow.state import PhotoItem, WorkflowState
 logger = logging.getLogger(__name__)
 
 
-class SkipCopiesNode:
+class SkipCopiesStep:
     """Skips files whose SHA-256 matches a photo stored at another path.
 
     The original is the stored photo with that SHA-256 that still exists,

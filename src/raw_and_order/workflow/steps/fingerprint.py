@@ -1,13 +1,13 @@
-"""Node: compute each file's SHA-256 fingerprint."""
+"""Step: compute each file's SHA-256 fingerprint."""
 
 from typing import Any
 
 from raw_and_order.media.protocols import FileHasher
-from raw_and_order.workflow.nodes._per_item import apply_step
 from raw_and_order.workflow.state import PhotoItem, Stage, WorkflowState
+from raw_and_order.workflow.steps._per_item import apply_step
 
 
-class FingerprintNode:
+class FingerprintStep:
     """Hashes each file's bytes.
 
     Args:

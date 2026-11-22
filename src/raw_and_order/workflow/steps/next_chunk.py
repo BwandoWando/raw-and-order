@@ -1,11 +1,11 @@
-"""Node: take the next chunk of photos from the queue."""
+"""Step: take the next chunk of photos from the queue."""
 
 from typing import Any
 
 from raw_and_order.workflow.state import WorkflowState
 
 
-class NextChunkNode:
+class NextChunkStep:
     """Moves up to ``chunk_size`` photos from ``queue`` into ``items``."""
 
     def __call__(self, state: WorkflowState) -> dict[str, Any]:

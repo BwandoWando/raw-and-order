@@ -1,4 +1,4 @@
-"""Node: find files to process."""
+"""Step: find files to process."""
 
 import logging
 from datetime import datetime
@@ -13,7 +13,7 @@ from raw_and_order.workflow.state import PhotoItem, WorkflowState
 logger = logging.getLogger(__name__)
 
 
-class DiscoverNode:
+class DiscoverStep:
     """Lists photo files and resolves RAW+JPEG pairs.
 
     Only files that share a folder and name with a file of the other kind

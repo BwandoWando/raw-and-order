@@ -19,25 +19,24 @@ from dataclasses import dataclass
 from typing import Any
 
 from raw_and_order.exceptions import FatalRunError, RunAbortedError
-from raw_and_order.workflow.nodes import (
-    AnnotateNode,
-    DecodeNode,
-    DiscoverNode,
-    ExtractExifNode,
-    FingerprintNode,
-    LoadFailuresNode,
-    LogFailuresNode,
-    NextChunkNode,
-    PerceptualHashNode,
-    PersistNode,
-    RecordChunkNode,
-    RecordCopiesNode,
-    SelectBatchNode,
-    SkipCopiesNode,
-    SkipKnownNode,
-)
-from raw_and_order.workflow.routing import has_pending_items, has_queued_photos
 from raw_and_order.workflow.state import WorkflowState
+from raw_and_order.workflow.steps import (
+    AnnotateStep,
+    DecodeStep,
+    DiscoverStep,
+    ExtractExifStep,
+    FingerprintStep,
+    LoadFailuresStep,
+    LogFailuresStep,
+    NextChunkStep,
+    PerceptualHashStep,
+    PersistStep,
+    RecordChunkStep,
+    RecordCopiesStep,
+    SelectBatchStep,
+    SkipCopiesStep,
+    SkipKnownStep,
+)
 
 Step = Callable[[WorkflowState], Mapping[str, Any]]
 
@@ -46,22 +45,22 @@ Step = Callable[[WorkflowState], Mapping[str, Any]]
 class WorkflowSteps:
     """All steps the workflow needs, already built with their dependencies."""
 
-    discover: DiscoverNode
-    load_failures: LoadFailuresNode
-    fingerprint: FingerprintNode
-    skip_known: SkipKnownNode
-    skip_copies: SkipCopiesNode
-    record_copies: RecordCopiesNode
-    select_batch: SelectBatchNode
-    log_planning_failures: LogFailuresNode
-    next_chunk: NextChunkNode
-    extract_exif: ExtractExifNode
-    decode: DecodeNode
-    perceptual_hash: PerceptualHashNode
-    annotate: AnnotateNode
-    persist: PersistNode
-    log_failures: LogFailuresNode
-    record_chunk: RecordChunkNode
+    discover: DiscoverStep
+    load_failures: LoadFailuresStep
+    fingerprint: FingerprintStep
+    skip_known: SkipKnownStep
+    skip_copies: SkipCopiesStep
+    record_copies: RecordCopiesStep
+    select_batch: SelectBatchStep
+    log_planning_failures: LogFailuresStep
+    next_chunk: NextChunkStep
+    extract_exif: ExtractExifStep
+    decode: DecodeStep
+    perceptual_hash: PerceptualHashStep
+    annotate: AnnotateStep
+    persist: PersistStep
+    log_failures: LogFailuresStep
+    record_chunk: RecordChunkStep
 
 
 def apply(state: WorkflowState, step: Step) -> WorkflowState:
@@ -124,3 +123,13 @@ class PhotoWorkflow:
             state = apply(state, step)
         state = apply(state, s.log_failures)
         return apply(state, s.record_chunk)
+
+
+def has_queued_photos(state: WorkflowState) -> bool:
+    """True if photos are still waiting for a chunk."""
+    return bool(state.queue)
+
+
+def has_pending_items(state: WorkflowState) -> bool:
+    """True if at least one photo in the current chunk has not failed."""
+    return any(item.is_ok for item in state.items)

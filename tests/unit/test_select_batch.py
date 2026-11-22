@@ -1,7 +1,7 @@
 from pathlib import Path
 
-from raw_and_order.workflow.nodes import NextChunkNode, RecordChunkNode, SelectBatchNode
 from raw_and_order.workflow.state import FileError, PhotoItem, Stage, WorkflowState
+from raw_and_order.workflow.steps import NextChunkStep, RecordChunkStep, SelectBatchStep
 
 ERROR = FileError(stage=Stage.FINGERPRINT, error_type="X", message="x")
 
@@ -23,7 +23,7 @@ def _state(
 
 
 def test_selects_first_by_path_and_defers_rest() -> None:
-    update = SelectBatchNode()(
+    update = SelectBatchStep()(
         _state(["c.nef", "a.nef", "d.nef", "b.nef"], max_photos=2)
     )
 
@@ -33,13 +33,13 @@ def test_selects_first_by_path_and_defers_rest() -> None:
 
 
 def test_no_limit_selects_everything() -> None:
-    update = SelectBatchNode()(_state(["a.nef", "b.nef"], max_photos=None))
+    update = SelectBatchStep()(_state(["a.nef", "b.nef"], max_photos=None))
 
     assert (update["selected"], update["deferred"]) == (2, 0)
 
 
 def test_failed_files_use_no_slot_and_become_failures() -> None:
-    update = SelectBatchNode()(_state(["a.nef"], max_photos=1, failed=["bad.nef"]))
+    update = SelectBatchStep()(_state(["a.nef"], max_photos=1, failed=["bad.nef"]))
 
     assert [i.path.name for i in update["queue"]] == ["a.nef"]
     assert [f.path.name for f in update["failures"]] == ["bad.nef"]
@@ -48,16 +48,16 @@ def test_failed_files_use_no_slot_and_become_failures() -> None:
 def test_chunk_total() -> None:
     names = [f"p{i}.nef" for i in range(5)]
 
-    assert SelectBatchNode()(_state(names, None, chunk_size=2))["chunk_total"] == 3
-    assert SelectBatchNode()(_state(names, None, chunk_size=None))["chunk_total"] == 1
-    assert SelectBatchNode()(_state([], None, chunk_size=2))["chunk_total"] == 0
+    assert SelectBatchStep()(_state(names, None, chunk_size=2))["chunk_total"] == 3
+    assert SelectBatchStep()(_state(names, None, chunk_size=None))["chunk_total"] == 1
+    assert SelectBatchStep()(_state([], None, chunk_size=2))["chunk_total"] == 0
 
 
 def test_next_chunk_takes_chunk_size_from_queue() -> None:
     queue = [PhotoItem(path=Path(f"/in/p{i}.nef")) for i in range(5)]
     state = WorkflowState(source_dir=Path("/in"), queue=queue, chunk_size=2)
 
-    update = NextChunkNode()(state)
+    update = NextChunkStep()(state)
 
     assert [i.path.name for i in update["items"]] == ["p0.nef", "p1.nef"]
     assert len(update["queue"]) == 3
@@ -73,7 +73,7 @@ def test_record_chunk_folds_results_into_totals() -> None:
         source_dir=Path("/in"), items=items, saved_count=10, selected=12
     )
 
-    update = RecordChunkNode()(state)
+    update = RecordChunkStep()(state)
 
     assert update["saved_count"] == 11
     assert [f.path.name for f in update["failures"]] == ["b.nef"]

@@ -1,13 +1,13 @@
-"""Node: compute each photo's perceptual hash from its upright preview."""
+"""Step: compute each photo's perceptual hash from its upright preview."""
 
 from typing import Any
 
 from raw_and_order.media.protocols import PerceptualHasher, PreviewStore
-from raw_and_order.workflow.nodes._per_item import apply_step
 from raw_and_order.workflow.state import PhotoItem, Stage, WorkflowState
+from raw_and_order.workflow.steps._per_item import apply_step
 
 
-class PerceptualHashNode:
+class PerceptualHashStep:
     """Hashes what each photo looks like, using its saved preview.
 
     The preview is already upright and downscaled, so rotated or resized

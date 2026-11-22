@@ -1,4 +1,4 @@
-"""Node: drop files that were already handled in an earlier run."""
+"""Step: drop files that were already handled in an earlier run."""
 
 import logging
 from pathlib import Path
@@ -11,7 +11,7 @@ from raw_and_order.workflow.state import PhotoItem, WorkflowState
 logger = logging.getLogger(__name__)
 
 
-class SkipKnownNode:
+class SkipKnownStep:
     """Skips unchanged stored photos and logged failures.
 
     - A stored photo is skipped if its SHA-256 is unchanged.

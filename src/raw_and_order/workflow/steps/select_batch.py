@@ -1,4 +1,4 @@
-"""Node: choose which photos this run processes."""
+"""Step: choose which photos this run processes."""
 
 import logging
 import math
@@ -9,7 +9,7 @@ from raw_and_order.workflow.state import FileFailure, PhotoItem, WorkflowState
 logger = logging.getLogger(__name__)
 
 
-class SelectBatchNode:
+class SelectBatchStep:
     """Queues the first ``max_photos`` photos (sorted by path) for processing.
 
     Photos beyond the limit are deferred: a later run picks them up, because

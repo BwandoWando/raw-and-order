@@ -1,15 +1,15 @@
-"""Node: keep the failure log in sync with the current items."""
+"""Step: keep the failure log in sync with the current items."""
 
 from collections.abc import Callable
 from datetime import datetime
 from typing import Any
 
 from raw_and_order.db.failure_repository import FailureRepository
-from raw_and_order.workflow.nodes.persist import utc_now
 from raw_and_order.workflow.state import WorkflowState
+from raw_and_order.workflow.steps.persist import utc_now
 
 
-class LogFailuresNode:
+class LogFailuresStep:
     """Logs failed items and clears the log for items that were saved.
 
     Runs after ``persist`` in every chunk, and once after ``select_batch``

@@ -1,4 +1,4 @@
-"""Node: fold a finished chunk into the run totals."""
+"""Step: fold a finished chunk into the run totals."""
 
 import logging
 from typing import Any
@@ -8,7 +8,7 @@ from raw_and_order.workflow.state import FileFailure, WorkflowState
 logger = logging.getLogger(__name__)
 
 
-class RecordChunkNode:
+class RecordChunkStep:
     """Adds the chunk's saved count and failures to the totals, then clears it.
 
     By the time this runs, the chunk's photos are already in the database.

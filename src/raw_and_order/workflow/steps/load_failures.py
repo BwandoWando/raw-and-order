@@ -1,4 +1,4 @@
-"""Node: in --reprocess-failed runs, start from the failure log."""
+"""Step: in --reprocess-failed runs, start from the failure log."""
 
 import logging
 from typing import Any
@@ -9,7 +9,7 @@ from raw_and_order.workflow.state import PhotoItem, WorkflowState
 logger = logging.getLogger(__name__)
 
 
-class LoadFailuresNode:
+class LoadFailuresStep:
     """Lists logged failures under ``source_dir`` whose file still exists.
 
     Entries whose file is gone are removed from the log and reported as

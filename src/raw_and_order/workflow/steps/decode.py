@@ -1,13 +1,13 @@
-"""Node: decode raw or regular image files and save previews."""
+"""Step: decode raw or regular image files and save previews."""
 
 from typing import Any
 
 from raw_and_order.media.protocols import ImageDecoder, PreviewStore
-from raw_and_order.workflow.nodes._per_item import apply_step
 from raw_and_order.workflow.state import PhotoItem, Stage, WorkflowState
+from raw_and_order.workflow.steps._per_item import apply_step
 
 
-class DecodeNode:
+class DecodeStep:
     """Decodes each file and stores a downscaled JPEG preview.
 
     Args:

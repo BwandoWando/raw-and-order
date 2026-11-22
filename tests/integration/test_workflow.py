@@ -21,25 +21,25 @@ from raw_and_order.media.pairing import RawPairFilter
 from raw_and_order.media.previews import DatedPreviewLayout, JpegPreviewStore
 from raw_and_order.pipeline import PhotoPipeline
 from raw_and_order.schemas import ExifData
-from raw_and_order.workflow.nodes import (
-    AnnotateNode,
-    DecodeNode,
-    DiscoverNode,
-    ExtractExifNode,
-    FingerprintNode,
-    LoadFailuresNode,
-    LogFailuresNode,
-    NextChunkNode,
-    PerceptualHashNode,
-    PersistNode,
-    RecordChunkNode,
-    RecordCopiesNode,
-    SelectBatchNode,
-    SkipCopiesNode,
-    SkipKnownNode,
-)
 from raw_and_order.workflow.runner import PhotoWorkflow, WorkflowSteps
 from raw_and_order.workflow.state import Stage
+from raw_and_order.workflow.steps import (
+    AnnotateStep,
+    DecodeStep,
+    DiscoverStep,
+    ExtractExifStep,
+    FingerprintStep,
+    LoadFailuresStep,
+    LogFailuresStep,
+    NextChunkStep,
+    PerceptualHashStep,
+    PersistStep,
+    RecordChunkStep,
+    RecordCopiesStep,
+    SelectBatchStep,
+    SkipCopiesStep,
+    SkipKnownStep,
+)
 from tests.fakes import (
     FakeAnnotator,
     FakeCaptureTimes,
@@ -63,31 +63,31 @@ def _pipeline(
 ) -> PhotoPipeline:
     previews = JpegPreviewStore(tmp_path / "previews", DatedPreviewLayout(), max_px=32)
     steps = WorkflowSteps(
-        discover=DiscoverNode(
+        discover=DiscoverStep(
             FileSystemDiscoverer({".nef", ".jpg"}),
             RawPairFilter({".nef"}),
             FakeCaptureTimes(),
         ),
-        load_failures=LoadFailuresNode(failures),
-        fingerprint=FingerprintNode(FakeFileHasher(fail_for=fail_hash_for)),
-        skip_known=SkipKnownNode(repository, failures),
-        skip_copies=SkipCopiesNode(repository, Path.is_file),
-        record_copies=RecordCopiesNode(copies or InMemoryCopies()),
-        select_batch=SelectBatchNode(),
-        log_planning_failures=LogFailuresNode(failures),
-        next_chunk=NextChunkNode(),
-        extract_exif=ExtractExifNode(FakeExifReader(exif, fail_for=fail_exif_for)),
-        decode=DecodeNode(FakeImageDecoder(), previews),
-        perceptual_hash=PerceptualHashNode(PHasher(), previews),
-        annotate=AnnotateNode(
+        load_failures=LoadFailuresStep(failures),
+        fingerprint=FingerprintStep(FakeFileHasher(fail_for=fail_hash_for)),
+        skip_known=SkipKnownStep(repository, failures),
+        skip_copies=SkipCopiesStep(repository, Path.is_file),
+        record_copies=RecordCopiesStep(copies or InMemoryCopies()),
+        select_batch=SelectBatchStep(),
+        log_planning_failures=LogFailuresStep(failures),
+        next_chunk=NextChunkStep(),
+        extract_exif=ExtractExifStep(FakeExifReader(exif, fail_for=fail_exif_for)),
+        decode=DecodeStep(FakeImageDecoder(), previews),
+        perceptual_hash=PerceptualHashStep(PHasher(), previews),
+        annotate=AnnotateStep(
             annotator,
             previews,
             ExifContextFormatter(),
             max_consecutive_failures=max_consecutive_failures,
         ),
-        persist=PersistNode(repository, annotated_by="fake:model"),
-        log_failures=LogFailuresNode(failures),
-        record_chunk=RecordChunkNode(),
+        persist=PersistStep(repository, annotated_by="fake:model"),
+        log_failures=LogFailuresStep(failures),
+        record_chunk=RecordChunkStep(),
     )
     return PhotoPipeline(PhotoWorkflow(steps), lambda: "run-test")
 

@@ -2,8 +2,8 @@ from pathlib import Path
 
 import pytest
 
-from raw_and_order.workflow.nodes import SkipKnownNode
 from raw_and_order.workflow.state import PhotoItem, WorkflowState
+from raw_and_order.workflow.steps import SkipKnownStep
 
 
 class StubPhotos:
@@ -34,8 +34,8 @@ FAILED: dict[Path, str | None] = {
 }
 
 
-def _node() -> SkipKnownNode:
-    return SkipKnownNode(StubPhotos(STORED), StubFailures(FAILED))  # type: ignore[arg-type]
+def _node() -> SkipKnownStep:
+    return SkipKnownStep(StubPhotos(STORED), StubFailures(FAILED))  # type: ignore[arg-type]
 
 
 def _state(**flags: bool) -> WorkflowState:

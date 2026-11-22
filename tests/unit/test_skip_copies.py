@@ -1,7 +1,7 @@
 from pathlib import Path
 
-from raw_and_order.workflow.nodes import SkipCopiesNode
 from raw_and_order.workflow.state import PhotoItem, WorkflowState
+from raw_and_order.workflow.steps import SkipCopiesStep
 
 
 class StubPhotos:
@@ -20,7 +20,7 @@ def _run(
     def exists(path: Path) -> bool:
         return on_disk is None or path.as_posix() in on_disk
 
-    node = SkipCopiesNode(StubPhotos(stored), exists)
+    node = SkipCopiesStep(StubPhotos(stored), exists)
     state = WorkflowState(
         source_dir=Path("/in"),
         items=[PhotoItem(path=Path(p), sha256=sha) for p, sha in items],
