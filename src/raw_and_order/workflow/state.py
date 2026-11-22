@@ -53,13 +53,13 @@ class FileFailure(BaseModel):
 
 
 class WorkflowState(BaseModel):
-    """State shared by all nodes for one run.
+    """State shared by all workflow steps for one run.
 
-    Planning steps (discover -> fingerprint -> skip_known -> skip_copies ->
-    select_batch)
+    The planning steps (see the order in :mod:`raw_and_order.workflow.runner`)
     work on every candidate in ``items``. ``select_batch`` then moves the
-    photos to process into ``queue``, and the chunk loop works on one chunk
-    at a time in ``items``. Finished chunks are reduced to counts and
+    photos to process into ``queue``, leaving only the early failures in
+    ``items`` for ``log_planning_failures``. The chunk loop then works on one
+    chunk at a time in ``items``. Finished chunks are reduced to counts and
     failures so the state stays small.
     """
 

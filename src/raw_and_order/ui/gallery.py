@@ -12,12 +12,13 @@ from raw_and_order.ui.grid import grid_shape, thumbnail_px
 from raw_and_order.ui.library import PhotoLibrary
 
 THUMB_KEY_PREFIX = "thumb-"  # container holding the image and the overlay
-OPEN_KEY_PREFIX = "thumbopen-"  # the overlay button itself (distinct prefix)
+# The overlay's prefix must not contain the tile's: the CSS selects tiles with
+# [class*="st-key-thumb-"], which would also match "thumb-open-".
+OPEN_KEY_PREFIX = "thumbopen-"  # the overlay button itself
 GRID_KEY = "gallery-grid"
-# Height of everything on the page that is not the grid (title, tabs, sort
+# Height of everything on the page but the tiles (menu bar, title, tabs, sort
 # row, "Showing" caption, pager and page padding), so the grid fills the rest.
-# Height of everything but the tiles (title, tabs, controls, pager, menu bar),
-# measured with the padding in ui/theme.toml.
+# Measured with the padding in ui/theme.toml.
 CHROME_REM = 25.25
 ROW_GAP_REM = 0.25
 # Fill around portrait and landscape photos in their square tile; a

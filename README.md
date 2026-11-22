@@ -250,8 +250,8 @@ All settings come from environment variables or `.env`
 | `LLM__API_KEY` | - | Required for OpenAI / Anthropic |
 | `LLM__TEMPERATURE` | provider default | Sampling temperature |
 | `LLM__TIMEOUT_SECONDS` | `120` | Per-request timeout (`.env.example` uses `300` for local models) |
-| `LLM__MAX_RETRIES` | `3` | Attempts for transient provider errors |
-| `LLM__MAX_OUTPUT_FIX_ATTEMPTS` | `2` | Attempts to get output that matches the annotation schema |
+| `LLM__MAX_RETRIES` | `3` | Total tries per request on transient provider errors, the first included (`1` = no retry) |
+| `LLM__MAX_OUTPUT_FIX_ATTEMPTS` | `2` | Total tries to get output that matches the annotation schema, the first included |
 | **Runs** | | |
 | `MAX_PHOTOS_PER_RUN` | `500` | Process at most this many photos per run, first by path; the rest wait for the next run (1–5000; `--max-photos`) |
 | `CHUNK_SIZE` | `25` | Photos processed and saved together; an interruption loses at most one chunk (1–5000; `--chunk-size`) |

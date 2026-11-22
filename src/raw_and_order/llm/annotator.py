@@ -60,8 +60,10 @@ class LLMAnnotator:
         chat_model: A vision-capable chat model.
         system_prompt: Instructions for the model.
         output_schema: Schema the model must fill (e.g. with the tag limit).
-        max_retries: Attempts for transient provider errors.
-        max_output_fix_attempts: Attempts to get schema-valid output.
+        max_retries: Total tries per request when the provider fails
+            transiently, the first one included (1 = no retry).
+        max_output_fix_attempts: Total tries to get schema-valid output, the
+            first one included; each retry tells the model what was wrong.
     """
 
     def __init__(
@@ -101,7 +103,9 @@ class LLMAnnotator:
             raise _classify(exc) from exc
         if not isinstance(result, Annotation):
             raise OutputParserException(f"Expected Annotation, got {type(result)}")
-        return Annotation.model_validate(result.model_dump())  # plain, storable type
+        # The schema is a subclass with the tag limit (annotation_schema());
+        # convert back to plain Annotation, the type that is stored.
+        return Annotation.model_validate(result.model_dump())
 
     @staticmethod
     def _build_runnable(

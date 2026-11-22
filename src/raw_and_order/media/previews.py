@@ -42,7 +42,8 @@ def type_folder(source: Path) -> str:
 class DatedPreviewLayout:
     """Places previews at ``YYYYMMDD/<extension>/<stem>-<hash>.jpg``.
 
-    The date is the photo's EXIF ``DateTimeOriginal``; photos without one go
+    The date is the photo's resolved capture date (``ExifData.captured_at``,
+    which may come from EXIF, XMP or the file name); photos without one go
     under ``unknown-date``. Extensions are kept as written, so ``.jpg`` and
     ``.jpeg`` get separate folders.
     """

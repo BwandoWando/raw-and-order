@@ -3,12 +3,12 @@
 Under the file name, the photo sits on the left and its description, tags
 and camera settings on the right. The longer sections (similar photos,
 location, files) sit in tabs below, full width, so nothing needs scrolling
-on a normal screen. Buttons at the dialog's left and right
-edges (and the arrow keys) step to the previous or next photo shown in the
-gallery without closing the dialog. Clicking a similar photo shows it here;
-it can only be stepped from if it is on the gallery page too. Clicking the
-photo shows its preview full screen, on a layer over the dialog (Streamlit
-allows only one dialog at a time).
+on a normal screen. Buttons either side of the photo (and the arrow keys)
+step to the previous or next photo shown in the gallery without closing the
+dialog. Clicking a similar photo shows it here; it can only be stepped from
+if it is on the gallery page too. Clicking the photo shows its preview full
+screen, on a layer over the dialog (Streamlit allows only one dialog at a
+time).
 """
 
 from collections.abc import Sequence
@@ -38,7 +38,9 @@ PREVIOUS_KEY = "detail-previous"
 NEXT_KEY = "detail-next"
 SIMILAR_KEY = "detail-similar"
 SIMILAR_TILE_PREFIX = "detail-sim-"  # image plus overlay button
-SIMILAR_OPEN_PREFIX = "detail-simopen-"  # the overlay button (distinct prefix)
+# The overlay's prefix must not contain the tile's: the CSS selects tiles with
+# [class*="st-key-detail-sim-"], which would also match "detail-sim-open-".
+SIMILAR_OPEN_PREFIX = "detail-simopen-"  # the overlay button
 STEP_BUTTON_PX = 44
 CURRENT_KEY = "detail_current"  # session state: path of the photo shown
 OPEN_KEY = "detail_open"  # session state: True while the dialog is open
@@ -267,7 +269,7 @@ def _stepper(paths: tuple[Path, ...], current: Path, preview: Path | None) -> No
 def _step_button(
     label: str, target: Path | None, key: str, icon: str, shortcut: str
 ) -> None:
-    """A round button at the dialog's edge, shown on hover; also an arrow key.
+    """A round button beside the photo, shown on hover; also an arrow key.
 
     Past either end there is no button, only a spacer of the same width, so
     the photo stays centred.

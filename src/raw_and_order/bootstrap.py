@@ -72,8 +72,8 @@ CAPABILITY_CHECK_TIMEOUT_S = 10.0
 class Application:
     """Owns long-lived resources and exposes the wired pipeline.
 
-    Use as a context manager so the exiftool process, database engine and
-    exiftool process and database engine are always closed.
+    Use as a context manager so the exiftool process and database engine
+    are always closed.
 
     Args:
         settings: Validated application settings.

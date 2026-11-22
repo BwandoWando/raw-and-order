@@ -1,4 +1,9 @@
-"""Photo repository: the only code that talks to the database."""
+"""Photo repository: reads and writes stored photos for the pipeline.
+
+The processing run and the maintenance commands save photos through this
+module. The UI reads through :mod:`raw_and_order.db.catalog` instead; the
+copy and failure logs have their own repositories.
+"""
 
 from pathlib import Path
 from typing import Protocol
