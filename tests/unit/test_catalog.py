@@ -341,3 +341,50 @@ def test_filter_conditions_add_one_condition_per_filter_set() -> None:
     )
 
     assert len(filter_conditions(query)) == 10
+
+
+def test_similar_photos_follow_the_filters(
+    session_factory: sessionmaker[Session], repository: SqlAlchemyPhotoRepository
+) -> None:
+    repository.upsert(_photo("target.arw"))
+    repository.upsert(_photo("same-scene.arw"))
+    repository.upsert(_photo("other-scene.arw", scene=SceneType.STREET))
+    catalog = SqlAlchemyPhotoCatalog(session_factory)
+    target = catalog.get(Path("/photos/target.arw"))
+    assert target is not None
+
+    unfiltered = catalog.similar_photos(target)
+    filtered = catalog.similar_photos(target, PhotoQuery(scenes=("landscape",)))
+
+    assert {m.record.path.name for m in unfiltered} == {
+        "same-scene.arw",
+        "other-scene.arw",
+    }
+    assert [m.record.path.name for m in filtered] == ["same-scene.arw"]
+
+
+def test_position_counts_in_sort_order_across_pages(
+    catalog: SqlAlchemyPhotoCatalog,
+) -> None:
+    query = PhotoQuery(page_size=1)
+    names = [r.path for r in catalog.matching(query)]
+
+    positions = [catalog.position(path, query) for path in names]
+
+    assert positions == list(range(1, len(names) + 1))
+    oldest = query.model_copy(update={"sort": SortOrder.CAPTURED_OLDEST})
+    assert catalog.position(catalog.matching(oldest)[0].path, oldest) == 1
+
+
+def test_position_counts_only_photos_matching_the_filters(
+    catalog: SqlAlchemyPhotoCatalog,
+) -> None:
+    people = PhotoQuery(contains_people=True)
+    matching = catalog.matching(people)
+    hidden = next(
+        r for r in catalog.matching(PhotoQuery()) if not r.annotation.contains_people
+    )
+
+    assert [catalog.position(r.path, people) for r in matching] == [1, 2]
+    assert catalog.position(hidden.path, people) is None
+    assert catalog.position(Path("/photos/not-stored.arw"), people) is None

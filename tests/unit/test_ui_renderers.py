@@ -218,6 +218,41 @@ def test_no_step_past_the_first_or_last_photo_of_all_pages() -> None:
     assert "detail-next" not in {b.key for b in app.button}
 
 
+def test_a_similar_photo_on_another_page_opens_on_its_page() -> None:
+    records = [_record(i) for i in range(30)]  # pages of 24
+    similar = {records[0].path: [SimilarPhoto(record=records[27], distance=1)]}
+    app = _app(FakePhotoLibrary(records, similar=similar))
+
+    app.button(key=open_button_key(records[0].path)).click().run()
+    app.button(key=similar_button_key(records[27].path)).click().run()
+
+    assert not app.exception, app.exception
+    assert "Showing 25–30 of 30 photos" in [c.value for c in app.caption]
+    assert r"**IMG\_27\.DNG** :gray[/photos]" in [m.value for m in app.markdown]
+    assert _shown_position(app) == "Photo 4 of 6 on this page"
+    keys = {b.key for b in app.button}
+    assert "detail-previous" in keys and "detail-next" in keys
+
+
+def test_similar_photos_hidden_by_the_filters_are_not_offered() -> None:
+    street = SAMPLE_ANNOTATION.model_copy(update={"scene": SceneType.STREET})
+    records = [_record(0), _record(1), _record(2, street)]
+    similar = {
+        records[0].path: [
+            SimilarPhoto(record=records[1], distance=1),
+            SimilarPhoto(record=records[2], distance=1),
+        ]
+    }
+    app = _app(FakePhotoLibrary(records, similar=similar))
+    app.multiselect(key=FilterKey.SCENES).select(SAMPLE_ANNOTATION.scene.value).run()
+
+    app.button(key=open_button_key(records[0].path)).click().run()
+
+    keys = {b.key for b in app.button}
+    assert similar_button_key(records[1].path) in keys
+    assert similar_button_key(records[2].path) not in keys
+
+
 def test_similar_photos_show_a_bucket_not_a_distance() -> None:
     similar = [SimilarPhoto(record=_record(1), distance=0)]
     similar.append(SimilarPhoto(record=_record(2), distance=10))

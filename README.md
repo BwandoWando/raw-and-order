@@ -219,7 +219,10 @@ Stop it with Ctrl+C. In VS Code, the **Streamlit UI** debug configuration in
   hover) or the arrow keys. Stepping on from the last photo of a page turns
   the gallery to the next page and shows its first photo; stepping back from
   the first shows the last photo of the previous page (there is nothing past
-  the very first or last photo matching the filters). Click a similar photo to show it in the dialog. Similar photos are labelled by pHash
+  the very first or last photo matching the filters). Similar photos follow
+  the sidebar filters; click one to show it in the dialog, and the gallery
+  turns to the page it is on, so stepping and "Photo N of M" carry on from
+  there. Similar photos are labelled by pHash
   distance (of 64 bits): Identical (0–2), Very similar (3–8) and Similar
   (9–14); all of them share at least 25% of their tags.
 - **Tags:** a network of the most-used tags (20–100). Bubble size is the number

@@ -186,6 +186,8 @@ class FakePhotoLibrary:
     """In-memory :class:`~raw_and_order.ui.library.PhotoLibrary` for UI tests.
 
     Search ignores filters and sort; it only pages through ``records``.
+    Similar photos and positions follow one filter, ``scenes``, so tests can
+    hide a photo from the gallery.
     """
 
     def __init__(
@@ -206,20 +208,30 @@ class FakePhotoLibrary:
         return list(self._records)
 
     def search(self, query: PhotoQuery) -> PhotoPage:
+        matching = self._matching(query)
         start = (query.page - 1) * query.page_size
         return PhotoPage(
-            items=self._records[start : start + query.page_size],
-            total=len(self._records),
+            items=matching[start : start + query.page_size],
+            total=len(matching),
             page=query.page,
             page_size=query.page_size,
         )
+
+    def position(self, path: Path, query: PhotoQuery) -> int | None:
+        paths = [r.path for r in self._matching(query)]
+        return paths.index(path) + 1 if path in paths else None
+
+    def _matching(self, query: PhotoQuery) -> list[PhotoRecord]:
+        if not query.scenes:
+            return list(self._records)
+        return [r for r in self._records if r.annotation.scene in query.scenes]
 
     def filter_options(self) -> FilterOptions:
         counts = Counter(
             tag for record in self._records for tag in set(record.annotation.tags)
         )
         return FilterOptions(
-            scenes=[],
+            scenes=sorted({r.annotation.scene.value for r in self._records}),
             tags=[tag for tag, _ in counts.most_common()],
             tag_counts=dict(counts),
             cameras=[],
@@ -232,8 +244,9 @@ class FakePhotoLibrary:
     def photo(self, path: Path) -> PhotoRecord | None:
         return next((r for r in self._records if r.path == path), None)
 
-    def similar_photos(self, path: Path) -> list[SimilarPhoto]:
-        return self._similar.get(path, [])
+    def similar_photos(self, path: Path, query: PhotoQuery) -> list[SimilarPhoto]:
+        allowed = {r.path for r in self._matching(query)}
+        return [s for s in self._similar.get(path, []) if s.record.path in allowed]
 
     def copies_of(self, path: Path) -> list[Path]:
         return self._copies.get(path, [])

@@ -38,8 +38,16 @@ class PhotoLibrary(Protocol):
         """Return one photo by path, or ``None`` if it is not stored."""
         ...
 
-    def similar_photos(self, path: Path) -> list[SimilarPhoto]:
-        """Return photos that look like the one at ``path``, closest first."""
+    def similar_photos(self, path: Path, query: PhotoQuery) -> list[SimilarPhoto]:
+        """Return photos like the one at ``path`` matching ``query``, closest first."""
+        ...
+
+    def position(self, path: Path, query: PhotoQuery) -> int | None:
+        """Return the photo's place (from 1) in ``query``'s results, or ``None``.
+
+        Counts across all pages, in ``query``'s sort order; ``None`` if the
+        photo does not match the filters.
+        """
         ...
 
     def copies_of(self, path: Path) -> list[Path]:

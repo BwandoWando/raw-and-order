@@ -13,7 +13,15 @@ from datetime import date, datetime, time
 from pathlib import Path
 from typing import Any, Protocol
 
-from sqlalchemy import ColumnElement, Select, Text, cast, func, or_, select
+from sqlalchemy import (
+    ColumnElement,
+    Select,
+    Text,
+    cast,
+    func,
+    or_,
+    select,
+)
 from sqlalchemy.orm import InstrumentedAttribute, Session, sessionmaker
 
 from raw_and_order.analysis.similarity import SIMILAR_MAX_DISTANCE, shares_tags
@@ -53,9 +61,16 @@ class PhotoCatalog(Protocol):
         ...
 
     def similar_photos(
-        self, record: PhotoRecord, max_distance: int = SIMILAR_MAX_DISTANCE
+        self,
+        record: PhotoRecord,
+        query: PhotoQuery | None = None,
+        max_distance: int = SIMILAR_MAX_DISTANCE,
     ) -> list[SimilarPhoto]:
         """Return similar photos (close pHash and shared tags), closest first."""
+        ...
+
+    def position(self, path: Path, query: PhotoQuery) -> int | None:
+        """Return the photo's place (from 1) among ``query``'s matches, sorted."""
         ...
 
     def stats(self) -> PhotoStats:
@@ -187,24 +202,31 @@ class SqlAlchemyPhotoCatalog:
             return to_record(row) if row else None
 
     def similar_photos(
-        self, record: PhotoRecord, max_distance: int = SIMILAR_MAX_DISTANCE
+        self,
+        record: PhotoRecord,
+        query: PhotoQuery | None = None,
+        max_distance: int = SIMILAR_MAX_DISTANCE,
     ) -> list[SimilarPhoto]:
         """Return similar photos, closest first.
 
         Similar means within ``max_distance`` pHash bits *and* sharing enough
-        tags (:func:`~raw_and_order.analysis.similarity.shares_tags`).
+        tags (:func:`~raw_and_order.analysis.similarity.shares_tags`). With a
+        ``query``, only photos matching its filters are returned.
 
         Raises:
             PersistenceError: If the query fails.
         """
         if record.phash is None:
             return []
+        conditions = filter_conditions(query) if query is not None else []
         with self._read() as session:
             close = self._close_by_phash(session, record, max_distance)
             rows = {
                 row.path: row
                 for row in session.scalars(
-                    select(PhotoRow).where(PhotoRow.path.in_([p for _, p in close]))
+                    select(PhotoRow).where(
+                        PhotoRow.path.in_([p for _, p in close]), *conditions
+                    )
                 )
             }
             matches = [
@@ -214,6 +236,24 @@ class SqlAlchemyPhotoCatalog:
             ]
         tags = record.annotation.tags
         return [m for m in matches if shares_tags(tags, m.record.annotation.tags)]
+
+    def position(self, path: Path, query: PhotoQuery) -> int | None:
+        """Return the photo's place (from 1) among ``query``'s matches, sorted.
+
+        This is its number across all pages, so the page it is on is
+        ``(position - 1) // page_size + 1``. ``None`` if it does not match the
+        filters (or is not stored).
+
+        Raises:
+            PersistenceError: If the query fails.
+        """
+        rank = func.row_number().over(order_by=sort_order(query.sort))
+        ranked = apply_filters(
+            select(PhotoRow.path, rank.label("position")), query
+        ).subquery()
+        statement = select(ranked.c.position).where(ranked.c.path == str(path))
+        with self._read() as session:
+            return session.scalar(statement)
 
     @staticmethod
     def _close_by_phash(
@@ -383,14 +423,21 @@ def _between(
 
 def apply_sort(statement: Select[Any], sort: SortOrder) -> Select[Any]:
     """Order results; photos without a capture date sort last."""
+    return statement.order_by(*sort_order(sort))
+
+
+def sort_order(
+    sort: SortOrder,
+) -> list[ColumnElement[Any] | InstrumentedAttribute[Any]]:
+    """The ``ORDER BY`` terms for ``sort``; the path breaks ties."""
     if sort is SortOrder.PROCESSED_NEWEST:
-        return statement.order_by(PhotoRow.processed_at.desc(), PhotoRow.path)
+        return [PhotoRow.processed_at.desc(), PhotoRow.path]
     captured = (
         PhotoRow.captured_at.asc()
         if sort is SortOrder.CAPTURED_OLDEST
         else PhotoRow.captured_at.desc()
     )
-    return statement.order_by(captured.nulls_last(), PhotoRow.path)
+    return [captured.nulls_last(), PhotoRow.path]
 
 
 def escape_like(text: str) -> str:

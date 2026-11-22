@@ -77,9 +77,15 @@ class CachedPhotoLibrary:
         """Return one photo by path, or ``None`` if it is not stored."""
         return _photo(self._catalog, self._key, str(path))
 
-    def similar_photos(self, path: Path) -> list[SimilarPhoto]:
-        """Return photos that look like the one at ``path``, closest first."""
-        return _similar_photos(self._catalog, self._key, str(path))
+    def similar_photos(self, path: Path, query: PhotoQuery) -> list[SimilarPhoto]:
+        """Return photos like the one at ``path`` matching ``query``, closest first."""
+        return _similar_photos(
+            self._catalog, self._key, str(path), query.model_dump_json()
+        )
+
+    def position(self, path: Path, query: PhotoQuery) -> int | None:
+        """Return the photo's place (from 1) in ``query``'s results, or ``None``."""
+        return _position(self._catalog, self._key, str(path), query.model_dump_json())
 
     def copies_of(self, path: Path) -> list[Path]:
         """Return the exact copies found of the photo at ``path``."""
@@ -175,9 +181,21 @@ def _photo(_catalog: PhotoCatalog, key: str, path: str) -> PhotoRecord | None:
 
 
 @st.cache_data(ttl=CACHE_TTL_S, show_spinner=False)
-def _similar_photos(_catalog: PhotoCatalog, key: str, path: str) -> list[SimilarPhoto]:
+def _similar_photos(
+    _catalog: PhotoCatalog, key: str, path: str, query_json: str
+) -> list[SimilarPhoto]:
     record = _catalog.get(Path(path))
-    return _catalog.similar_photos(record) if record else []
+    if record is None:
+        return []
+    return _catalog.similar_photos(record, PhotoQuery.model_validate_json(query_json))
+
+
+@st.cache_data(ttl=CACHE_TTL_S, show_spinner=False)
+def _position(
+    _catalog: PhotoCatalog, key: str, path: str, query_json: str
+) -> int | None:
+    query = PhotoQuery.model_validate_json(query_json)
+    return _catalog.position(Path(path), query)
 
 
 @st.cache_data(ttl=CACHE_TTL_S, show_spinner=False)

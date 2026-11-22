@@ -3,7 +3,8 @@
 Shows one page of the photos matching the sidebar filters as square tiles
 sized to fill the window. Clicking a tile opens the photo details dialog
 (``ui/detail.py``), which can step through the photos on this page and on
-past either end of it, turning the page.
+past either end of it, turning the page. Clicking a similar photo there turns
+to the page that photo is on.
 """
 
 from enum import StrEnum
@@ -16,10 +17,11 @@ from raw_and_order.schemas.query import PAGE_SIZES, PhotoPage, PhotoQuery, SortO
 from raw_and_order.ui.css import clickable_tile, keyed, keyed_prefix
 from raw_and_order.ui.detail import (
     GalleryPage,
+    GalleryRequest,
     PageTurn,
     details_open,
     open_details,
-    take_page_turn,
+    take_gallery_request,
 )
 from raw_and_order.ui.formatting import path_digest, thumbnail_tooltip
 from raw_and_order.ui.grid import grid_shape, thumbnail_px
@@ -106,8 +108,8 @@ def render_gallery(filters: PhotoQuery, library: PhotoLibrary) -> None:
         "Per page", PAGE_SIZES, key=GalleryKey.PAGE_SIZE, bind="query-params"
     )
     query = filters.model_copy(update={"sort": sort, "page_size": page_size})
-    turn = take_page_turn()
-    page_number = _current_page(query, turn)
+    request = take_gallery_request()
+    page_number = _requested_page(request, _current_page(query), query, library)
     result = library.search(query.model_copy(update={"page": page_number}))
 
     if result.total == 0:
@@ -116,20 +118,30 @@ def render_gallery(filters: PhotoQuery, library: PhotoLibrary) -> None:
     first = (result.page - 1) * result.page_size + 1
     last = first + len(result.items) - 1
     st.caption(f"Showing {first}–{last} of {result.total} photos")
-    page = gallery_page(result)
+    page = gallery_page(result, query)
     _grid(result.items, query.page_size, page, library)
-    if turn is not None and page.paths:
-        _reopen_details(page, turn, library)
+    if request is not None:
+        _reopen_details(request, page, library)
     _pager(page_number, result.pages)
 
 
-def gallery_page(result: PhotoPage) -> GalleryPage:
-    """The photos on ``result``'s page, and whether pages lie either side."""
+def gallery_page(result: PhotoPage, query: PhotoQuery) -> GalleryPage:
+    """What the photo details need to know about the page shown.
+
+    The photos on ``result``'s page, whether pages lie either side, and the
+    filters and sort (``query``) that chose them.
+    """
     return GalleryPage(
         paths=tuple(record.path for record in result.items),
         has_previous=result.page > 1,
         has_next=result.page < result.pages,
+        query=query,
     )
+
+
+def page_of(position: int, page_size: int) -> int:
+    """The page (from 1) showing the photo at ``position`` (from 1)."""
+    return (position - 1) // page_size + 1
 
 
 def chosen_sort(default: SortOrder) -> SortOrder:
@@ -192,31 +204,54 @@ def _thumbnail(
             open_details(record.path, page, library)
 
 
-def _reopen_details(page: GalleryPage, turn: PageTurn, library: PhotoLibrary) -> None:
-    """Open the details again after they turned the page.
+def _reopen_details(
+    request: GalleryRequest, page: GalleryPage, library: PhotoLibrary
+) -> None:
+    """Open the details again after they asked for another page.
 
-    Going forward shows the new page's first photo, going back its last.
+    A page turned forward shows its first photo, one turned back its last; a
+    similar photo clicked is shown itself.
     """
-    path = page.paths[0] if turn is PageTurn.NEXT else page.paths[-1]
-    open_details(path, page, library)
+    if isinstance(request, Path):
+        open_details(request, page, library)
+    elif page.paths:
+        path = page.paths[0] if request is PageTurn.NEXT else page.paths[-1]
+        open_details(path, page, library)
 
 
-def _current_page(query: PhotoQuery, turn: PageTurn | None = None) -> int:
+def _requested_page(
+    request: GalleryRequest | None,
+    page: int,
+    query: PhotoQuery,
+    library: PhotoLibrary,
+) -> int:
+    """The page to show after a request from the photo details.
+
+    A turn moves one page; a photo moves to the page it is on under the
+    current filters and sort (or stays, if it no longer matches them).
+    """
+    if request is None:
+        return page
+    if isinstance(request, PageTurn):
+        page = max(1, page + (1 if request is PageTurn.NEXT else -1))
+    else:
+        position = library.position(request, query)
+        page = page if position is None else page_of(position, query.page_size)
+    st.session_state[GalleryKey.PAGE] = page
+    return page
+
+
+def _current_page(query: PhotoQuery) -> int:
     """Keep the page number, but go back to page 1 when the query changes.
 
     ``query`` holds the filters, sort and page size (not the page), so a
-    change to any of them starts again from page 1. A ``turn`` from the photo
-    details moves one page back or forward.
+    change to any of them starts again from page 1.
     """
     signature = query.model_dump_json()
     if st.session_state.get(GalleryKey.PAGE_QUERY) != signature:
         st.session_state[GalleryKey.PAGE_QUERY] = signature
         st.session_state[GalleryKey.PAGE] = 1
-    page = int(st.session_state.get(GalleryKey.PAGE, 1))
-    if turn is not None:
-        page = max(1, page + (1 if turn is PageTurn.NEXT else -1))
-        st.session_state[GalleryKey.PAGE] = page
-    return page
+    return int(st.session_state.get(GalleryKey.PAGE, 1))
 
 
 def _pager(page: int, pages: int) -> None:

@@ -12,6 +12,7 @@ from raw_and_order.ui.detail import (
     page_position,
     steps,
 )
+from raw_and_order.ui.gallery import page_of
 
 PATHS = [Path("/a.jpg"), Path("/b.jpg"), Path("/c.jpg")]
 
@@ -77,3 +78,7 @@ def test_a_photo_off_the_page_never_turns_it() -> None:
     page = GalleryPage(tuple(PATHS), has_previous=True, has_next=True)
 
     assert steps(page, Path("/elsewhere.jpg")) == (None, None)
+
+
+def test_page_of_finds_the_page_a_position_is_on() -> None:
+    assert [page_of(n, 24) for n in (1, 24, 25, 48, 49)] == [1, 1, 2, 2, 3]
