@@ -4,8 +4,8 @@ from pathlib import Path
 import pytest
 from PIL import Image
 
-from my_agent.exceptions import PreviewError
-from my_agent.media.previews import (
+from raw_and_order.exceptions import PreviewError
+from raw_and_order.media.previews import (
     DatedPreviewLayout,
     JpegPreviewStore,
     date_folder,

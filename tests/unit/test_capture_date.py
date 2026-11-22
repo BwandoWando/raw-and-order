@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from my_agent.media.capture_date import (
+from raw_and_order.media.capture_date import (
     CaptureDateResolver,
     DateValidator,
     ExifTagDate,
@@ -11,7 +11,7 @@ from my_agent.media.capture_date import (
     build_date_sources,
     parse_exif_datetime,
 )
-from my_agent.schemas import DateSource
+from raw_and_order.schemas import DateSource
 
 NOW = datetime(2026, 11, 20, 12, 0)
 ALL_SOURCES = [

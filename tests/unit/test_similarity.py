@@ -2,7 +2,7 @@
 
 import pytest
 
-from my_agent.analysis.similarity import (
+from raw_and_order.analysis.similarity import (
     Similarity,
     shares_tags,
     similarity,

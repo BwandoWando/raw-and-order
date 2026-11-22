@@ -3,9 +3,9 @@ import pytest
 from langchain_core.messages import HumanMessage
 from pydantic import ValidationError
 
-from my_agent.exceptions import InvalidModelOutputError, ModelUnavailableError
-from my_agent.llm.annotator import LLMAnnotator, build_messages
-from my_agent.schemas import Annotation
+from raw_and_order.exceptions import InvalidModelOutputError, ModelUnavailableError
+from raw_and_order.llm.annotator import LLMAnnotator, build_messages
+from raw_and_order.schemas import Annotation
 from tests.fakes import SAMPLE_ANNOTATION, ScriptedChatModel
 
 

@@ -1,12 +1,12 @@
 import pytest
 from pydantic import SecretStr, ValidationError
 
-from my_agent.bootstrap import build_annotator
-from my_agent.config import LLMSettings, Settings
-from my_agent.llm.annotator import LLMAnnotator
-from my_agent.llm.prompts import render_prompt
-from my_agent.schemas import Annotation, SceneType
-from my_agent.schemas.annotation import MAX_TAGS_LIMIT, annotation_schema
+from raw_and_order.bootstrap import build_annotator
+from raw_and_order.config import LLMSettings, Settings
+from raw_and_order.llm.annotator import LLMAnnotator
+from raw_and_order.llm.prompts import render_prompt
+from raw_and_order.schemas import Annotation, SceneType
+from raw_and_order.schemas.annotation import MAX_TAGS_LIMIT, annotation_schema
 from tests.fakes import ScriptedChatModel
 
 

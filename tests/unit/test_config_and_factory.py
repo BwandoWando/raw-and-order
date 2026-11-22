@@ -1,9 +1,14 @@
 import pytest
 from pydantic import SecretStr, ValidationError
 
-from my_agent.config import MAX_PHOTOS_HARD_LIMIT, LLMProvider, LLMSettings, Settings
-from my_agent.llm.factory import build_model_kwargs, create_chat_model
-from my_agent.schemas import DateSource
+from raw_and_order.config import (
+    MAX_PHOTOS_HARD_LIMIT,
+    LLMProvider,
+    LLMSettings,
+    Settings,
+)
+from raw_and_order.llm.factory import build_model_kwargs, create_chat_model
+from raw_and_order.schemas import DateSource
 
 
 def test_cloud_provider_requires_api_key() -> None:

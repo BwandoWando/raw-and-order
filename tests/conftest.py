@@ -5,12 +5,12 @@ from pathlib import Path
 import pytest
 from sqlalchemy.orm import Session, sessionmaker
 
-from my_agent.db.base import Base
-from my_agent.db.copy_repository import SqlAlchemyCopyRepository
-from my_agent.db.failure_repository import SqlAlchemyFailureRepository
-from my_agent.db.repository import SqlAlchemyPhotoRepository
-from my_agent.db.session import create_db_engine, create_session_factory
-from my_agent.schemas import ExifData, GpsCoordinate
+from raw_and_order.db.base import Base
+from raw_and_order.db.copy_repository import SqlAlchemyCopyRepository
+from raw_and_order.db.failure_repository import SqlAlchemyFailureRepository
+from raw_and_order.db.repository import SqlAlchemyPhotoRepository
+from raw_and_order.db.session import create_db_engine, create_session_factory
+from raw_and_order.schemas import ExifData, GpsCoordinate
 
 
 @pytest.fixture(autouse=True)

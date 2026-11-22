@@ -1,4 +1,4 @@
-# Used when running `streamlit run src/my_agent/ui/app.py` from the project root.
+# Used when running `streamlit run src/raw_and_order/ui/app.py` from the project root.
 # `raw-and-order ui` passes the same settings on the command line.
 
 [server]
@@ -18,4 +18,4 @@ gatherUsageStats = false
 [theme]
 # Light and dark themes plus page padding (`raw-and-order ui` passes the same file).
 # The path is relative to the folder `streamlit run` is started from.
-base = "src/my_agent/ui/theme.toml"
+base = "src/raw_and_order/ui/theme.toml"

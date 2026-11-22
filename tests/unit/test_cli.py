@@ -1,8 +1,8 @@
 import pytest
 from typer.testing import CliRunner
 
-from my_agent.config import MAX_PHOTOS_HARD_LIMIT
-from my_agent.main import app
+from raw_and_order.config import MAX_PHOTOS_HARD_LIMIT
+from raw_and_order.main import app
 
 MISSING_DIR = "/nonexistent/raw-and-order-test-dir"
 
@@ -44,7 +44,7 @@ def test_reread_exif_cannot_be_combined(other: str) -> None:
 
 
 def test_tests_never_see_the_real_database() -> None:
-    from my_agent.config import load_settings
+    from raw_and_order.config import load_settings
 
     settings = load_settings()
 
@@ -55,9 +55,9 @@ def test_tests_never_see_the_real_database() -> None:
 def test_aborted_run_message(capsys: pytest.CaptureFixture[str]) -> None:
     import typer
 
-    from my_agent.config import Settings
-    from my_agent.exceptions import ModelUnavailableError, RunAbortedError
-    from my_agent.main import _stop_aborted
+    from raw_and_order.config import Settings
+    from raw_and_order.exceptions import ModelUnavailableError, RunAbortedError
+    from raw_and_order.main import _stop_aborted
 
     cause = ModelUnavailableError("the LLM is unavailable - not found (HTTP 404)")
 

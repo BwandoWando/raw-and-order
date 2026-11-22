@@ -6,10 +6,10 @@ from pathlib import Path
 
 from PIL import Image
 
-from my_agent.db.repository import SqlAlchemyPhotoRepository
-from my_agent.media.hashing import PHASH_HEX_LENGTH, PHasher
-from my_agent.rehash import PerceptualRehasher
-from my_agent.schemas import ExifData, PhotoRecord
+from raw_and_order.db.repository import SqlAlchemyPhotoRepository
+from raw_and_order.media.hashing import PHASH_HEX_LENGTH, PHasher
+from raw_and_order.rehash import PerceptualRehasher
+from raw_and_order.schemas import ExifData, PhotoRecord
 from tests.fakes import SAMPLE_ANNOTATION
 
 OLD_HASH = "0" * 21  # an 81-bit hash from before the switch to 64 bits

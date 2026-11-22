@@ -3,9 +3,9 @@ from pathlib import Path
 import pytest
 from PIL import Image
 
-from my_agent.exceptions import ImageDecodeError, UnsupportedFormatError
-from my_agent.media.heif import enable_heif_support
-from my_agent.media.pillow_decoder import PillowDecoder
+from raw_and_order.exceptions import ImageDecodeError, UnsupportedFormatError
+from raw_and_order.media.heif import enable_heif_support
+from raw_and_order.media.pillow_decoder import PillowDecoder
 
 ORIENTATION = 0x0112
 

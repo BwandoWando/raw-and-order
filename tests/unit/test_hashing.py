@@ -5,10 +5,10 @@ from pathlib import Path
 import pytest
 from PIL import Image, ImageDraw, ImageEnhance
 
-from my_agent.analysis.similarity import Similarity, similarity
-from my_agent.db.catalog import NEAR_DUPLICATE_DISTANCE
-from my_agent.exceptions import FingerprintError
-from my_agent.media.hashing import (
+from raw_and_order.analysis.similarity import Similarity, similarity
+from raw_and_order.db.catalog import NEAR_DUPLICATE_DISTANCE
+from raw_and_order.exceptions import FingerprintError
+from raw_and_order.media.hashing import (
     PHASH_HEX_LENGTH,
     PHasher,
     Sha256FileHasher,

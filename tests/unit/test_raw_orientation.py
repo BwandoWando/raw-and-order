@@ -1,7 +1,7 @@
 import pytest
 from PIL import Image
 
-from my_agent.media.raw import (
+from raw_and_order.media.raw import (
     EXIF_ORIENTATION_TAG,
     apply_raw_flip,
     orient_embedded_preview,

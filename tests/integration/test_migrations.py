@@ -8,7 +8,7 @@ from alembic.config import Config
 from alembic.migration import MigrationContext
 from sqlalchemy import create_engine
 
-from my_agent.db.base import Base
+from raw_and_order.db.base import Base
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 

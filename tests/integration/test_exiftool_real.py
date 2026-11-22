@@ -8,14 +8,14 @@ from pathlib import Path
 import pytest
 from PIL import Image
 
-from my_agent.media.capture_date import (
+from raw_and_order.media.capture_date import (
     CaptureDateResolver,
     DateValidator,
     build_date_sources,
 )
-from my_agent.media.exif import PyExifToolReader
-from my_agent.media.exif_mapping import ExifMapper
-from my_agent.schemas import DateSource, ExifData, WhiteBalanceSource
+from raw_and_order.media.exif import PyExifToolReader
+from raw_and_order.media.exif_mapping import ExifMapper
+from raw_and_order.schemas import DateSource, ExifData, WhiteBalanceSource
 
 pytestmark = pytest.mark.skipif(shutil.which("exiftool") is None, reason="no exiftool")
 

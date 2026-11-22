@@ -1,7 +1,7 @@
 from pathlib import Path
 
-from my_agent.workflow.nodes import NextChunkNode, RecordChunkNode, SelectBatchNode
-from my_agent.workflow.state import FileError, PhotoItem, Stage, WorkflowState
+from raw_and_order.workflow.nodes import NextChunkNode, RecordChunkNode, SelectBatchNode
+from raw_and_order.workflow.state import FileError, PhotoItem, Stage, WorkflowState
 
 ERROR = FileError(stage=Stage.FINGERPRINT, error_type="X", message="x")
 

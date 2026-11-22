@@ -1,8 +1,8 @@
 from datetime import UTC, datetime
 from pathlib import Path
 
-from my_agent.db.repository import SqlAlchemyPhotoRepository
-from my_agent.schemas import ExifData, PhotoRecord
+from raw_and_order.db.repository import SqlAlchemyPhotoRepository
+from raw_and_order.schemas import ExifData, PhotoRecord
 from tests.fakes import SAMPLE_ANNOTATION
 
 

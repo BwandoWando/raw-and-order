@@ -4,8 +4,8 @@ Catalogues a folder of camera raw files and regular images. It extracts EXIF
 metadata, makes an upright JPEG preview, asks a vision LLM (local Ollama,
 OpenAI or Anthropic) for a description and tags, and stores everything in
 SQLite. A local Streamlit app lets you browse, filter and explore the
-catalogue. The command is `raw-and-order` (the Python package inside is
-`my_agent`).
+catalogue. The command is `raw-and-order` and the Python package
+`raw_and_order`.
 
 Each run is a plain ordered workflow (`workflow/runner.py`):
 
@@ -149,27 +149,23 @@ pre-commit install      # optional: lint + type-check on commit
 ```
 
 **Upgrading from `my-agent`:** the project used to be called `my-agent`
-(command, package name and conda env). To switch an existing setup, keeping
-your `data/` folder and `.env` as they are:
+(command, conda env and project folder) with the Python package `my_agent`.
+To switch an existing setup, keeping your `data/` folder and `.env` as they
+are (stop any running `process` or `ui` first):
 
 ```bash
 conda deactivate
 conda rename -n my-agent raw-and-order
+mv my-agent raw-and-order && cd raw-and-order   # if your folder has the old name
+git pull
 conda activate raw-and-order
 pip uninstall -y my-agent && pip install -e ".[dev,ollama,heic,ui]"
 git remote set-url origin git@github.com:BwandoWando/raw-and-order.git
 ```
 
-Then use `raw-and-order` wherever you used `my-agent`, and pick the
-`raw-and-order` interpreter in VS Code if it still shows the old one.
-
-Extras: `ollama`, `openai`, `anthropic` (one per LLM provider), `heic` (HEIC/HEIF
-images), `ui` (Streamlit browser; needs Streamlit 1.67+, plus openpyxl for Excel
-exports), `dev` (tests and
-linters) and `all` (every provider, `heic` and `ui`).
-
-`PYTHONNOUSERSITE=1` stops Python from also loading packages installed with
-`pip install --user`, which can shadow the env's own versions.
+Then use `raw-and-order` wherever you used `my-agent`, reopen the renamed
+folder in VS Code and pick the `raw-and-order` interpreter if it still shows
+the old one. The database needs no changes.
 
 **Pick a model.** For Ollama, pull a vision model and set it in `.env`:
 
@@ -204,7 +200,7 @@ Folders are searched recursively. Each run prints a summary: photos processed
 (saved and failed), unchanged, previously failed, RAW+JPEG pairs skipped,
 exact copies skipped (the first five listed with their original), and how many
 remain for the next run.
-`python -m my_agent` works the same as `raw-and-order`.
+`python -m raw_and_order` works the same as `raw-and-order`.
 
 ## Photo browser (Streamlit)
 
@@ -253,7 +249,7 @@ Stop it with Ctrl+C. In VS Code, the **Streamlit UI** debug configuration in
 - **Light and dark theme:** switch with the ⋮ menu at the top right (System /
   Light / Dark); the choice is remembered in the browser. The dark theme is a
   neutral graphite, as in photo editors, so photos keep their true colours.
-  Both themes are defined in `src/my_agent/ui/theme.toml`.
+  Both themes are defined in `src/raw_and_order/ui/theme.toml`.
 
 The UI only reads the database, so it is safe to keep open during a processing
 run (press **Refresh data** to see new photos). It listens on `localhost` only
@@ -295,7 +291,7 @@ All settings come from environment variables or `.env`
 ## Project layout
 
 ```
-src/my_agent/
+src/raw_and_order/
 ├── main.py           CLI (Typer); top-level error handling
 ├── bootstrap.py      composition root: the only place concrete classes are built
 ├── config.py         pydantic-settings

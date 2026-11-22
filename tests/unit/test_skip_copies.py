@@ -1,7 +1,7 @@
 from pathlib import Path
 
-from my_agent.workflow.nodes import SkipCopiesNode
-from my_agent.workflow.state import PhotoItem, WorkflowState
+from raw_and_order.workflow.nodes import SkipCopiesNode
+from raw_and_order.workflow.state import PhotoItem, WorkflowState
 
 
 class StubPhotos:

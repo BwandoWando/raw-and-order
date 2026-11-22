@@ -4,11 +4,11 @@ from pathlib import Path
 import pytest
 from PIL import Image
 
-from my_agent.exceptions import PreviewError
-from my_agent.media.thumbnails import JpegThumbnailer
-from my_agent.schemas.query import PAGE_SIZES
-from my_agent.ui.gallery import thumbnail_css
-from my_agent.ui.grid import THUMBNAIL_SIZES, grid_shape, thumbnail_px
+from raw_and_order.exceptions import PreviewError
+from raw_and_order.media.thumbnails import JpegThumbnailer
+from raw_and_order.schemas.query import PAGE_SIZES
+from raw_and_order.ui.gallery import thumbnail_css
+from raw_and_order.ui.grid import THUMBNAIL_SIZES, grid_shape, thumbnail_px
 
 
 @pytest.mark.parametrize("page_size", PAGE_SIZES)

@@ -2,7 +2,7 @@ from collections.abc import Mapping
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from my_agent.media.pairing import RawPairFilter
+from raw_and_order.media.pairing import RawPairFilter
 
 RAW = {".nef", ".cr2", ".dng"}
 

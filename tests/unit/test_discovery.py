@@ -2,8 +2,8 @@ from pathlib import Path
 
 import pytest
 
-from my_agent.exceptions import SourceDirectoryError
-from my_agent.media.discovery import FileSystemDiscoverer
+from raw_and_order.exceptions import SourceDirectoryError
+from raw_and_order.media.discovery import FileSystemDiscoverer
 
 
 def test_find_returns_supported_files_case_insensitively(tmp_path: Path) -> None:

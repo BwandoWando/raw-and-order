@@ -3,10 +3,10 @@ from pathlib import Path
 
 import pytest
 
-from my_agent.db.repository import SqlAlchemyPhotoRepository
-from my_agent.exceptions import ExifReadError
-from my_agent.exif_reread import ExifRereader
-from my_agent.schemas import ExifData, PhotoRecord, WhiteBalanceSource
+from raw_and_order.db.repository import SqlAlchemyPhotoRepository
+from raw_and_order.exceptions import ExifReadError
+from raw_and_order.exif_reread import ExifRereader
+from raw_and_order.schemas import ExifData, PhotoRecord, WhiteBalanceSource
 from tests.fakes import SAMPLE_ANNOTATION
 
 OLD = ExifData(model="ILCE-6400", lens_model="65535")  # as stored by the old reader

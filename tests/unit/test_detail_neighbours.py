@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from my_agent.ui.detail import neighbours
+from raw_and_order.ui.detail import neighbours
 
 PATHS = [Path("/a.jpg"), Path("/b.jpg"), Path("/c.jpg")]
 

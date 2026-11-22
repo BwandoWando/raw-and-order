@@ -1,6 +1,6 @@
-from my_agent.schemas.tags import TagCluster, TagGraph, TagNode
-from my_agent.ui.charts import DARK, LIGHT
-from my_agent.ui.tag_network import (
+from raw_and_order.schemas.tags import TagCluster, TagGraph, TagNode
+from raw_and_order.ui.charts import DARK, LIGHT
+from raw_and_order.ui.tag_network import (
     MAX_STYLED_CLUSTERS,
     OTHER,
     cluster_style,

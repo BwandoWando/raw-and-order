@@ -6,7 +6,7 @@ from pathlib import Path
 from PIL import Image
 from streamlit.testing.v1 import AppTest
 
-from my_agent.schemas import (
+from raw_and_order.schemas import (
     Annotation,
     ExifData,
     FailureRecord,
@@ -14,10 +14,10 @@ from my_agent.schemas import (
     PhotoRecord,
     SceneType,
 )
-from my_agent.schemas.query import NearDuplicate
-from my_agent.ui.detail import similar_button_key
-from my_agent.ui.gallery import open_button_key
-from my_agent.ui.library import PhotoLibrary
+from raw_and_order.schemas.query import NearDuplicate
+from raw_and_order.ui.detail import similar_button_key
+from raw_and_order.ui.gallery import open_button_key
+from raw_and_order.ui.library import PhotoLibrary
 from tests.fakes import SAMPLE_ANNOTATION, FakePhotoLibrary
 
 TIMEOUT_S = 30
@@ -50,7 +50,7 @@ def _failure() -> FailureRecord:
 
 def _app(library: PhotoLibrary) -> AppTest:
     def script(library: "PhotoLibrary") -> None:  # quoted: runs standalone
-        from my_agent.ui.app import main
+        from raw_and_order.ui.app import main
 
         main(library)
 

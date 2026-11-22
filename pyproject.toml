@@ -38,10 +38,10 @@ dev = [
 ]
 
 [project.scripts]
-raw-and-order = "my_agent.main:app"
+raw-and-order = "raw_and_order.main:app"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/my_agent"]
+packages = ["src/raw_and_order"]
 
 # --------------------------------------------------------------------------- ruff
 [tool.ruff]
@@ -75,7 +75,7 @@ convention = "google"
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["D"]
 "migrations/**" = ["D"]
-"src/my_agent/ui/**" = ["RUF001"]  # × and – are deliberate typography in UI text
+"src/raw_and_order/ui/**" = ["RUF001"]  # × and – are deliberate typography in UI text
 "tests/**/test_ui*.py" = ["D", "RUF001"]
 
 # --------------------------------------------------------------------------- mypy

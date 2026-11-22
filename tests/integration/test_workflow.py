@@ -5,23 +5,23 @@ from pathlib import Path
 
 import pytest
 
-from my_agent.db.copy_repository import CopyRepository, SqlAlchemyCopyRepository
-from my_agent.db.failure_repository import SqlAlchemyFailureRepository
-from my_agent.db.repository import SqlAlchemyPhotoRepository
-from my_agent.exceptions import (
+from raw_and_order.db.copy_repository import CopyRepository, SqlAlchemyCopyRepository
+from raw_and_order.db.failure_repository import SqlAlchemyFailureRepository
+from raw_and_order.db.repository import SqlAlchemyPhotoRepository
+from raw_and_order.exceptions import (
     ModelRejectedError,
     ModelUnavailableError,
     RunAbortedError,
     TooManyFailuresError,
 )
-from my_agent.llm.context import ExifContextFormatter
-from my_agent.media.discovery import FileSystemDiscoverer
-from my_agent.media.hashing import PHASH_HEX_LENGTH, PHasher
-from my_agent.media.pairing import RawPairFilter
-from my_agent.media.previews import DatedPreviewLayout, JpegPreviewStore
-from my_agent.pipeline import PhotoPipeline
-from my_agent.schemas import ExifData
-from my_agent.workflow.nodes import (
+from raw_and_order.llm.context import ExifContextFormatter
+from raw_and_order.media.discovery import FileSystemDiscoverer
+from raw_and_order.media.hashing import PHASH_HEX_LENGTH, PHasher
+from raw_and_order.media.pairing import RawPairFilter
+from raw_and_order.media.previews import DatedPreviewLayout, JpegPreviewStore
+from raw_and_order.pipeline import PhotoPipeline
+from raw_and_order.schemas import ExifData
+from raw_and_order.workflow.nodes import (
     AnnotateNode,
     DecodeNode,
     DiscoverNode,
@@ -38,8 +38,8 @@ from my_agent.workflow.nodes import (
     SkipCopiesNode,
     SkipKnownNode,
 )
-from my_agent.workflow.runner import PhotoWorkflow, WorkflowSteps
-from my_agent.workflow.state import Stage
+from raw_and_order.workflow.runner import PhotoWorkflow, WorkflowSteps
+from raw_and_order.workflow.state import Stage
 from tests.fakes import (
     FakeAnnotator,
     FakeCaptureTimes,

@@ -14,9 +14,9 @@ from langchain_core.runnables import Runnable, RunnableLambda
 from PIL import Image
 from pydantic import PrivateAttr
 
-from my_agent.analysis.tag_graph import build_tag_graph
-from my_agent.exceptions import ExifReadError, FingerprintError
-from my_agent.schemas import (
+from raw_and_order.analysis.tag_graph import build_tag_graph
+from raw_and_order.exceptions import ExifReadError, FingerprintError
+from raw_and_order.schemas import (
     Annotation,
     ExifData,
     FailureRecord,
@@ -24,14 +24,14 @@ from my_agent.schemas import (
     PhotoRecord,
     SceneType,
 )
-from my_agent.schemas.query import (
+from raw_and_order.schemas.query import (
     FilterOptions,
     NearDuplicate,
     PhotoPage,
     PhotoQuery,
     PhotoStats,
 )
-from my_agent.schemas.tags import TagGraph
+from raw_and_order.schemas.tags import TagGraph
 
 SAMPLE_ANNOTATION = Annotation(
     description="A mountain lake at sunset.",
@@ -72,7 +72,7 @@ class FakeCaptureTimes:
 
 
 class InMemoryCopies:
-    """In-memory :class:`~my_agent.db.copy_repository.CopyRepository`."""
+    """In-memory :class:`~raw_and_order.db.copy_repository.CopyRepository`."""
 
     def __init__(self) -> None:
         self.copies: dict[Path, PhotoCopy] = {}
@@ -183,7 +183,7 @@ class ScriptedChatModel(BaseChatModel):
 
 
 class FakePhotoLibrary:
-    """In-memory :class:`~my_agent.ui.library.PhotoLibrary` for UI tests.
+    """In-memory :class:`~raw_and_order.ui.library.PhotoLibrary` for UI tests.
 
     Search ignores filters and sort; it only pages through ``records``.
     """

@@ -1,10 +1,10 @@
 from datetime import datetime
 from pathlib import Path
 
-from my_agent.media.discovery import FileSystemDiscoverer
-from my_agent.media.pairing import RawPairFilter
-from my_agent.workflow.nodes import DiscoverNode
-from my_agent.workflow.state import WorkflowState
+from raw_and_order.media.discovery import FileSystemDiscoverer
+from raw_and_order.media.pairing import RawPairFilter
+from raw_and_order.workflow.nodes import DiscoverNode
+from raw_and_order.workflow.state import WorkflowState
 from tests.fakes import FakeCaptureTimes
 
 SHOT = datetime(2026, 5, 1, 18, 30, 0)

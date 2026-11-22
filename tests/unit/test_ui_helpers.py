@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from my_agent.schemas import (
+from raw_and_order.schemas import (
     Annotation,
     DateSource,
     ExifData,
@@ -12,10 +12,16 @@ from my_agent.schemas import (
     SceneType,
     WhiteBalanceSource,
 )
-from my_agent.schemas.query import CountRow
-from my_agent.ui.charts import DARK, LIGHT, columns_by_month, horizontal_bars, theme_for
-from my_agent.ui.filters import tag_label
-from my_agent.ui.formatting import (
+from raw_and_order.schemas.query import CountRow
+from raw_and_order.ui.charts import (
+    DARK,
+    LIGHT,
+    columns_by_month,
+    horizontal_bars,
+    theme_for,
+)
+from raw_and_order.ui.filters import tag_label
+from raw_and_order.ui.formatting import (
     camera_settings,
     card_caption,
     date_source_label,
@@ -23,7 +29,7 @@ from my_agent.ui.formatting import (
     format_exposure,
     format_white_balance,
 )
-from my_agent.ui.launcher import APP_PATH, THEME_PATH, streamlit_command
+from raw_and_order.ui.launcher import APP_PATH, THEME_PATH, streamlit_command
 
 
 @pytest.mark.parametrize(

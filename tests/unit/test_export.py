@@ -8,8 +8,8 @@ from pathlib import Path
 
 from openpyxl import load_workbook
 
-from my_agent.export import COLUMNS, ExportFormat, encode, photo_row
-from my_agent.schemas import ExifData, GpsCoordinate, PhotoRecord
+from raw_and_order.export import COLUMNS, ExportFormat, encode, photo_row
+from raw_and_order.schemas import ExifData, GpsCoordinate, PhotoRecord
 from tests.fakes import SAMPLE_ANNOTATION
 
 TAKEN = datetime(2026, 5, 3, 14, 29)

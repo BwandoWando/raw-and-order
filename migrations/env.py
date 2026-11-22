@@ -5,10 +5,10 @@ from logging.config import fileConfig
 from alembic import context
 from sqlalchemy import Connection
 
-from my_agent.config import load_settings
-from my_agent.db import models  # noqa: F401  (registers tables on Base.metadata)
-from my_agent.db.base import Base
-from my_agent.db.session import create_db_engine
+from raw_and_order.config import load_settings
+from raw_and_order.db import models  # noqa: F401  (registers tables on Base.metadata)
+from raw_and_order.db.base import Base
+from raw_and_order.db.session import create_db_engine
 
 config = context.config
 if config.config_file_name is not None and config.attributes.get(

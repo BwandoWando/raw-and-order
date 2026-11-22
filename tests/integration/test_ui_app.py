@@ -9,11 +9,11 @@ import streamlit as st
 from PIL import Image
 from streamlit.testing.v1 import AppTest
 
-from my_agent.db.base import Base
-from my_agent.db.failure_repository import SqlAlchemyFailureRepository
-from my_agent.db.repository import SqlAlchemyPhotoRepository
-from my_agent.db.session import create_db_engine, create_session_factory
-from my_agent.schemas import (
+from raw_and_order.db.base import Base
+from raw_and_order.db.failure_repository import SqlAlchemyFailureRepository
+from raw_and_order.db.repository import SqlAlchemyPhotoRepository
+from raw_and_order.db.session import create_db_engine, create_session_factory
+from raw_and_order.schemas import (
     Annotation,
     ExifData,
     GpsCoordinate,
@@ -21,8 +21,8 @@ from my_agent.schemas import (
     SceneType,
     WhiteBalanceSource,
 )
-from my_agent.ui.gallery import open_button_key
-from my_agent.ui.launcher import APP_PATH
+from raw_and_order.ui.gallery import open_button_key
+from raw_and_order.ui.launcher import APP_PATH
 
 TIMEOUT_S = 30
 

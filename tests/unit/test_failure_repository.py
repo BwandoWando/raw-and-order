@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
 from pathlib import Path
 
-from my_agent.db.failure_repository import SqlAlchemyFailureRepository
+from raw_and_order.db.failure_repository import SqlAlchemyFailureRepository
 
 T1 = datetime(2026, 1, 1, tzinfo=UTC)
 T2 = datetime(2026, 1, 2, tzinfo=UTC)

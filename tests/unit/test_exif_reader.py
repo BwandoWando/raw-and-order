@@ -3,15 +3,15 @@ from pathlib import Path
 
 import pytest
 
-from my_agent.exceptions import ConfigurationError, ExifReadError
-from my_agent.media.capture_date import (
+from raw_and_order.exceptions import ConfigurationError, ExifReadError
+from raw_and_order.media.capture_date import (
     CaptureDateResolver,
     DateValidator,
     build_date_sources,
 )
-from my_agent.media.exif import PyExifToolReader
-from my_agent.media.exif_mapping import ExifMapper
-from my_agent.schemas import DateSource
+from raw_and_order.media.exif import PyExifToolReader
+from raw_and_order.media.exif_mapping import ExifMapper
+from raw_and_order.schemas import DateSource
 
 
 def _mapper() -> ExifMapper:

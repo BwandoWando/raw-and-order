@@ -1,5 +1,5 @@
-from my_agent.llm.context import ExifContextFormatter
-from my_agent.schemas import ExifData
+from raw_and_order.llm.context import ExifContextFormatter
+from raw_and_order.schemas import ExifData
 
 
 def test_gps_is_redacted_by_default(sample_exif: ExifData) -> None:

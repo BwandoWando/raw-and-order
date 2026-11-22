@@ -4,10 +4,10 @@ from pathlib import Path
 import pytest
 from sqlalchemy.orm import Session, sessionmaker
 
-from my_agent.db.catalog import SqlAlchemyPhotoCatalog, escape_like
-from my_agent.db.copy_repository import SqlAlchemyCopyRepository
-from my_agent.db.repository import SqlAlchemyPhotoRepository
-from my_agent.schemas import (
+from raw_and_order.db.catalog import SqlAlchemyPhotoCatalog, escape_like
+from raw_and_order.db.copy_repository import SqlAlchemyCopyRepository
+from raw_and_order.db.repository import SqlAlchemyPhotoRepository
+from raw_and_order.schemas import (
     Annotation,
     ExifData,
     GpsCoordinate,
@@ -15,7 +15,7 @@ from my_agent.schemas import (
     PhotoRecord,
     SceneType,
 )
-from my_agent.schemas.query import PhotoQuery, SortOrder
+from raw_and_order.schemas.query import PhotoQuery, SortOrder
 
 
 def _photo(

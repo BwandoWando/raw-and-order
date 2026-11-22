@@ -1,13 +1,13 @@
 import pytest
 
-from my_agent.media.white_balance import (
+from raw_and_order.media.white_balance import (
     calibration_points,
     estimate_kelvin,
     red_blue_ratio,
     resolve_white_balance,
     round_kelvin,
 )
-from my_agent.schemas import WhiteBalanceSource
+from raw_and_order.schemas import WhiteBalanceSource
 
 # Calibration levels as written by a Sony ILCE-6400 (from a real ARW file).
 SONY_CALIBRATION = {
@@ -165,7 +165,7 @@ def test_kelvin_wb_points_include_daylight_and_are_sorted() -> None:
     [("0.5 1 0.25", 0.5), ("0 1 1", None), ("1 1", None), (None, None)],
 )
 def test_neutral_red_blue_ratio(value: object, expected: float | None) -> None:
-    from my_agent.media.white_balance import neutral_red_blue_ratio
+    from raw_and_order.media.white_balance import neutral_red_blue_ratio
 
     assert neutral_red_blue_ratio(value) == expected
 
@@ -180,7 +180,7 @@ def test_neutral_red_blue_ratio(value: object, expected: float | None) -> None:
     ],
 )
 def test_kelvin_wb_point(value: str, expected: tuple[int, float] | None) -> None:
-    from my_agent.media.white_balance import kelvin_wb_point
+    from raw_and_order.media.white_balance import kelvin_wb_point
 
     assert kelvin_wb_point(value) == expected
 
