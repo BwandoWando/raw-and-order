@@ -176,6 +176,48 @@ def test_details_offer_steps_only_within_the_page() -> None:
     assert any("Photo 3 of 3" in c.value for c in app.caption)
 
 
+def _shown_position(app: AppTest) -> str:
+    """The "Photo N of M on this page" part of the details caption."""
+    caption = next(c.value for c in app.caption if "on this page" in c.value)
+    return caption.rsplit(" · ", 1)[-1]
+
+
+def test_next_on_the_last_photo_of_a_page_shows_the_next_page_first() -> None:
+    app = _app(FakePhotoLibrary([_record(i) for i in range(30)]))  # pages of 24
+
+    app.button(key=open_button_key(_record(23).path)).click().run()
+    app.button(key="detail-next").click().run()
+
+    assert not app.exception, app.exception
+    assert "Showing 25–30 of 30 photos" in [c.value for c in app.caption]
+    assert r"**IMG\_24\.DNG** :gray[/photos]" in [m.value for m in app.markdown]
+    assert _shown_position(app) == "Photo 1 of 6 on this page"
+
+
+def test_previous_on_the_first_photo_of_a_page_shows_the_previous_page_last() -> None:
+    app = _app(FakePhotoLibrary([_record(i) for i in range(30)]))
+    app.button(key=GalleryKey.NEXT).click().run()
+
+    app.button(key=open_button_key(_record(24).path)).click().run()
+    app.button(key="detail-previous").click().run()
+
+    assert not app.exception, app.exception
+    assert "Showing 1–24 of 30 photos" in [c.value for c in app.caption]
+    assert r"**IMG\_23\.DNG** :gray[/photos]" in [m.value for m in app.markdown]
+    assert _shown_position(app) == "Photo 24 of 24 on this page"
+
+
+def test_no_step_past_the_first_or_last_photo_of_all_pages() -> None:
+    app = _app(FakePhotoLibrary([_record(i) for i in range(30)]))
+
+    app.button(key=open_button_key(_record(0).path)).click().run()
+    assert "detail-previous" not in {b.key for b in app.button}
+
+    app.button(key=GalleryKey.NEXT).click().run()
+    app.button(key=open_button_key(_record(29).path)).click().run()
+    assert "detail-next" not in {b.key for b in app.button}
+
+
 def test_similar_photos_show_a_bucket_not_a_distance() -> None:
     similar = [SimilarPhoto(record=_record(1), distance=0)]
     similar.append(SimilarPhoto(record=_record(2), distance=10))

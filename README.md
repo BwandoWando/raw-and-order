@@ -216,7 +216,10 @@ Stop it with Ctrl+C. In VS Code, the **Streamlit UI** debug configuration in
   favorite (click again to unmark); the time it was starred is kept in the
   `favorites` table, in this computer's local time. Step to the previous or
   next photo on the gallery page with the buttons beside the photo (shown on
-  hover) or the arrow keys; click a similar photo to show it in the dialog. Similar photos are labelled by pHash
+  hover) or the arrow keys. Stepping on from the last photo of a page turns
+  the gallery to the next page and shows its first photo; stepping back from
+  the first shows the last photo of the previous page (there is nothing past
+  the very first or last photo matching the filters). Click a similar photo to show it in the dialog. Similar photos are labelled by pHash
   distance (of 64 bits): Identical (0–2), Very similar (3–8) and Similar
   (9–14); all of them share at least 25% of their tags.
 - **Tags:** a network of the most-used tags (20–100). Bubble size is the number

@@ -5,13 +5,18 @@ and camera settings on the right. The longer sections (similar photos,
 location, files) sit in tabs below, full width, so nothing needs scrolling
 on a normal screen. Buttons either side of the photo (and the arrow keys)
 step to the previous or next photo shown in the gallery without closing the
-dialog. Clicking a similar photo shows it here; it can only be stepped from
-if it is on the gallery page too. A star in the photo's corner marks it as a
-favorite. Clicking the photo shows its preview full screen, on a layer over
-the dialog (Streamlit allows only one dialog at a time).
+dialog. Stepping past the last photo on the page turns the gallery to the next
+page and shows its first photo; stepping back past the first shows the last
+photo of the previous page. Clicking a similar photo shows it here; it can
+only be stepped from if it is on the gallery page too. A star in the photo's
+corner marks it as a favorite. Clicking the photo shows its preview full
+screen, on a layer over the dialog (Streamlit allows only one dialog at a
+time).
 """
 
 from collections.abc import Sequence
+from dataclasses import dataclass
+from enum import StrEnum
 from pathlib import Path
 
 import pandas as pd
@@ -52,6 +57,7 @@ STEP_BUTTON_PX = 44
 CURRENT_KEY = "detail_current"  # session state: path of the photo shown
 OPEN_KEY = "detail_open"  # session state: True while the dialog is open
 ZOOM_KEY = "detail_zoom"  # session state: True while the photo is full screen
+PAGE_TURN_KEY = "detail_page_turn"  # session state: a PageTurn for the gallery
 ZOOM_TARGET_KEY = "detail-zoom-target"  # the photo plus its zoom-in button
 # The star in the photo's top-right corner; one key per state, for the CSS.
 FAVORITE_PREFIX = "detail-favorite-"
@@ -226,6 +232,31 @@ def column_share(size: tuple[int, int] | None) -> tuple[int, int]:
     return LANDSCAPE_SHARE
 
 
+class PageTurn(StrEnum):
+    """A step past the end of the gallery page, which the gallery carries out."""
+
+    PREVIOUS = "previous"  # show the last photo of the previous page
+    NEXT = "next"  # show the first photo of the next page
+
+
+Step = Path | PageTurn | None  # where a step button goes; None: no button
+
+
+@dataclass(frozen=True)
+class GalleryPage:
+    """The gallery page the details step through.
+
+    Attributes:
+        paths: The photos on the page, in gallery order.
+        has_previous: True if a page comes before this one.
+        has_next: True if a page comes after this one.
+    """
+
+    paths: tuple[Path, ...]
+    has_previous: bool = False
+    has_next: bool = False
+
+
 def neighbours(paths: Sequence[Path], current: Path) -> tuple[Path | None, Path | None]:
     """The photos before and after ``current`` in ``paths`` (None at the ends)."""
     if current not in paths:
@@ -236,16 +267,42 @@ def neighbours(paths: Sequence[Path], current: Path) -> tuple[Path | None, Path 
     return previous, following
 
 
-def open_details(path: Path, paths: Sequence[Path], library: PhotoLibrary) -> None:
-    """Open the details of ``path``; ``paths`` are the photos one can step to.
+def steps(page: GalleryPage, current: Path) -> tuple[Step, Step]:
+    """Where the previous and next buttons go from ``current``.
 
-    Pass the photos shown in the gallery (current filters, sort and page), so
-    the dialog never steps to a photo the gallery does not show.
+    Within the page they go to the neighbouring photo. From the first photo
+    "previous" turns to the previous page, and from the last photo "next"
+    turns to the next page, if there is one. A photo not on the page (a
+    similar photo opened from the details) has no steps.
+    """
+    if current not in page.paths:
+        return None, None
+    previous: Step
+    following: Step
+    previous, following = neighbours(page.paths, current)
+    if previous is None and page.has_previous:
+        previous = PageTurn.PREVIOUS
+    if following is None and page.has_next:
+        following = PageTurn.NEXT
+    return previous, following
+
+
+def open_details(path: Path, page: GalleryPage, library: PhotoLibrary) -> None:
+    """Open the details of ``path``; ``page`` holds the photos one can step to.
+
+    Pass the gallery page shown (current filters, sort and page), so the
+    dialog never steps to a photo the gallery does not show.
     """
     st.session_state[CURRENT_KEY] = str(path)
     st.session_state[OPEN_KEY] = True
     st.session_state[ZOOM_KEY] = False
-    _details(tuple(paths), library)
+    _details(page, library)
+
+
+def take_page_turn() -> PageTurn | None:
+    """The page turn the details asked for, cleared so it happens once."""
+    turn = st.session_state.pop(PAGE_TURN_KEY, None)
+    return PageTurn(turn) if turn is not None else None
 
 
 def details_open() -> bool:
@@ -260,17 +317,23 @@ def _closed() -> None:
 
 
 @st.dialog("Photo details", width="large", on_dismiss=_closed)
-def _details(paths: tuple[Path, ...], library: PhotoLibrary) -> None:
+def _details(page: GalleryPage, library: PhotoLibrary) -> None:
     """Render the current photo. The step buttons rerun only this dialog.
 
     Layout: the file name, then the photo (left) beside its text (right),
     then the tabs. If the photo has left the database, only the previous and
     next buttons and a warning are shown, so one can step on.
 
+    A step past the page's end reruns the whole app instead, so the gallery
+    turns the page and opens the details again there.
+
     Args:
-        paths: The photos on the gallery page, which the buttons step through.
+        page: The gallery page, whose photos the buttons step through.
         library: Where the photo, its preview size and its tabs are read.
     """
+    if PAGE_TURN_KEY in st.session_state:
+        st.rerun()  # scope "app": the gallery turns the page and reopens this
+    paths = page.paths
     current = Path(st.session_state[CURRENT_KEY])
     record = library.photo(current)
     st.html(DETAIL_CSS)
@@ -278,7 +341,7 @@ def _details(paths: tuple[Path, ...], library: PhotoLibrary) -> None:
     size = library.preview_size(record.preview_path) if record else None
     photo_column, text_column = st.columns(column_share(size), gap="medium")
     with photo_column:
-        _stepper(paths, current, record, library)
+        _stepper(page, current, record, library)
     if record is None:
         st.warning("This photo is no longer in the database.")
         return
@@ -299,13 +362,13 @@ def page_position(paths: Sequence[Path], current: Path) -> int | None:
 
 
 def _stepper(
-    paths: tuple[Path, ...],
+    page: GalleryPage,
     current: Path,
     record: PhotoRecord | None,
     library: PhotoLibrary,
 ) -> None:
     """The photo between its previous and next buttons."""
-    previous, following = neighbours(paths, current)
+    previous, following = steps(page, current)
     with st.container(
         key=PHOTO_KEY, horizontal=True, vertical_alignment="center", gap="small"
     ):
@@ -315,13 +378,12 @@ def _stepper(
         _step_button("Next photo", following, NEXT_KEY, "chevron_right", "Right")
 
 
-def _step_button(
-    label: str, target: Path | None, key: str, icon: str, shortcut: str
-) -> None:
+def _step_button(label: str, target: Step, key: str, icon: str, shortcut: str) -> None:
     """A round button beside the photo, shown on hover; also an arrow key.
 
-    Past either end there is no button, only a spacer of the same width, so
-    the photo stays centred.
+    ``target`` is a photo on the page or a turn to the next or previous page.
+    Past the first or last photo of all there is no button, only a spacer of
+    the same width, so the photo stays centred.
     """
     if target is None:
         st.space(STEP_BUTTON_PX)
@@ -331,7 +393,7 @@ def _step_button(
         key=key,
         icon=f":material/{icon}:",
         shortcut=shortcut,
-        on_click=_show,
+        on_click=_turn_page if isinstance(target, PageTurn) else _show,
         args=(target,),
     )
 
@@ -346,6 +408,11 @@ def _file_heading(path: Path) -> None:
 def _show(path: Path) -> None:
     """Make ``path`` the photo shown; the dialog then reruns with it."""
     st.session_state[CURRENT_KEY] = str(path)
+
+
+def _turn_page(turn: PageTurn) -> None:
+    """Ask the gallery to turn the page; the dialog then reruns the app."""
+    st.session_state[PAGE_TURN_KEY] = turn.value
 
 
 def _photo(record: PhotoRecord | None, library: PhotoLibrary) -> None:

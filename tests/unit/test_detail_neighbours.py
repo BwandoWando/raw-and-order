@@ -5,9 +5,12 @@ from pathlib import Path
 from raw_and_order.ui.detail import (
     LANDSCAPE_SHARE,
     PORTRAIT_SHARE,
+    GalleryPage,
+    PageTurn,
     column_share,
     neighbours,
     page_position,
+    steps,
 )
 
 PATHS = [Path("/a.jpg"), Path("/b.jpg"), Path("/c.jpg")]
@@ -48,3 +51,29 @@ def test_page_position_counts_from_one() -> None:
 
 def test_a_photo_off_the_page_has_no_position() -> None:
     assert page_position(PATHS, Path("/elsewhere.jpg")) is None
+
+
+def test_steps_stay_on_the_page_away_from_its_ends() -> None:
+    page = GalleryPage(tuple(PATHS), has_previous=True, has_next=True)
+
+    assert steps(page, PATHS[1]) == (PATHS[0], PATHS[2])
+
+
+def test_steps_past_the_page_ends_turn_the_page() -> None:
+    page = GalleryPage(tuple(PATHS), has_previous=True, has_next=True)
+
+    assert steps(page, PATHS[0]) == (PageTurn.PREVIOUS, PATHS[1])
+    assert steps(page, PATHS[2]) == (PATHS[1], PageTurn.NEXT)
+
+
+def test_no_step_past_the_first_or_last_photo_of_all() -> None:
+    page = GalleryPage(tuple(PATHS))
+
+    assert steps(page, PATHS[0]) == (None, PATHS[1])
+    assert steps(page, PATHS[2]) == (PATHS[1], None)
+
+
+def test_a_photo_off_the_page_never_turns_it() -> None:
+    page = GalleryPage(tuple(PATHS), has_previous=True, has_next=True)
+
+    assert steps(page, Path("/elsewhere.jpg")) == (None, None)
