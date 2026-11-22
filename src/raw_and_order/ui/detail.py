@@ -71,6 +71,9 @@ FULL_SCREEN_KEY = "detail-full-screen"
 ZOOM_OUT_KEY = "detail-zoom-out"  # click anywhere on the full-screen photo
 CLOSE_FULL_SCREEN_KEY = "detail-full-screen-close"  # the visible x
 FULL_SCREEN_Z = 1_000_100  # above Streamlit's dialog
+# Dims the app behind the dialog so the dialog stands out (Streamlit's own
+# backdrop is a faint wash). Black reads as "dimmed" on light and dark themes.
+BACKDROP = "rgba(0, 0, 0, 0.6)"
 # Room left for the dialog title, file name and tabs (the description and
 # camera settings sit beside the photo, so they take no height).
 CHROME_REM = 30
@@ -98,6 +101,9 @@ _SIMILAR_TILES = clickable_tile(
 
 DETAIL_CSS = f"""
 <style>
+/* The dialog's backdrop; this CSS only exists while the details are open.
+   !important: Streamlit's own rule has the same specificity and loads later. */
+.stDialog {{ background-color: {BACKDROP} !important; }}
 /* min-height, not height: Streamlit sizes this flex item with flex-basis. */
 .st-key-{PHOTO_KEY} {{ min-height: {PHOTO_ROW_HEIGHT}; }}
 .st-key-{TEXT_KEY} {{
