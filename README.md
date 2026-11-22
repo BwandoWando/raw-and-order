@@ -397,3 +397,16 @@ The Gallery, Tags and Export tabs and the Reset button then follow it.
 3. Optionally show it (`ui/formatting.camera_settings`) or export it
    (`export/rows.py`).
 4. `raw-and-order process FOLDER --reread-exif` fills it for stored photos.
+
+## Resetting and starting from Scratch
+# 1. Delete the previews
+rm -rf data/previews
+
+# 2. Delete the database, including SQLite's -wal/-shm side files
+rm -f data/app.db data/app.db-wal data/app.db-shm
+
+# 3. Create a fresh, empty database
+alembic upgrade head
+
+# 4. Start processing again
+raw-and-order process /path/to/photos
