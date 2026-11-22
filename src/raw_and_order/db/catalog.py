@@ -317,6 +317,8 @@ def apply_filters(statement: Select[Any], query: PhotoQuery) -> Select[Any]:
             )
         )
     conditions.extend(_tag_condition(tag) for tag in query.tags)
+    if query.any_tags:
+        conditions.append(or_(*(_tag_condition(tag) for tag in query.any_tags)))
     if query.scenes:
         conditions.append(PhotoRow.scene.in_(query.scenes))
     if query.contains_people is not None:

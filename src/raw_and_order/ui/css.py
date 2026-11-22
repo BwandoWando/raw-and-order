@@ -21,17 +21,16 @@ def keyed_prefix(prefix: str) -> str:
     return f'[class*="st-key-{prefix}"]'
 
 
-def clickable_tile(tile: str, overlay: str) -> str:
-    """Rules for a photo tile made clickable by a transparent button over it.
+def overlay_button(tile: str, overlay: str) -> str:
+    """Rules that stretch a transparent button over a whole element.
 
-    The tile (selector ``tile``) holds an image and a real button (selector
-    ``overlay``) stretched over it, so the click target is keyboard- and
-    screen-reader-accessible while looking like the photo itself. The photo
-    dims on hover and gets an outline when the button has keyboard focus.
+    The element (selector ``tile``) holds its content and a real button
+    (selector ``overlay``) laid over all of it, so clicking anywhere on the
+    element clicks the button. Being a real button, it is keyboard- and
+    screen-reader-accessible.
     """
     return f"""
 {tile} {{ position: relative; }}
-{tile}:hover img {{ filter: brightness(0.85); }}
 {overlay} {{
     position: absolute;
     inset: 0;
@@ -45,6 +44,17 @@ def clickable_tile(tile: str, overlay: str) -> str:
     opacity: 0;
     cursor: pointer;
 }}
+"""
+
+
+def clickable_tile(tile: str, overlay: str) -> str:
+    """Rules for a photo tile made clickable by an :func:`overlay_button`.
+
+    The photo dims on hover and gets an outline when the button has keyboard
+    focus.
+    """
+    return f"""{overlay_button(tile, overlay)}
+{tile}:hover img {{ filter: brightness(0.85); }}
 {tile}:has(button:focus-visible) img {{
     outline: 3px solid {FOCUS_RING};
     outline-offset: 2px;

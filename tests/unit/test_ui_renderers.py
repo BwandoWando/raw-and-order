@@ -24,6 +24,8 @@ from raw_and_order.ui.detail import (
 from raw_and_order.ui.filters import FilterKey
 from raw_and_order.ui.gallery import GalleryKey, open_button_key
 from raw_and_order.ui.library import PhotoLibrary
+from raw_and_order.ui.navigation import TABS_KEY
+from raw_and_order.ui.tags import cluster_open_key
 from tests.fakes import SAMPLE_ANNOTATION, FakePhotoLibrary
 
 TIMEOUT_S = 30
@@ -259,3 +261,14 @@ def test_the_app_pins_the_multiselect_buttons() -> None:
     bodies = [element.proto.body for element in app.get("html")]
 
     assert PINNED_MULTISELECT_BUTTONS.strip() in bodies
+
+
+def test_clicking_a_cluster_shows_its_photos_in_the_gallery() -> None:
+    photos = [_tagged(i, "city", "night", "neon") for i in range(3)]
+    photos += [_tagged(i + 3, "sea", "sand") for i in range(3)]
+    app = _app(FakePhotoLibrary(photos))
+
+    app.button(key=cluster_open_key(0)).click().run()
+
+    assert app.multiselect(key=FilterKey.ANY_TAGS).value == ["city", "neon", "night"]
+    assert app.session_state[TABS_KEY] == "Gallery"

@@ -29,6 +29,9 @@ class PhotoQuery(BaseModel):
     text: str | None = Field(default=None, description="Matches description or tags.")
     scenes: tuple[str, ...] = ()
     tags: tuple[str, ...] = Field(default=(), description="Photo must have all.")
+    any_tags: tuple[str, ...] = Field(
+        default=(), description="Photo must have at least one (e.g. a tag cluster)."
+    )
     contains_people: bool | None = None
     cameras: tuple[str, ...] = ()
     lenses: tuple[str, ...] = ()

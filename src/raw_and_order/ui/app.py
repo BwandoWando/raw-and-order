@@ -7,7 +7,6 @@ from collections.abc import Callable
 from functools import partial
 
 import streamlit as st
-from streamlit.delta_generator import DeltaGenerator
 
 from raw_and_order.bootstrap import build_ui_library
 from raw_and_order.config import load_settings
@@ -18,6 +17,7 @@ from raw_and_order.ui.failures import render_failures
 from raw_and_order.ui.filters import render_filters
 from raw_and_order.ui.gallery import render_gallery
 from raw_and_order.ui.library import PhotoLibrary
+from raw_and_order.ui.navigation import TABS_KEY, Tab
 from raw_and_order.ui.stats import render_stats
 from raw_and_order.ui.tags import render_tags
 
@@ -40,17 +40,16 @@ def main(library: PhotoLibrary) -> None:
     st.sidebar.button("↻ Refresh data", on_click=library.refresh, width="stretch")
     filters = render_filters(options)
 
-    gallery_tab, tags_tab, failures_tab, stats_tab, export_tab = st.tabs(
-        ["Gallery", "Tags", "Failures", "Stats", "Export"]
-    )
-    renderers: list[tuple[DeltaGenerator, Callable[[], None]]] = [
-        (gallery_tab, partial(render_gallery, filters, library)),
-        (tags_tab, partial(render_tags, filters, library)),
-        (failures_tab, partial(render_failures, library)),
-        (stats_tab, partial(render_stats, library)),
-        (export_tab, partial(render_export, filters, library)),
-    ]
-    for tab, render in renderers:
+    renderers: dict[Tab, Callable[[], None]] = {
+        Tab.GALLERY: partial(render_gallery, filters, library),
+        Tab.TAGS: partial(render_tags, filters, library),
+        Tab.FAILURES: partial(render_failures, library),
+        Tab.STATS: partial(render_stats, library),
+        Tab.EXPORT: partial(render_export, filters, library),
+    }
+    # on_change="rerun" lets other tabs switch to one through navigation.open_tab.
+    tabs = st.tabs(list(renderers), key=TABS_KEY, on_change="rerun")
+    for tab, render in zip(tabs, renderers.values(), strict=True):
         with tab:
             try:
                 render()

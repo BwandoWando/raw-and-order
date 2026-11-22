@@ -24,6 +24,7 @@ class FilterKey(StrEnum):
     FAVORITES = "f_favorites"
     SCENES = "f_scenes"
     TAGS = "f_tags"
+    ANY_TAGS = "f_any_tags"
     PEOPLE = "f_people"
     CAMERAS = "f_cameras"
     LENSES = "f_lenses"
@@ -62,6 +63,15 @@ def render_filters(options: FilterOptions) -> PhotoQuery:
         placeholder="Most used first",
         format_func=lambda tag: tag_label(tag, options.tag_counts),
     )
+    any_tags = sidebar.multiselect(
+        "Tags (any of)",
+        options.tags,
+        key=FilterKey.ANY_TAGS,
+        placeholder="Most used first",
+        format_func=lambda tag: tag_label(tag, options.tag_counts),
+        help="Photos with at least one of these tags. Clicking a cluster on the "
+        "Tags tab fills this in.",
+    )
     people = sidebar.segmented_control(
         "People", list(PEOPLE_CHOICES), key=FilterKey.PEOPLE
     )
@@ -84,6 +94,7 @@ def render_filters(options: FilterOptions) -> PhotoQuery:
         text=text or None,
         scenes=tuple(scenes),
         tags=tuple(tags),
+        any_tags=tuple(any_tags),
         contains_people=PEOPLE_CHOICES.get(people or "Any"),
         cameras=tuple(cameras),
         lenses=tuple(lenses),
@@ -108,6 +119,7 @@ def filter_defaults(options: FilterOptions) -> dict[str, object]:
         FilterKey.FAVORITES: False,
         FilterKey.SCENES: [],
         FilterKey.TAGS: [],
+        FilterKey.ANY_TAGS: [],
         FilterKey.PEOPLE: "Any",
         FilterKey.CAMERAS: [],
         FilterKey.LENSES: [],
@@ -170,6 +182,11 @@ def _kelvin_range(options: FilterOptions) -> tuple[int | None, int | None]:
     )
     start, end = picked
     return (None, None) if (start, end) == bounds else (start, end)
+
+
+def show_any_of_tags(tags: list[str]) -> None:
+    """Set the "Tags (any of)" filter to ``tags``; call it from a callback."""
+    st.session_state[FilterKey.ANY_TAGS] = list(tags)
 
 
 def _reset(options: FilterOptions) -> None:
