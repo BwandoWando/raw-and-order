@@ -12,6 +12,7 @@ from streamlit.delta_generator import DeltaGenerator
 from raw_and_order.bootstrap import build_ui_library
 from raw_and_order.config import load_settings
 from raw_and_order.exceptions import RawAndOrderError
+from raw_and_order.ui.css import PINNED_MULTISELECT_BUTTONS
 from raw_and_order.ui.export import render_export
 from raw_and_order.ui.failures import render_failures
 from raw_and_order.ui.filters import render_filters
@@ -29,6 +30,7 @@ def _library() -> PhotoLibrary:
 
 def main(library: PhotoLibrary) -> None:
     """Draw the whole app from the given library."""
+    st.html(PINNED_MULTISELECT_BUTTONS)
     st.title("📷 Raw and Order")
     try:
         options = library.filter_options()

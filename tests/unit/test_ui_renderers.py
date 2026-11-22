@@ -15,6 +15,7 @@ from raw_and_order.schemas import (
     SceneType,
 )
 from raw_and_order.schemas.query import NearDuplicate
+from raw_and_order.ui.css import PINNED_MULTISELECT_BUTTONS
 from raw_and_order.ui.detail import (
     FAVORITE_OFF_KEY,
     FAVORITE_ON_KEY,
@@ -249,3 +250,12 @@ def test_export_tab_counts_previews_and_offers_a_download() -> None:
     ]
     assert app.segmented_control(key="x_format").value == "xlsx"
     assert any(len(d.value) == 3 for d in app.dataframe if "file_name" in d.value)
+
+
+def test_the_app_pins_the_multiselect_buttons() -> None:
+    # Works around Streamlit's clear-all x missing clicks (see ui/css.py).
+    app = _app(FakePhotoLibrary([_record(0)]))
+
+    bodies = [element.proto.body for element in app.get("html")]
+
+    assert PINNED_MULTISELECT_BUTTONS.strip() in bodies

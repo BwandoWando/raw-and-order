@@ -64,3 +64,24 @@ def visually_hidden(*selectors: str) -> str:
     white-space: nowrap;
 }}
 """
+
+
+# Works around a Streamlit 1.67 multiselect bug. Its clear-all (x) and open
+# (v) buttons are centred vertically. When the selected chips wrap onto a
+# second line, pressing the mouse on x takes focus from the box, the box
+# shrinks, the centred x moves up before the button is released, and no
+# click happens: the selection stays. Pinned to the top (where a single line
+# of chips puts them anyway), the buttons no longer move.
+PINNED_MULTISELECT_BUTTONS = """
+<style>
+[data-testid="stMultiSelect"] [role="group"] > button {
+    align-self: flex-start;
+}
+[data-testid="stMultiSelect"] [role="group"] > button[aria-label="Clear all"] {
+    margin-top: 7px;
+}
+[data-testid="stMultiSelect"] [role="group"] > button[aria-label="Open"] {
+    margin-top: 8px;
+}
+</style>
+"""
