@@ -5,7 +5,7 @@ from collections.abc import Callable
 import altair as alt
 import streamlit as st
 
-from raw_and_order.schemas.query import KELVIN_BAND_K, UNKNOWN_LABEL, CountRow
+from raw_and_order.schemas.query import KELVIN_BAND_K, UNKNOWN_LABEL, LabelCount
 from raw_and_order.ui.charts import (
     columns_by_month,
     horizontal_bars,
@@ -65,8 +65,8 @@ def render_stats(library: PhotoLibrary) -> None:
 
 def _section(
     title: str,
-    rows: list[CountRow],
-    chart: Callable[[list[CountRow]], alt.LayerChart],
+    rows: list[LabelCount],
+    chart: Callable[[list[LabelCount]], alt.LayerChart],
 ) -> None:
     st.subheader(title, divider="gray")
     if not rows:

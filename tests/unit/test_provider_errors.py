@@ -9,7 +9,7 @@ from raw_and_order.exceptions import (
 )
 from raw_and_order.llm.annotator import LLMAnnotator
 from raw_and_order.llm.errors import is_unavailable, status_code
-from raw_and_order.workflow.state import FileError, PhotoItem, Stage
+from raw_and_order.workflow.state import PhotoItem, Stage, StepFailure
 from raw_and_order.workflow.steps._per_item import apply_step
 from raw_and_order.workflow.steps.annotate import consecutive_failures
 from tests.fakes import SAMPLE_ANNOTATION, ScriptedChatModel
@@ -102,7 +102,7 @@ def test_apply_step_still_isolates_per_photo_errors() -> None:
 
 def test_consecutive_failures() -> None:
     def failed(stage: Stage) -> PhotoItem:
-        return _item(error=FileError(stage=stage, error_type="E", message="m"))
+        return _item(error=StepFailure(stage=stage, error_type="E", message="m"))
 
     ok = _item(annotation=SAMPLE_ANNOTATION)
     annotate_fail = failed(Stage.ANNOTATE)

@@ -28,11 +28,11 @@ def apply_raw_flip(image: Image.Image, flip: int) -> Image.Image:
     return image.transpose(transpose) if transpose is not None else image
 
 
-def orient_embedded_preview(image: Image.Image, flip: int) -> Image.Image:
-    """Make an embedded preview upright.
+def orient_embedded_image(image: Image.Image, flip: int) -> Image.Image:
+    """Make the image embedded in a raw file upright.
 
-    Embedded previews are usually stored unrotated, with the orientation kept
-    in the raw file. If the preview carries its own EXIF orientation, that is
+    Embedded images are usually stored unrotated, with the orientation kept
+    in the raw file. If the image carries its own EXIF orientation, that is
     used instead so the image is never rotated twice.
     """
     if image.getexif().get(EXIF_ORIENTATION_TAG, 1) > 1:
@@ -41,10 +41,12 @@ def orient_embedded_preview(image: Image.Image, flip: int) -> Image.Image:
 
 
 class RawpyDecoder:
-    """Decodes raw files, preferring the fast embedded preview.
+    """Decodes raw files, preferring the image the camera embedded in them.
 
-    Most raw files contain a full-size JPEG preview from the camera. Using it
-    is much faster than demosaicing; full decoding is the fallback.
+    Most raw files contain a full-size JPEG from the camera (rawpy calls it
+    the "thumb"). Using it is much faster than demosaicing; full decoding is
+    the fallback. Not to be confused with this app's previews, the small
+    JPEGs saved for the LLM and the UI.
     """
 
     def decode(self, path: Path) -> Image.Image:
@@ -63,12 +65,12 @@ class RawpyDecoder:
             raise ImageDecodeError(f"Could not decode {path}: {exc}") from exc
 
     def _decode_open_raw(self, raw: Any) -> Image.Image:
-        preview = self._embedded_preview(raw)
-        if preview is None:
+        embedded = self._embedded_image(raw)
+        if embedded is None:
             return self._full_decode(raw)
-        return orient_embedded_preview(preview, raw.sizes.flip).convert("RGB")
+        return orient_embedded_image(embedded, raw.sizes.flip).convert("RGB")
 
-    def _embedded_preview(self, raw: Any) -> Image.Image | None:
+    def _embedded_image(self, raw: Any) -> Image.Image | None:
         try:
             thumb = raw.extract_thumb()
         except (rawpy.LibRawNoThumbnailError, rawpy.LibRawUnsupportedThumbnailError):

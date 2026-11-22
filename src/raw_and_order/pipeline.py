@@ -8,7 +8,7 @@ from pydantic import BaseModel
 
 from raw_and_order.schemas import PhotoCopy
 from raw_and_order.workflow.runner import PhotoWorkflow
-from raw_and_order.workflow.state import FileFailure, WorkflowState
+from raw_and_order.workflow.state import FailedPhoto, WorkflowState
 
 
 class RunSummary(BaseModel):
@@ -24,7 +24,7 @@ class RunSummary(BaseModel):
     deferred: int
     chunks: int
     saved: int
-    failed: list[FileFailure]
+    failed: list[FailedPhoto]
 
 
 def summarise(run_id: str, state: WorkflowState) -> RunSummary:

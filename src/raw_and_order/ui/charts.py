@@ -10,7 +10,7 @@ from typing import cast
 import altair as alt
 import pandas as pd
 
-from raw_and_order.schemas.query import CountRow
+from raw_and_order.schemas.query import LabelCount
 
 BAR_THICKNESS_PX = 18  # cap is 24px; leftover band space stays empty
 ROW_HEIGHT_PX = 28
@@ -43,14 +43,14 @@ def theme_for(theme_type: str | None) -> ChartTheme:
     return DARK if theme_type == "dark" else LIGHT
 
 
-def rows_frame(rows: list[CountRow]) -> pd.DataFrame:
+def rows_frame(rows: list[LabelCount]) -> pd.DataFrame:
     """Turn count rows into a two-column DataFrame."""
     return pd.DataFrame(
         {"label": [r.label for r in rows], "count": [r.count for r in rows]}
     )
 
 
-def horizontal_bars(rows: list[CountRow], theme: ChartTheme) -> alt.LayerChart:
+def horizontal_bars(rows: list[LabelCount], theme: ChartTheme) -> alt.LayerChart:
     """Categories down the side, longest bar first, value at each bar's tip."""
     data = rows_frame(rows)
     order = alt.SortField("count", order="descending")
@@ -78,13 +78,13 @@ def horizontal_bars(rows: list[CountRow], theme: ChartTheme) -> alt.LayerChart:
     return _style((bars + labels).properties(height=height), theme)
 
 
-def columns_by_month(rows: list[CountRow], theme: ChartTheme) -> alt.LayerChart:
+def columns_by_month(rows: list[LabelCount], theme: ChartTheme) -> alt.LayerChart:
     """Months left to right (oldest first), value on each column's cap."""
     return ordered_columns(rows, theme, x_title=None, x_name="Month")
 
 
 def ordered_columns(
-    rows: list[CountRow],
+    rows: list[LabelCount],
     theme: ChartTheme,
     x_title: str | None,
     x_name: str,

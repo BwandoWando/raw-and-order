@@ -9,7 +9,7 @@ from raw_and_order.schemas import PhotoRecord
 from raw_and_order.schemas.query import PAGE_SIZES, PhotoQuery, SortOrder
 from raw_and_order.ui.css import clickable_tile, keyed, keyed_prefix
 from raw_and_order.ui.detail import details_open, open_details
-from raw_and_order.ui.formatting import card_caption, path_digest
+from raw_and_order.ui.formatting import path_digest, thumbnail_tooltip
 from raw_and_order.ui.grid import grid_shape, thumbnail_px
 from raw_and_order.ui.library import PhotoLibrary
 
@@ -158,7 +158,7 @@ def _thumbnail(
             st.image(image, width="stretch")
         label = f"Open details for {record.path.name}"
         if st.button(
-            label, key=open_button_key(record.path), help=card_caption(record)
+            label, key=open_button_key(record.path), help=thumbnail_tooltip(record)
         ):
             open_details(record.path, paths, library)
 

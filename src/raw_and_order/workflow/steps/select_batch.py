@@ -4,7 +4,7 @@ import logging
 import math
 from typing import Any
 
-from raw_and_order.workflow.state import FileFailure, PhotoItem, WorkflowState
+from raw_and_order.workflow.state import FailedPhoto, PhotoItem, WorkflowState
 
 logger = logging.getLogger(__name__)
 
@@ -52,5 +52,5 @@ def _chunk_count(count: int, chunk_size: int | None) -> int:
     return 1 if chunk_size is None else math.ceil(count / chunk_size)
 
 
-def _failures(items: list[PhotoItem]) -> list[FileFailure]:
-    return [FileFailure(path=i.path, error=i.error) for i in items if i.error]
+def _failures(items: list[PhotoItem]) -> list[FailedPhoto]:
+    return [FailedPhoto(path=i.path, error=i.error) for i in items if i.error]

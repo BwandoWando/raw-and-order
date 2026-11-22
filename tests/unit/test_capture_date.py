@@ -176,4 +176,4 @@ def test_exif_tag_date_tries_keys_in_order() -> None:
 
 def test_none_is_not_a_configurable_source() -> None:
     with pytest.raises(ValueError, match="not a date source"):
-        build_date_sources([DateSource.NONE])
+        build_date_sources([DateSource.NOT_FOUND])

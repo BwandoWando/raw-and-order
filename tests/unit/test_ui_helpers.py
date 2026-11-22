@@ -12,7 +12,7 @@ from raw_and_order.schemas import (
     SceneType,
     WhiteBalanceSource,
 )
-from raw_and_order.schemas.query import CountRow
+from raw_and_order.schemas.query import LabelCount
 from raw_and_order.ui.charts import (
     DARK,
     LIGHT,
@@ -23,12 +23,12 @@ from raw_and_order.ui.charts import (
 from raw_and_order.ui.filters import tag_label
 from raw_and_order.ui.formatting import (
     camera_settings,
-    card_caption,
     date_source_label,
     escape_markdown,
     format_exposure,
     format_white_balance,
     shown_size,
+    thumbnail_tooltip,
 )
 from raw_and_order.ui.launcher import APP_PATH, THEME_PATH, streamlit_command
 
@@ -102,7 +102,7 @@ def test_card_caption() -> None:
         processed_at=datetime(2026, 1, 1, tzinfo=UTC),
     )
 
-    assert card_caption(record) == "Unknown date · street"
+    assert thumbnail_tooltip(record) == "Unknown date · street"
 
 
 def test_streamlit_command_binds_localhost_without_telemetry() -> None:
@@ -127,7 +127,7 @@ def test_chart_theme_follows_streamlit_theme() -> None:
 
 
 def test_charts_use_theme_bar_color_and_capped_thickness() -> None:
-    rows = [CountRow(label="landscape", count=3), CountRow(label="street", count=1)]
+    rows = [LabelCount(label="landscape", count=3), LabelCount(label="street", count=1)]
 
     for chart in (horizontal_bars(rows, DARK), columns_by_month(rows, DARK)):
         spec = chart.to_dict()
@@ -143,7 +143,7 @@ def test_date_source_label() -> None:
 
 
 def test_horizontal_bars_leave_room_for_every_row() -> None:
-    rows = [CountRow(label=f"lens {i}", count=i + 1) for i in range(3)]
+    rows = [LabelCount(label=f"lens {i}", count=i + 1) for i in range(3)]
 
     spec = horizontal_bars(rows, LIGHT).to_dict()
 

@@ -4,7 +4,7 @@ from PIL import Image
 from raw_and_order.media.raw import (
     EXIF_ORIENTATION_TAG,
     apply_raw_flip,
-    orient_embedded_preview,
+    orient_embedded_image,
 )
 
 
@@ -37,6 +37,6 @@ def test_embedded_exif_orientation_takes_priority_over_flip() -> None:
     image = _marked_image()
     image.getexif()[EXIF_ORIENTATION_TAG] = 6
 
-    oriented = orient_embedded_preview(image, flip=3)
+    oriented = orient_embedded_image(image, flip=3)
 
     assert oriented.size == (30, 40)  # rotated by EXIF (90), not by flip (180)

@@ -50,11 +50,11 @@ class CaptureDate:
     source: DateSource
 
 
-class DateCandidate(Protocol):
+class CaptureDateSource(Protocol):
     """One place a capture date can come from."""
 
     @property
-    def source(self) -> DateSource:
+    def kind(self) -> DateSource:
         """Identifies this source in :class:`CaptureDate`."""
         ...
 
@@ -93,7 +93,7 @@ class ExifTagDate:
         self._keys = tuple(keys)
 
     @property
-    def source(self) -> DateSource:
+    def kind(self) -> DateSource:
         """Identifies this source in :class:`CaptureDate`."""
         return self._source
 
@@ -116,7 +116,7 @@ class FilenameDate:
         self._patterns = tuple(patterns)
 
     @property
-    def source(self) -> DateSource:
+    def kind(self) -> DateSource:
         """Identifies this source in :class:`CaptureDate`."""
         return DateSource.FILENAME
 
@@ -178,7 +178,7 @@ class CaptureDateResolver:
     """
 
     def __init__(
-        self, sources: Sequence[DateCandidate], validator: DateValidator
+        self, sources: Sequence[CaptureDateSource], validator: DateValidator
     ) -> None:
         self._sources = tuple(sources)
         self._validator = validator
@@ -188,17 +188,17 @@ class CaptureDateResolver:
         for source in self._sources:
             for value in source.candidates(tags, path):
                 if self._validator.is_plausible(value):
-                    return CaptureDate(value=value, source=source.source)
+                    return CaptureDate(value=value, source=source.kind)
         return None
 
 
-def build_date_sources(order: Sequence[DateSource]) -> list[DateCandidate]:
+def build_date_sources(order: Sequence[DateSource]) -> list[CaptureDateSource]:
     """Create date sources in the configured order.
 
     Raises:
-        ValueError: If ``order`` contains :attr:`DateSource.NONE`.
+        ValueError: If ``order`` contains :attr:`DateSource.NOT_FOUND`.
     """
-    factories: dict[DateSource, Callable[[], DateCandidate]] = {
+    factories: dict[DateSource, Callable[[], CaptureDateSource]] = {
         DateSource.EXIF_ORIGINAL: lambda: ExifTagDate(
             DateSource.EXIF_ORIGINAL, DATE_TIME_ORIGINAL_KEYS
         ),
@@ -208,6 +208,6 @@ def build_date_sources(order: Sequence[DateSource]) -> list[DateCandidate]:
         ),
         DateSource.FILENAME: FilenameDate,
     }
-    if DateSource.NONE in order:
+    if DateSource.NOT_FOUND in order:
         raise ValueError("'none' is not a date source")
     return [factories[source]() for source in order]

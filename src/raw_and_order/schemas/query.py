@@ -95,7 +95,7 @@ class FilterOptions(BaseModel):
     kelvin_max: int | None = None
 
 
-class CountRow(BaseModel):
+class LabelCount(BaseModel):
     """A label and how many photos have it."""
 
     label: str
@@ -108,11 +108,11 @@ class PhotoStats(BaseModel):
     total: int
     with_gps: int
     with_people: int
-    by_scene: list[CountRow]
-    by_lens: list[CountRow]
-    by_camera: list[CountRow]
-    by_month: list[CountRow] = Field(description="YYYY-MM, oldest first.")
-    by_white_balance: list[CountRow] = Field(
+    by_scene: list[LabelCount]
+    by_lens: list[LabelCount]
+    by_camera: list[LabelCount]
+    by_month: list[LabelCount] = Field(description="YYYY-MM, oldest first.")
+    by_white_balance: list[LabelCount] = Field(
         default_factory=list,
         description="KELVIN_BAND_K-wide bands, lowest kelvin (warmest light) first.",
     )

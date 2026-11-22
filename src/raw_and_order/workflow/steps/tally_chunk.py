@@ -3,7 +3,7 @@
 import logging
 from typing import Any
 
-from raw_and_order.workflow.state import FileFailure, WorkflowState
+from raw_and_order.workflow.state import FailedPhoto, WorkflowState
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +18,7 @@ class TallyChunkStep:
         """Return the updated totals and an empty ``items``."""
         saved = sum(item.saved for item in state.items)
         failed = [
-            FileFailure(path=i.path, error=i.error) for i in state.items if i.error
+            FailedPhoto(path=i.path, error=i.error) for i in state.items if i.error
         ]
         done = state.selected - len(state.queue)
         logger.info(

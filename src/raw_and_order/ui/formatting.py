@@ -11,7 +11,7 @@ DATE_SOURCE_LABELS = {
     DateSource.XMP: "XMP date",
     DateSource.EXIF_CREATE: "EXIF CreateDate",
     DateSource.FILENAME: "file name",
-    DateSource.NONE: "no date found",
+    DateSource.NOT_FOUND: "no date found",
 }
 
 
@@ -79,7 +79,7 @@ def capture_label(record: PhotoRecord) -> str:
     return captured.strftime("%Y-%m-%d %H:%M") if captured else "Unknown date"
 
 
-def card_caption(record: PhotoRecord) -> str:
+def thumbnail_tooltip(record: PhotoRecord) -> str:
     """Short caption under a gallery thumbnail."""
     captured = record.exif.captured_at
     day = captured.strftime("%Y-%m-%d") if captured else "Unknown date"

@@ -95,7 +95,7 @@ def test_no_date_at_all(tmp_path: Path) -> None:
 
     assert (exif.captured_at, exif.date_source, exif.lens_model) == (
         None,
-        DateSource.NONE,
+        DateSource.NOT_FOUND,
         None,
     )
 

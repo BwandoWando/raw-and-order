@@ -62,7 +62,7 @@ def test_no_date_anywhere_reports_none_source(mapper: ExifMapper) -> None:
     exif = mapper.map({}, Path("IMG_1234.jpg"))
 
     assert exif.captured_at is None
-    assert exif.date_source is DateSource.NONE
+    assert exif.date_source is DateSource.NOT_FOUND
 
 
 def test_falls_back_to_secondary_keys(mapper: ExifMapper) -> None:

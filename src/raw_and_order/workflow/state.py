@@ -23,8 +23,11 @@ class Stage(StrEnum):
     PERSIST = "persist"
 
 
-class FileError(BaseModel):
-    """Why a single file failed, recorded instead of stopping the batch."""
+class StepFailure(BaseModel):
+    """Why a photo failed in a step; recorded on it instead of stopping the batch.
+
+    A plain record, not an exception: the exceptions are in ``exceptions.py``.
+    """
 
     stage: Stage
     error_type: str
@@ -41,7 +44,7 @@ class PhotoItem(BaseModel):
     phash: str | None = None
     annotation: Annotation | None = None
     saved: bool = False
-    error: FileError | None = None
+    error: StepFailure | None = None
 
     @property
     def is_ok(self) -> bool:
@@ -49,11 +52,11 @@ class PhotoItem(BaseModel):
         return self.error is None
 
 
-class FileFailure(BaseModel):
-    """A file that failed, kept after its chunk has been recorded."""
+class FailedPhoto(BaseModel):
+    """A photo that failed and why, kept for the run summary after its chunk."""
 
     path: Path
-    error: FileError
+    error: StepFailure
 
 
 class WorkflowState(BaseModel):
@@ -88,7 +91,7 @@ class WorkflowState(BaseModel):
     consecutive_annotate_failures: int = Field(
         default=0, description="Annotation failures in a row, across chunks."
     )
-    failures: list[FileFailure] = Field(default_factory=list)
+    failures: list[FailedPhoto] = Field(default_factory=list)
     skipped_pairs: list[Path] = Field(
         default_factory=list,
         description="Images skipped because a raw file of the same shot exists.",

@@ -25,8 +25,8 @@ from raw_and_order.schemas import PhotoRecord
 from raw_and_order.schemas.query import (
     KELVIN_BAND_K,
     UNKNOWN_LABEL,
-    CountRow,
     FilterOptions,
+    LabelCount,
     PhotoPage,
     PhotoQuery,
     PhotoStats,
@@ -273,7 +273,7 @@ class SqlAlchemyPhotoCatalog:
         return [str(value) for value in session.scalars(query)]
 
     @staticmethod
-    def _kelvin_buckets(session: Session) -> list[CountRow]:
+    def _kelvin_buckets(session: Session) -> list[LabelCount]:
         """Photos per white balance band, labelled by its start (e.g. 5000)."""
         # ``//`` is integer division (SQLAlchemy 2's ``/`` is true division).
         bucket = (PhotoRow.white_balance_k // KELVIN_BAND_K) * KELVIN_BAND_K
@@ -290,17 +290,21 @@ class SqlAlchemyPhotoCatalog:
             return []
         # Include empty bands between the lowest and highest, so gaps show.
         bands = range(min(counts), max(counts) + KELVIN_BAND_K, KELVIN_BAND_K)
-        return [CountRow(label=str(band), count=counts.get(band, 0)) for band in bands]
+        return [
+            LabelCount(label=str(band), count=counts.get(band, 0)) for band in bands
+        ]
 
     @staticmethod
-    def _counts(session: Session, column: Any) -> list[CountRow]:
+    def _counts(session: Session, column: Any) -> list[LabelCount]:
         query = (
             select(column, func.count(PhotoRow.id))
             .group_by(column)
             .order_by(func.count(PhotoRow.id).desc())
         )
         return [
-            CountRow(label=str(label) if label is not None else UNKNOWN_LABEL, count=n)
+            LabelCount(
+                label=str(label) if label is not None else UNKNOWN_LABEL, count=n
+            )
             for label, n in session.execute(query)
         ]
 

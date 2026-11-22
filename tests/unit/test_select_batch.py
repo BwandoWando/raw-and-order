@@ -1,9 +1,9 @@
 from pathlib import Path
 
-from raw_and_order.workflow.state import FileError, PhotoItem, Stage, WorkflowState
+from raw_and_order.workflow.state import PhotoItem, Stage, StepFailure, WorkflowState
 from raw_and_order.workflow.steps import NextChunkStep, SelectBatchStep, TallyChunkStep
 
-ERROR = FileError(stage=Stage.FINGERPRINT, error_type="X", message="x")
+ERROR = StepFailure(stage=Stage.FINGERPRINT, error_type="X", message="x")
 
 
 def _state(

@@ -13,7 +13,7 @@ class DateSource(StrEnum):
     XMP = "xmp"
     EXIF_CREATE = "exif_create"
     FILENAME = "filename"
-    NONE = "none"
+    NOT_FOUND = "none"  # every source was tried and none had a date
 
 
 class WhiteBalanceSource(StrEnum):

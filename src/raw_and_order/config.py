@@ -126,7 +126,7 @@ class Settings(BaseSettings):
     @field_validator("date_sources")
     @classmethod
     def _reject_none_source(cls, value: list[DateSource]) -> list[DateSource]:
-        if DateSource.NONE in value:
+        if DateSource.NOT_FOUND in value:
             raise ValueError("'none' is not a date source; leave it out instead")
         return value
 

@@ -110,7 +110,7 @@ class ExifMapper:
             f_number=as_float(first_value(tags, F_NUMBER_KEYS)),
             focal_length_mm=as_float(first_value(tags, FOCAL_KEYS)),
             captured_at=capture.value if capture else None,
-            date_source=capture.source if capture else DateSource.NONE,
+            date_source=capture.source if capture else DateSource.NOT_FOUND,
             white_balance=white_balance.mode,
             white_balance_k=white_balance.kelvin,
             white_balance_k_source=white_balance.source,

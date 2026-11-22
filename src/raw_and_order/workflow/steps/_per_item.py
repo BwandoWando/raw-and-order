@@ -4,7 +4,7 @@ import logging
 from collections.abc import Callable
 
 from raw_and_order.exceptions import FatalRunError, RawAndOrderError
-from raw_and_order.workflow.state import FileError, PhotoItem, Stage
+from raw_and_order.workflow.state import PhotoItem, Stage, StepFailure
 
 logger = logging.getLogger(__name__)
 
@@ -29,5 +29,7 @@ def _run_one(item: PhotoItem, stage: Stage, step: ItemStep) -> PhotoItem:
         raise
     except RawAndOrderError as exc:
         logger.warning("%s failed for %s: %s", stage, item.path, exc)
-        error = FileError(stage=stage, error_type=type(exc).__name__, message=str(exc))
+        error = StepFailure(
+            stage=stage, error_type=type(exc).__name__, message=str(exc)
+        )
         return item.model_copy(update={"error": error})
