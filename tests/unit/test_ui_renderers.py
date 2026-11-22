@@ -26,7 +26,12 @@ from raw_and_order.ui.detail import (
     similar_button_key,
 )
 from raw_and_order.ui.filters import FilterKey
-from raw_and_order.ui.gallery import GalleryKey, open_button_key
+from raw_and_order.ui.gallery import (
+    CURRENT_PAGE_KEY,
+    GalleryKey,
+    open_button_key,
+    page_button_key,
+)
 from raw_and_order.ui.library import PhotoLibrary
 from raw_and_order.ui.navigation import TABS_KEY
 from raw_and_order.ui.tags import cluster_open_key, tags_to_show
@@ -87,6 +92,38 @@ def test_hovering_a_thumbnail_shows_its_name_and_description() -> None:
 
     assert tooltip.startswith(r"**IMG\_0\.DNG**")
     assert SAMPLE_ANNOTATION.description.replace(".", r"\.") in tooltip
+
+
+def test_the_pager_shows_ten_page_numbers_and_jumps_to_one() -> None:
+    app = _app(FakePhotoLibrary([_record(i) for i in range(300)]))  # 13 pages
+
+    numbers = [b.label for b in app.button if (b.key or "").startswith("g-page-")]
+    assert numbers == [str(n) for n in range(1, 11)]
+    assert app.button(key=CURRENT_PAGE_KEY).label == "1"
+    assert app.button(key=GalleryKey.PREVIOUS).disabled
+
+    app.button(key=page_button_key(9)).click().run()
+
+    assert "Showing 193–216 of 300 photos" in [c.value for c in app.caption]
+    assert app.button(key=CURRENT_PAGE_KEY).label == "9"
+    numbers = [b.label for b in app.button if (b.key or "").startswith("g-page-")]
+    assert numbers == [str(n) for n in range(4, 14)]  # slid to keep 9 central
+
+
+def test_the_pager_arrows_stop_at_the_last_page() -> None:
+    app = _app(FakePhotoLibrary([_record(i) for i in range(30)]))  # 2 pages
+
+    app.button(key=GalleryKey.NEXT).click().run()
+
+    assert app.button(key=CURRENT_PAGE_KEY).label == "2"
+    assert app.button(key=GalleryKey.NEXT).disabled
+    assert not app.button(key=GalleryKey.PREVIOUS).disabled
+
+
+def test_a_single_page_has_no_pager() -> None:
+    app = _app(FakePhotoLibrary([_record(i) for i in range(3)]))
+
+    assert not [b for b in app.button if (b.key or "").startswith("g-page-")]
 
 
 def test_details_dialog_reads_from_the_library() -> None:

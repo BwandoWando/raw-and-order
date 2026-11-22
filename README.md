@@ -204,8 +204,9 @@ Stop it with Ctrl+C. In VS Code, the **Streamlit UI** debug configuration in
   Export tabs.
 
 - **Gallery:** a grid of square thumbnails (24 / 48 / 72 / 99 per page; the
-  whole photo fits in its tile) sized so a whole page fits on one screen, with the pager below it (or the left and right
-  arrow keys). Tiles shrink as the page size grows and follow the window when
+  whole photo fits in its tile) sized so a whole page fits on one screen. Below it,
+  the pager shows ten page numbers around the current one (filled), between
+  previous and next arrows (also the left and right arrow keys). Tiles shrink as the page size grows and follow the window when
   you resize it. The page size is kept in the URL (`?g_page_size=99`), so you
   can bookmark it. Hover a photo for its file name, description, date and scene; click it to see the
   large preview, description, tags, camera and lens settings, a map when the

@@ -14,7 +14,7 @@ import streamlit as st
 
 from raw_and_order.schemas import PhotoRecord
 from raw_and_order.schemas.query import PAGE_SIZES, PhotoPage, PhotoQuery, SortOrder
-from raw_and_order.ui.css import clickable_tile, keyed, keyed_prefix
+from raw_and_order.ui.css import clickable_tile, keyed, keyed_prefix, visually_hidden
 from raw_and_order.ui.detail import (
     GalleryPage,
     GalleryRequest,
@@ -32,6 +32,10 @@ THUMB_KEY_PREFIX = "thumb-"  # container holding the image and the overlay
 # [class*="st-key-thumb-"], which would also match "thumb-open-".
 OPEN_KEY_PREFIX = "thumbopen-"  # the overlay button itself
 GRID_KEY = "gallery-grid"
+PAGER_KEY = "gallery-pager"
+PAGE_KEY_PREFIX = "g-page-"  # a page number button: g-page-<n>
+CURRENT_PAGE_KEY = f"{PAGE_KEY_PREFIX}current"  # the page shown, a filled circle
+PAGE_WINDOW = 10  # page numbers shown at once
 
 
 class GalleryKey(StrEnum):
@@ -43,6 +47,46 @@ class GalleryKey(StrEnum):
     PAGE_QUERY = "g_signature"  # the query the page number belongs to
     PREVIOUS = "g_prev"
     NEXT = "g_next"
+
+
+# The current page is a filled circle in the text colour, with the page
+# number in the background colour, so it inverts with the theme.
+CURRENT_PAGE_COLOURS = {  # theme: (circle, number); from ui/theme.toml
+    "light": ("#2F2D2B", "#FFFFFF"),
+    "dark": ("#E6E6E6", "#1E1E1E"),
+}
+_LABEL = '[data-testid="stMarkdownContainer"]'  # a button's text label
+
+
+def pager_css(theme_type: str | None) -> str:
+    """Round page buttons, the current page filled; arrows show only their icon.
+
+    The arrows' labels and shortcut hints stay for screen readers.
+    """
+    circle, number = CURRENT_PAGE_COLOURS.get(
+        theme_type or "light", CURRENT_PAGE_COLOURS["light"]
+    )
+    arrows = (keyed(GalleryKey.PREVIOUS), keyed(GalleryKey.NEXT))
+    hidden = [f"{arrow} {part}" for arrow in arrows for part in (_LABEL, "kbd")]
+    return f"""
+<style>
+{keyed(PAGER_KEY)} button {{
+    min-width: 2.25rem;
+    height: 2.25rem;
+    min-height: 2.25rem;
+    padding: 0 0.5rem;
+    border-radius: 999px;  /* a circle, or a pill for long numbers */
+    justify-content: center;
+}}
+{keyed(CURRENT_PAGE_KEY)} button,
+{keyed(CURRENT_PAGE_KEY)} button:hover {{
+    background: {circle};
+    border-color: {circle};
+    color: {number};
+}}
+{visually_hidden(*hidden)}
+</style>
+"""
 
 
 # Height of everything on the page but the tiles (menu bar, title, tabs, sort
@@ -254,38 +298,88 @@ def _current_page(query: PhotoQuery) -> int:
     return int(st.session_state.get(GalleryKey.PAGE, 1))
 
 
-def _pager(page: int, pages: int) -> None:
-    """Previous and next page buttons, also on the left and right arrow keys.
+def page_window(page: int, pages: int, size: int = PAGE_WINDOW) -> range:
+    """The page numbers to show: ``size`` of them around ``page``.
 
-    While the photo details are open the arrow keys step photos instead, so
-    these shortcuts are off then (Streamlit would fire both). The grid is
-    drawn first, so a click that opens the details is already known here.
+    ``page`` sits just right of the middle (14 shows 9-18), and the window
+    slides rather than shrinks near either end.
+    """
+    first = max(1, min(page - size // 2, pages - size + 1))
+    return range(first, min(pages, first + size - 1) + 1)
+
+
+def page_button_key(page: int) -> str:
+    """Stable key of the button for page ``page`` (not the current page)."""
+    return f"{PAGE_KEY_PREFIX}{page}"
+
+
+def _pager(page: int, pages: int) -> None:
+    """Arrows either side of a row of page numbers, the current one filled.
+
+    The arrows are also the left and right arrow keys. While the photo
+    details are open the arrow keys step photos instead, so these shortcuts
+    are off then (Streamlit would fire both). The grid is drawn first, so a
+    click that opens the details is already known here.
     """
     if pages <= 1:
         return
+    st.html(pager_css(getattr(st.context.theme, "type", None)))
     keys_free = not details_open()
-    previous_col, label_col, next_col = st.columns([1, 2, 1])
-    previous_col.button(
-        "Previous",
-        key=GalleryKey.PREVIOUS,
-        shortcut="Left" if keys_free else None,
+    with st.container(
+        key=PAGER_KEY,
+        horizontal=True,
+        horizontal_alignment="center",
+        vertical_alignment="center",
+        gap="xsmall",
+    ):
+        _arrow(
+            "Previous page",
+            GalleryKey.PREVIOUS,
+            "arrow_back",
+            "Left",
+            page - 1,
+            page <= 1,
+            keys_free,
+        )
+        for number in page_window(page, pages):
+            current = number == page
+            st.button(
+                str(number),
+                key=CURRENT_PAGE_KEY if current else page_button_key(number),
+                type="primary" if current else "tertiary",
+                on_click=_go,
+                args=(number,),
+            )
+        _arrow(
+            "Next page",
+            GalleryKey.NEXT,
+            "arrow_forward",
+            "Right",
+            page + 1,
+            page >= pages,
+            keys_free,
+        )
+
+
+def _arrow(
+    label: str,
+    key: str,
+    icon: str,
+    shortcut: str,
+    target: int,
+    disabled: bool,
+    keys_free: bool,
+) -> None:
+    """An icon-only arrow button that goes to page ``target``."""
+    st.button(
+        label,
+        key=key,
+        icon=f":material/{icon}:",
+        type="tertiary",
+        shortcut=shortcut if keys_free else None,
         on_click=_go,
-        args=(page - 1,),
-        disabled=page <= 1,
-        width="stretch",
-    )
-    label_col.markdown(
-        f"<div style='text-align:center'>Page {page} of {pages}</div>",
-        unsafe_allow_html=True,
-    )
-    next_col.button(
-        "Next",
-        key=GalleryKey.NEXT,
-        shortcut="Right" if keys_free else None,
-        on_click=_go,
-        args=(page + 1,),
-        disabled=page >= pages,
-        width="stretch",
+        args=(target,),
+        disabled=disabled,
     )
 
 

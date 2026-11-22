@@ -7,7 +7,12 @@ from PIL import Image
 from raw_and_order.exceptions import PreviewError
 from raw_and_order.media.thumbnails import JpegThumbnailer
 from raw_and_order.schemas.query import PAGE_SIZES
-from raw_and_order.ui.gallery import thumbnail_css
+from raw_and_order.ui.gallery import (
+    CURRENT_PAGE_COLOURS,
+    page_window,
+    pager_css,
+    thumbnail_css,
+)
 from raw_and_order.ui.grid import THUMBNAIL_SIZES, grid_shape, thumbnail_px
 
 
@@ -118,3 +123,33 @@ def test_square_of_a_portrait_keeps_the_middle_rows(tmp_path: Path) -> None:
 def test_square_of_a_missing_preview_is_a_preview_error(tmp_path: Path) -> None:
     with pytest.raises(PreviewError):
         JpegThumbnailer().square(tmp_path / "gone.jpg", 96)
+
+
+@pytest.mark.parametrize(
+    ("page", "pages", "expected"),
+    [
+        (14, 867, range(9, 19)),  # as in the design: 9 ... 18 around 14
+        (1, 867, range(1, 11)),  # slides right at the start
+        (3, 867, range(1, 11)),
+        (867, 867, range(858, 868)),  # slides left at the end
+        (864, 867, range(858, 868)),
+        (3, 5, range(1, 6)),  # fewer pages than the window
+        (1, 1, range(1, 2)),
+    ],
+)
+def test_page_window_keeps_ten_numbers_around_the_page(
+    page: int, pages: int, expected: range
+) -> None:
+    window = page_window(page, pages)
+
+    assert window == expected
+    assert page in window
+
+
+def test_the_current_page_inverts_with_the_theme() -> None:
+    light_circle, light_number = CURRENT_PAGE_COLOURS["light"]
+    dark_circle, _ = CURRENT_PAGE_COLOURS["dark"]
+
+    assert f"background: {light_circle};" in pager_css("light")
+    assert f"color: {light_number};" in pager_css(None)  # unknown: light
+    assert f"background: {dark_circle};" in pager_css("dark")
