@@ -10,7 +10,7 @@ from pathlib import Path
 
 from pydantic import Field
 
-from raw_and_order.db.repository import PerceptualHashStore
+from raw_and_order.db.repository import PerceptualHashStore, StoredHash
 from raw_and_order.exceptions import MediaError
 from raw_and_order.maintenance.report import MaintenanceSummary, ProblemPhoto
 from raw_and_order.media.protocols import PerceptualHasher, PreviewReader
@@ -58,25 +58,27 @@ class PerceptualRehasher:
         stored = self._store.stored_hashes()
         summary = RehashSummary()
         logger.info("Recomputing the pHash of %d stored photo(s)", len(stored))
-        for number, (path, (preview, old)) in enumerate(stored.items(), start=1):
-            self._rehash_one(path, preview, old, summary)
+        for number, (path, entry) in enumerate(stored.items(), start=1):
+            self._rehash_one(path, entry, summary)
             if number % PROGRESS_EVERY == 0:
                 logger.info("%d/%d rehashed", number, len(stored))
         return summary
 
     def _rehash_one(
-        self, path: Path, preview: Path, old: str | None, summary: RehashSummary
+        self, path: Path, stored: StoredHash, summary: RehashSummary
     ) -> None:
+        """Hash one photo's preview again; save the hash only if it changed."""
         summary.checked += 1
-        if not preview.is_file():
+        if not stored.preview_path.is_file():
             summary.missing_previews.append(path)
             return
         try:
-            new = self._hasher.hash_image_bytes(self._previews.load(preview))
+            preview = self._previews.load(stored.preview_path)
+            new = self._hasher.hash_image_bytes(preview)
         except MediaError as exc:
             summary.failed.append(ProblemPhoto(path=path, message=str(exc)))
             return
-        if new == old:
+        if new == stored.phash:
             summary.unchanged += 1
             return
         self._store.update_phash(path, new)

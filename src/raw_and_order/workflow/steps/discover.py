@@ -3,12 +3,11 @@
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Any
 
 from raw_and_order.exceptions import ExifReadError
 from raw_and_order.media.pairing import RawPairFilter
 from raw_and_order.media.protocols import CaptureTimeReader, PhotoDiscoverer
-from raw_and_order.workflow.state import PhotoItem, WorkflowState
+from raw_and_order.workflow.state import PhotoItem, StateUpdate, WorkflowState
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +36,7 @@ class DiscoverStep:
         self._pair_filter = pair_filter
         self._times = times
 
-    def __call__(self, state: WorkflowState) -> dict[str, Any]:
+    def __call__(self, state: WorkflowState) -> StateUpdate:
         """Return the candidate ``items`` and the skipped pairs."""
         paths = self._discoverer.find(state.source_dir)
         candidates = self._pair_filter.pair_candidates(paths)

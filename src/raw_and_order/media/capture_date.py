@@ -6,12 +6,13 @@ no timezone conversion) so the date matches the day the photo was taken.
 """
 
 import re
-from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
+from collections.abc import Callable, Iterable, Iterator, Sequence
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any, Protocol
 
+from raw_and_order.media.exif_values import ExifTags
 from raw_and_order.schemas.exif import DateSource
 
 EXIF_DATETIME_FORMAT = "%Y:%m:%d %H:%M:%S"
@@ -62,7 +63,7 @@ class CaptureDateSource(Protocol):
         """Identifies this source in :class:`CaptureDate`."""
         ...
 
-    def candidates(self, tags: Mapping[str, Any], path: Path) -> Iterator[datetime]:
+    def candidates(self, tags: ExifTags, path: Path) -> Iterator[datetime]:
         """Yield every date this source can find, best first."""
         ...
 
@@ -104,7 +105,7 @@ class ExifTagDate:
         """Identifies this source in :class:`CaptureDate`."""
         return self._source
 
-    def candidates(self, tags: Mapping[str, Any], path: Path) -> Iterator[datetime]:
+    def candidates(self, tags: ExifTags, path: Path) -> Iterator[datetime]:
         """Yield each parseable date among the configured tags."""
         for key in self._keys:
             parsed = parse_exif_datetime(tags.get(key))
@@ -127,7 +128,7 @@ class FilenameDate:
         """Identifies this source in :class:`CaptureDate`."""
         return DateSource.FILENAME
 
-    def candidates(self, tags: Mapping[str, Any], path: Path) -> Iterator[datetime]:
+    def candidates(self, tags: ExifTags, path: Path) -> Iterator[datetime]:
         """Yield each valid date found in ``path``'s name."""
         for pattern in self._patterns:
             for match in pattern.finditer(path.stem):
@@ -195,7 +196,7 @@ class CaptureDateResolver:
         self._sources = tuple(sources)
         self._validator = validator
 
-    def resolve(self, tags: Mapping[str, Any], path: Path) -> CaptureDate | None:
+    def resolve(self, tags: ExifTags, path: Path) -> CaptureDate | None:
         """Return the capture date of ``path``, or ``None`` if none is plausible."""
         for source in self._sources:
             for value in source.candidates(tags, path):

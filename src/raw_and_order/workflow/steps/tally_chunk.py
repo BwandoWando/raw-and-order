@@ -1,9 +1,8 @@
 """Step: fold a finished chunk into the run totals."""
 
 import logging
-from typing import Any
 
-from raw_and_order.workflow.state import FailedPhoto, WorkflowState
+from raw_and_order.workflow.state import FailedPhoto, StateUpdate, WorkflowState
 
 logger = logging.getLogger(__name__)
 
@@ -14,7 +13,7 @@ class TallyChunkStep:
     By the time this runs, the chunk's photos are already in the database.
     """
 
-    def __call__(self, state: WorkflowState) -> dict[str, Any]:
+    def __call__(self, state: WorkflowState) -> StateUpdate:
         """Return the updated totals and an empty ``items``."""
         saved = sum(item.saved for item in state.items)
         failed = [

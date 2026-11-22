@@ -1,12 +1,10 @@
 """Step: annotate previews with the LLM."""
 
-from typing import Any
-
 from raw_and_order.exceptions import TooManyFailuresError
 from raw_and_order.llm.annotator import Annotator
 from raw_and_order.llm.context import ExifContextFormatter
 from raw_and_order.media.protocols import PreviewStore
-from raw_and_order.workflow.state import PhotoItem, Stage, WorkflowState
+from raw_and_order.workflow.state import PhotoItem, Stage, StateUpdate, WorkflowState
 from raw_and_order.workflow.steps._per_item import apply_to_photo
 
 
@@ -33,7 +31,7 @@ class AnnotateStep:
         self._context_formatter = context_formatter
         self._max_consecutive_failures = max_consecutive_failures
 
-    def __call__(self, state: WorkflowState) -> dict[str, Any]:
+    def __call__(self, state: WorkflowState) -> StateUpdate:
         """Return ``items`` with ``annotation`` filled in.
 
         Photos are annotated one at a time so the run stops exactly when the

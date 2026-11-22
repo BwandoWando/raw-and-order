@@ -1,9 +1,7 @@
 """Step: read EXIF metadata."""
 
-from typing import Any
-
 from raw_and_order.media.protocols import ExifReader
-from raw_and_order.workflow.state import PhotoItem, Stage, WorkflowState
+from raw_and_order.workflow.state import PhotoItem, Stage, StateUpdate, WorkflowState
 from raw_and_order.workflow.steps._per_item import apply_step
 
 
@@ -17,7 +15,7 @@ class ExtractExifStep:
     def __init__(self, exif_reader: ExifReader) -> None:
         self._exif_reader = exif_reader
 
-    def __call__(self, state: WorkflowState) -> dict[str, Any]:
+    def __call__(self, state: WorkflowState) -> StateUpdate:
         """Return ``items`` with ``exif`` filled in."""
         return {"items": apply_step(state.items, Stage.EXTRACT_EXIF, self._extract)}
 

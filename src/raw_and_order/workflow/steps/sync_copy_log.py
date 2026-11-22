@@ -2,10 +2,9 @@
 
 from collections.abc import Callable
 from datetime import datetime
-from typing import Any
 
 from raw_and_order.db.copy_repository import CopyRepository
-from raw_and_order.workflow.state import WorkflowState
+from raw_and_order.workflow.state import StateUpdate, WorkflowState
 from raw_and_order.workflow.steps.persist import utc_now
 
 
@@ -27,7 +26,7 @@ class SyncCopyLogStep:
         self._copies = copies
         self._clock = clock
 
-    def __call__(self, state: WorkflowState) -> dict[str, Any]:
+    def __call__(self, state: WorkflowState) -> StateUpdate:
         """Write the copy log; the state is not changed."""
         self._copies.record(state.copies, self._clock())
         found = {copy.path for copy in state.copies}

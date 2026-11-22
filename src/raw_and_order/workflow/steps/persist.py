@@ -2,11 +2,10 @@
 
 from collections.abc import Callable
 from datetime import UTC, datetime
-from typing import Any
 
 from raw_and_order.db.repository import PhotoRepository
 from raw_and_order.schemas import PhotoRecord
-from raw_and_order.workflow.state import PhotoItem, Stage, WorkflowState
+from raw_and_order.workflow.state import PhotoItem, Stage, StateUpdate, WorkflowState
 from raw_and_order.workflow.steps._per_item import apply_step
 
 
@@ -34,7 +33,7 @@ class PersistStep:
         self._annotated_by = annotated_by
         self._clock = clock
 
-    def __call__(self, state: WorkflowState) -> dict[str, Any]:
+    def __call__(self, state: WorkflowState) -> StateUpdate:
         """Return ``items`` with ``saved`` set."""
         return {"items": apply_step(state.items, Stage.PERSIST, self._persist)}
 

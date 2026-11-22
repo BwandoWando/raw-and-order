@@ -14,11 +14,10 @@ temperature is normally interpolated on.
 import itertools
 import math
 import re
-from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any
 
-from raw_and_order.media.exif_values import as_float, as_text, first_value
+from raw_and_order.media.exif_values import ExifTags, as_float, as_text, first_value
 from raw_and_order.schemas.exif import WhiteBalanceSource
 
 MODE_KEYS = ("MakerNotes:WhiteBalance", "EXIF:WhiteBalance", "XMP:WhiteBalance")
@@ -62,7 +61,7 @@ class WhiteBalance:
     source: WhiteBalanceSource | None
 
 
-def resolve_white_balance(tags: Mapping[str, Any]) -> WhiteBalance:
+def resolve_white_balance(tags: ExifTags) -> WhiteBalance:
     """Return the white balance from exiftool tags.
 
     Tries, in order, and stops at the first that gives a kelvin: the camera's
@@ -84,7 +83,7 @@ def _found(mode: str | None, kelvin: float, source: WhiteBalanceSource) -> White
     return WhiteBalance(mode=mode, kelvin=round_kelvin(kelvin), source=source)
 
 
-def estimate_kelvin_from_tags(tags: Mapping[str, Any]) -> float | None:
+def estimate_kelvin_from_tags(tags: ExifTags) -> float | None:
     """Estimate the as-shot kelvin from WB levels, or ``None`` if impossible."""
     as_shot = _as_shot_ratio(tags)
     if as_shot is None:
@@ -92,7 +91,7 @@ def estimate_kelvin_from_tags(tags: Mapping[str, Any]) -> float | None:
     return estimate_kelvin(as_shot, calibration_points(tags))
 
 
-def _as_shot_ratio(tags: Mapping[str, Any]) -> float | None:
+def _as_shot_ratio(tags: ExifTags) -> float | None:
     """The red/blue ratio the camera applied to this shot, or ``None``.
 
     Read from the maker notes' WB levels if present, else from the DNG
@@ -105,7 +104,7 @@ def _as_shot_ratio(tags: Mapping[str, Any]) -> float | None:
     return neutral_red_blue_ratio(tags.get(AS_SHOT_NEUTRAL_KEY))
 
 
-def calibration_points(tags: Mapping[str, Any]) -> list[tuple[int, float]]:
+def calibration_points(tags: ExifTags) -> list[tuple[int, float]]:
     """Return ``(kelvin, red/blue ratio)`` calibration points, sorted by kelvin."""
     points: dict[int, float] = {}
     for key, value in tags.items():
@@ -188,7 +187,7 @@ def round_kelvin(kelvin: float) -> int:
     return int(round(kelvin / ROUND_TO_K) * ROUND_TO_K)
 
 
-def _first_kelvin(tags: Mapping[str, Any], keys: tuple[str, ...]) -> float | None:
+def _first_kelvin(tags: ExifTags, keys: tuple[str, ...]) -> float | None:
     """The first plausible kelvin value among ``keys`` (0 means "not recorded")."""
     low, high = PLAUSIBLE_KELVIN
     for key in keys:

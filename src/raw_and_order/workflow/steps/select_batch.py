@@ -2,9 +2,13 @@
 
 import logging
 import math
-from typing import Any
 
-from raw_and_order.workflow.state import FailedPhoto, PhotoItem, WorkflowState
+from raw_and_order.workflow.state import (
+    FailedPhoto,
+    PhotoItem,
+    StateUpdate,
+    WorkflowState,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +21,7 @@ class SelectBatchStep:
     could not be hashed) are recorded as failures and use no slot.
     """
 
-    def __call__(self, state: WorkflowState) -> dict[str, Any]:
+    def __call__(self, state: WorkflowState) -> StateUpdate:
         """Return the ``queue``, counts, and any early failures."""
         pending = sorted((i for i in state.items if i.is_ok), key=_path_key)
         selected = pending if state.max_photos is None else pending[: state.max_photos]

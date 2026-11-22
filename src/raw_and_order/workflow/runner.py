@@ -14,12 +14,11 @@ Each step receives the current :class:`WorkflowState` and returns the fields
 it changed; the runner merges them into the next state.
 """
 
-from collections.abc import Callable, Mapping
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any
 
 from raw_and_order.exceptions import FatalRunError, RunAbortedError
-from raw_and_order.workflow.state import WorkflowState
+from raw_and_order.workflow.state import StateUpdate, WorkflowState
 from raw_and_order.workflow.steps import (
     AnnotateStep,
     DecodeStep,
@@ -38,7 +37,7 @@ from raw_and_order.workflow.steps import (
     TallyChunkStep,
 )
 
-Step = Callable[[WorkflowState], Mapping[str, Any]]
+Step = Callable[[WorkflowState], StateUpdate]
 
 
 @dataclass(frozen=True)

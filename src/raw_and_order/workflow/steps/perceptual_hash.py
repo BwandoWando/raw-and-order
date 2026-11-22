@@ -1,9 +1,7 @@
 """Step: compute each photo's perceptual hash from its upright preview."""
 
-from typing import Any
-
 from raw_and_order.media.protocols import PerceptualHasher, PreviewStore
-from raw_and_order.workflow.state import PhotoItem, Stage, WorkflowState
+from raw_and_order.workflow.state import PhotoItem, Stage, StateUpdate, WorkflowState
 from raw_and_order.workflow.steps._per_item import apply_step
 
 
@@ -22,7 +20,7 @@ class PerceptualHashStep:
         self._hasher = hasher
         self._preview_store = preview_store
 
-    def __call__(self, state: WorkflowState) -> dict[str, Any]:
+    def __call__(self, state: WorkflowState) -> StateUpdate:
         """Return ``items`` with ``phash`` filled in."""
         return {"items": apply_step(state.items, Stage.PERCEPTUAL_HASH, self._hash)}
 

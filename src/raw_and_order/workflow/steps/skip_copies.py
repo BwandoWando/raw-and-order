@@ -3,11 +3,10 @@
 import logging
 from collections.abc import Callable, Iterable
 from pathlib import Path
-from typing import Any
 
 from raw_and_order.db.repository import FingerprintStore
 from raw_and_order.schemas import PhotoCopy
-from raw_and_order.workflow.state import PhotoItem, WorkflowState
+from raw_and_order.workflow.state import PhotoItem, StateUpdate, WorkflowState
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +32,7 @@ class SkipCopiesStep:
         self._photos = photos
         self._file_exists = file_exists
 
-    def __call__(self, state: WorkflowState) -> dict[str, Any]:
+    def __call__(self, state: WorkflowState) -> StateUpdate:
         """Return the remaining ``items`` and the ``copies`` found."""
         stored = _paths_by_sha(self._photos.known_fingerprints().items())
         first_in_run: dict[str, Path] = {}

@@ -1,9 +1,7 @@
 """Step: decode raw or regular image files and save previews."""
 
-from typing import Any
-
 from raw_and_order.media.protocols import ImageDecoder, PreviewStore
-from raw_and_order.workflow.state import PhotoItem, Stage, WorkflowState
+from raw_and_order.workflow.state import PhotoItem, Stage, StateUpdate, WorkflowState
 from raw_and_order.workflow.steps._per_item import apply_step
 
 
@@ -19,7 +17,7 @@ class DecodeStep:
         self._decoder = decoder
         self._preview_store = preview_store
 
-    def __call__(self, state: WorkflowState) -> dict[str, Any]:
+    def __call__(self, state: WorkflowState) -> StateUpdate:
         """Return ``items`` with ``preview_path`` filled in."""
         return {"items": apply_step(state.items, Stage.DECODE, self._decode)}
 

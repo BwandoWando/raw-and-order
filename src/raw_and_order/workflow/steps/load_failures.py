@@ -1,10 +1,9 @@
 """Step: in --reprocess-failed runs, start from the failure log."""
 
 import logging
-from typing import Any
 
 from raw_and_order.db.failure_repository import FailureRepository
-from raw_and_order.workflow.state import PhotoItem, WorkflowState
+from raw_and_order.workflow.state import PhotoItem, StateUpdate, WorkflowState
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +21,7 @@ class LoadFailuresStep:
     def __init__(self, failures: FailureRepository) -> None:
         self._failures = failures
 
-    def __call__(self, state: WorkflowState) -> dict[str, Any]:
+    def __call__(self, state: WorkflowState) -> StateUpdate:
         """Return the failures to retry as ``items``, and the missing ones."""
         logged = [r.path for r in self._failures.failures_under(state.source_dir)]
         existing = [path for path in logged if path.is_file()]

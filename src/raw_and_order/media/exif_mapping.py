@@ -7,9 +7,7 @@ include the ``#``.
 """
 
 import re
-from collections.abc import Mapping
 from pathlib import Path
-from typing import Any
 
 from raw_and_order.media.capture_date import (
     CREATE_DATE_KEYS,
@@ -17,7 +15,13 @@ from raw_and_order.media.capture_date import (
     XMP_DATE_KEYS,
     CaptureDateResolver,
 )
-from raw_and_order.media.exif_values import as_float, as_int, as_text, first_value
+from raw_and_order.media.exif_values import (
+    ExifTags,
+    as_float,
+    as_int,
+    as_text,
+    first_value,
+)
 from raw_and_order.media.white_balance import (
     CAMERA_KELVIN_KEYS,
     EDITED_KELVIN_KEYS,
@@ -95,7 +99,7 @@ class ExifMapper:
     def __init__(self, date_resolver: CaptureDateResolver) -> None:
         self._date_resolver = date_resolver
 
-    def map(self, tags: Mapping[str, Any], path: Path) -> ExifData:
+    def map(self, tags: ExifTags, path: Path) -> ExifData:
         """Return the metadata of ``path`` from its exiftool ``tags``."""
         capture = self._date_resolver.resolve(tags, path)
         white_balance = resolve_white_balance(tags)
@@ -120,7 +124,7 @@ class ExifMapper:
         )
 
 
-def first_meaningful_text(tags: Mapping[str, Any], keys: tuple[str, ...]) -> str | None:
+def first_meaningful_text(tags: ExifTags, keys: tuple[str, ...]) -> str | None:
     """Return the first value that is real text, skipping codes and placeholders.
 
     Skips values such as ``""``, ``"----"``, ``"0"``, ``"61"`` (an unconverted
@@ -133,7 +137,7 @@ def first_meaningful_text(tags: Mapping[str, Any], keys: tuple[str, ...]) -> str
     return None
 
 
-def map_gps(tags: Mapping[str, Any]) -> GpsCoordinate | None:
+def map_gps(tags: ExifTags) -> GpsCoordinate | None:
     """Return the GPS position, or ``None`` if absent or out of range."""
     latitude = as_float(first_value(tags, LAT_KEYS))
     longitude = as_float(first_value(tags, LON_KEYS))

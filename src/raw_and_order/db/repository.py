@@ -6,7 +6,7 @@ copy and failure logs have their own repositories.
 """
 
 from pathlib import Path
-from typing import Protocol
+from typing import NamedTuple, Protocol
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
@@ -58,11 +58,18 @@ class ExifStore(Protocol):
         ...
 
 
+class StoredHash(NamedTuple):
+    """Where a stored photo's preview is, and the pHash stored for it."""
+
+    preview_path: Path
+    phash: str | None  # None until the photo is first hashed
+
+
 class PerceptualHashStore(Protocol):
     """Reads previews and updates only the perceptual hash of stored photos."""
 
-    def stored_hashes(self) -> dict[Path, tuple[Path, str | None]]:
-        """Return ``{photo path: (preview path, pHash)}`` for every photo."""
+    def stored_hashes(self) -> dict[Path, StoredHash]:
+        """Return each stored photo's preview and pHash, by photo path."""
         ...
 
     def update_phash(self, path: Path, phash: str) -> None:
@@ -150,7 +157,7 @@ class SqlAlchemyPhotoRepository:
                 raise PersistenceError(f"{path} is not in the database")
             apply_exif(row, exif)
 
-    def stored_hashes(self) -> dict[Path, tuple[Path, str | None]]:
+    def stored_hashes(self) -> dict[Path, StoredHash]:
         """Return ``{photo path: (preview path, pHash)}``, ordered by path.
 
         Raises:
@@ -159,7 +166,10 @@ class SqlAlchemyPhotoRepository:
         query = select(PhotoRow.path, PhotoRow.preview_path, PhotoRow.phash)
         with database_errors("list stored hashes"), self._session_factory() as session:
             rows = session.execute(query.order_by(PhotoRow.path))
-            return {Path(p): (Path(preview), phash) for p, preview, phash in rows}
+            return {
+                Path(path): StoredHash(Path(preview), phash)
+                for path, preview, phash in rows
+            }
 
     def update_phash(self, path: Path, phash: str) -> None:
         """Replace only the pHash; everything else stays.

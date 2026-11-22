@@ -2,6 +2,7 @@
 
 from enum import StrEnum
 from pathlib import Path
+from typing import TypedDict
 
 from pydantic import BaseModel, Field
 
@@ -112,3 +113,28 @@ class WorkflowState(BaseModel):
         default_factory=list,
         description="Logged failures whose file no longer exists (log cleared).",
     )
+
+
+class StateUpdate(TypedDict, total=False):
+    """The fields of :class:`WorkflowState` that one step changed.
+
+    Every step returns one; the runner merges it into the next state. Typed
+    (instead of ``dict[str, Any]``) so mypy rejects a misspelled field name
+    or a value of the wrong type. The run's settings (``source_dir``,
+    ``reprocess`` ...) are not here: no step changes them.
+    """
+
+    items: list[PhotoItem]
+    queue: list[PhotoItem]
+    selected: int
+    deferred: int
+    chunk_index: int
+    chunk_total: int
+    saved_count: int
+    consecutive_annotate_failures: int
+    failures: list[FailedPhoto]
+    skipped_pairs: list[Path]
+    unchanged: list[Path]
+    copies: list[PhotoCopy]
+    previously_failed: list[Path]
+    missing: list[Path]

@@ -8,8 +8,16 @@ in order of preference.
 from collections.abc import Mapping
 from typing import Any
 
+ExifTags = Mapping[str, Any]
+"""Exiftool's tags for one file, as ``{"Group:Tag": value}``.
 
-def first_value(tags: Mapping[str, Any], keys: tuple[str, ...]) -> Any:
+Keys carry their group because exiftool runs with ``-G`` (e.g.
+``"EXIF:Make"``, ``"MakerNotes:WhiteBalance"``). Values are numbers or text,
+depending on the tag; use :func:`as_text`, :func:`as_float` and :func:`as_int`.
+"""
+
+
+def first_value(tags: ExifTags, keys: tuple[str, ...]) -> Any:
     """The value of the first key present and not empty, else ``None``."""
     return next((tags[key] for key in keys if tags.get(key) not in (None, "")), None)
 

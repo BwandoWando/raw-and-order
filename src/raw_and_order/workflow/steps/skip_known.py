@@ -2,11 +2,10 @@
 
 import logging
 from pathlib import Path
-from typing import Any
 
 from raw_and_order.db.failure_repository import FailureRepository
 from raw_and_order.db.repository import PhotoRepository
-from raw_and_order.workflow.state import PhotoItem, WorkflowState
+from raw_and_order.workflow.state import PhotoItem, StateUpdate, WorkflowState
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +29,7 @@ class SkipKnownStep:
         self._photos = photos
         self._failures = failures
 
-    def __call__(self, state: WorkflowState) -> dict[str, Any]:
+    def __call__(self, state: WorkflowState) -> StateUpdate:
         """Return the remaining ``items`` and what was skipped."""
         if state.reprocess or state.reprocess_failed:
             return {"unchanged": [], "previously_failed": []}

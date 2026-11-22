@@ -5,7 +5,7 @@ from collections.abc import Sequence
 from datetime import datetime
 from pathlib import Path
 from types import TracebackType
-from typing import Any, Self
+from typing import Self
 
 import exiftool
 from exiftool.exceptions import ExifToolException, ExifToolVersionError
@@ -13,6 +13,7 @@ from exiftool.exceptions import ExifToolException, ExifToolVersionError
 from raw_and_order.exceptions import ConfigurationError, ExifReadError
 from raw_and_order.media.capture_date import parse_exif_datetime
 from raw_and_order.media.exif_mapping import REQUESTED_TAGS, ExifMapper
+from raw_and_order.media.exif_values import ExifTags
 from raw_and_order.schemas.exif import ExifData
 
 logger = logging.getLogger(__name__)
@@ -110,22 +111,22 @@ class PyExifToolReader:
                     times[path] = parse_exif_datetime(tags.get(CAPTURE_TIME_TAG))
         return {path: times.get(path) for path in paths}
 
-    def _get_tags(self, files: list[str], tags: list[str]) -> list[dict[str, Any]]:
+    def _get_tags(self, files: list[str], tags: list[str]) -> list[ExifTags]:
         if self._helper is None:
             raise ExifReadError("exiftool is not running; call start() first")
         try:
-            results: list[dict[str, Any]] = self._helper.get_tags(files, tags)
+            results: list[ExifTags] = self._helper.get_tags(files, tags)
         except ExifToolException as exc:
             raise ExifReadError(
                 f"exiftool failed on {len(files)} file(s): {exc}"
             ) from exc
         return results
 
-    def _read_tags(self, path: Path) -> dict[str, Any]:
+    def _read_tags(self, path: Path) -> ExifTags:
         if self._helper is None:
             raise ExifReadError("exiftool is not running; call start() first")
         try:
-            results: list[dict[str, Any]] = self._helper.get_tags(
+            results: list[ExifTags] = self._helper.get_tags(
                 str(path), list(REQUESTED_TAGS)
             )
         except ExifToolException as exc:

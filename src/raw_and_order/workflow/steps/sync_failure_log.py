@@ -2,10 +2,9 @@
 
 from collections.abc import Callable
 from datetime import datetime
-from typing import Any
 
 from raw_and_order.db.failure_repository import FailureRepository
-from raw_and_order.workflow.state import WorkflowState
+from raw_and_order.workflow.state import StateUpdate, WorkflowState
 from raw_and_order.workflow.steps.persist import utc_now
 
 
@@ -26,7 +25,7 @@ class SyncFailureLogStep:
         self._failures = failures
         self._clock = clock
 
-    def __call__(self, state: WorkflowState) -> dict[str, Any]:
+    def __call__(self, state: WorkflowState) -> StateUpdate:
         """Write failures and resolutions; the state is not changed."""
         now = self._clock()
         for item in state.items:
