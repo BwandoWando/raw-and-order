@@ -223,6 +223,7 @@ def _sidebar_filters(app: AppTest) -> dict[str, object]:
         *app.sidebar.button_group,
         *app.sidebar.date_input,
         *app.sidebar.checkbox,
+        *app.sidebar.toggle,
         *app.sidebar.slider,
     ]
     return {str(w.key): w.value for w in widgets}
@@ -242,6 +243,7 @@ def test_reset_filters_restores_every_filter(app_with) -> None:  # type: ignore[
         app.multiselect(key=key).select(value).run()
     app.button_group(key=FilterKey.PEOPLE).set_value("Yes").run()
     app.checkbox(key=FilterKey.GPS).check().run()
+    app.toggle(key=FilterKey.FAVORITES).set_value(True).run()
     app.slider(key=FilterKey.KELVIN).set_range(5100, 5300).run()
     day = date(2026, 1, 11)
     app.date_input(key=FilterKey.DATES).set_value((day, day)).run()

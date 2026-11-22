@@ -21,6 +21,7 @@ class FilterKey(StrEnum):
     """
 
     TEXT = "f_text"
+    FAVORITES = "f_favorites"
     SCENES = "f_scenes"
     TAGS = "f_tags"
     PEOPLE = "f_people"
@@ -52,6 +53,7 @@ def render_filters(options: FilterOptions) -> PhotoQuery:
     text = sidebar.text_input(
         "Search", key=FilterKey.TEXT, placeholder="description or tag"
     )
+    only_favorites = sidebar.toggle("Favorites only", key=FilterKey.FAVORITES)
     scenes = sidebar.multiselect("Scene", options.scenes, key=FilterKey.SCENES)
     tags = sidebar.multiselect(
         "Tags (all of)",
@@ -88,6 +90,7 @@ def render_filters(options: FilterOptions) -> PhotoQuery:
         date_from=date_from,
         date_to=date_to,
         only_with_gps=only_gps,
+        only_favorites=only_favorites,
         kelvin_min=kelvin_min,
         kelvin_max=kelvin_max,
         annotated_by=tuple(annotators),
@@ -102,6 +105,7 @@ def filter_defaults(options: FilterOptions) -> dict[str, object]:
     """
     defaults: dict[str, object] = {
         FilterKey.TEXT: "",
+        FilterKey.FAVORITES: False,
         FilterKey.SCENES: [],
         FilterKey.TAGS: [],
         FilterKey.PEOPLE: "Any",

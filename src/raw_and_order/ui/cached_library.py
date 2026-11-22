@@ -111,8 +111,14 @@ class CachedPhotoLibrary:
         return self._favorites.is_favorite(path)
 
     def set_favorite(self, path: Path, favorite: bool) -> None:
-        """Mark or unmark the photo, stamped with this computer's local time."""
+        """Mark or unmark the photo, stamped with this computer's local time.
+
+        Cached searches and tag networks are dropped, since the "Favorites
+        only" filter changes what they contain.
+        """
         self._favorites.set_favorite(path, favorite, when=datetime.now())
+        _search.clear()
+        _tag_graph.clear()
 
     def stats(self) -> PhotoStats:
         """Return totals and breakdowns."""

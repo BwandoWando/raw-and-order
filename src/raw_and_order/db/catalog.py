@@ -19,7 +19,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from raw_and_order.analysis.similarity import SIMILAR_MAX_DISTANCE, shares_tags
 from raw_and_order.db.errors import database_errors
 from raw_and_order.db.mappers import to_record
-from raw_and_order.db.models import CopyRow, PhotoRow
+from raw_and_order.db.models import CopyRow, FavoriteRow, PhotoRow
 from raw_and_order.media.hashing import hamming_distance
 from raw_and_order.schemas import PhotoRecord
 from raw_and_order.schemas.query import (
@@ -337,6 +337,8 @@ def apply_filters(statement: Select[Any], query: PhotoQuery) -> Select[Any]:
         )
     if query.only_with_gps:
         conditions.append(PhotoRow.gps_latitude.is_not(None))
+    if query.only_favorites:
+        conditions.append(PhotoRow.id.in_(select(FavoriteRow.photo_id)))
     if query.kelvin_min is not None:
         conditions.append(PhotoRow.white_balance_k >= query.kelvin_min)
     if query.kelvin_max is not None:

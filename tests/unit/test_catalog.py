@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from raw_and_order.db.catalog import SqlAlchemyPhotoCatalog, escape_like
 from raw_and_order.db.copy_repository import SqlAlchemyCopyRepository
+from raw_and_order.db.favorite_repository import SqlAlchemyFavoriteRepository
 from raw_and_order.db.repository import SqlAlchemyPhotoRepository
 from raw_and_order.schemas import (
     Annotation,
@@ -300,3 +301,21 @@ def test_matching_returns_every_filtered_photo_unpaged(
 
     assert len(everything) == 4  # page_size does not limit it
     assert {r.path.name for r in people} == {"street.arw", "portrait.jpg"}
+
+
+def test_favorites_only_filter(
+    catalog: SqlAlchemyPhotoCatalog, session_factory: sessionmaker[Session]
+) -> None:
+    assert _names(catalog, only_favorites=True) == []
+    favorites = SqlAlchemyFavoriteRepository(session_factory)
+    for name in ("street.arw", "portrait.jpg"):
+        favorites.set_favorite(
+            Path("/photos") / name, True, when=datetime(2026, 11, 22, 9)
+        )
+
+    assert _names(catalog, only_favorites=True) == ["street.arw", "portrait.jpg"]
+    assert _names(catalog, only_favorites=True, contains_people=False) == []
+    assert sorted(catalog.tag_lists(PhotoQuery(only_favorites=True))) == [
+        ["city", "sunset-ish"],
+        ["person"],
+    ]

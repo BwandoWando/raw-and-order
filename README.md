@@ -193,10 +193,11 @@ raw-and-order ui --port 8600 --no-open-browser
 Stop it with Ctrl+C. In VS Code, the **Streamlit UI** debug configuration in
 `.vscode/launch.json` runs it with breakpoints.
 
-- **Filters** (sidebar): text search over descriptions and tags, scene, tags
-  (all of; each listed with its number of photos, e.g. `urban (431)`), people,
-  camera, lens, capture-date range, white balance (K) range, GPS only,
-  annotating model. They apply to the Gallery, Tags and Export tabs.
+- **Filters** (sidebar): text search over descriptions and tags, favorites
+  only, scene, tags (all of; each listed with its number of photos, e.g.
+  `urban (431)`), people, camera, lens, capture-date range, white balance (K)
+  range, GPS only, annotating model. They apply to the Gallery, Tags and
+  Export tabs.
 
 - **Gallery:** a thumbnail grid (24 / 48 / 72 / 99 per page) sized so a whole
   page fits on one screen, with the pager below it (or the left and right
@@ -207,7 +208,9 @@ Stop it with Ctrl+C. In VS Code, the **Streamlit UI** debug configuration in
   photo has GPS, its SHA-256 and pHash, exact copies of it stored elsewhere
   ("Also stored at"), and similar photos. The dialog fits one screen, with the
   file name at the top; click the photo to see it full screen, as large as the
-  window allows. Step to the previous or next photo on the gallery page with
+  window allows. The star in the photo's top-right corner marks it as a
+  favorite (click again to unmark); the time it was starred is kept in the
+  `favorites` table, in this computer's local time. Step to the previous or next photo on the gallery page with
   the buttons at its edges (shown on hover) or the arrow keys; click a similar
   photo to show it in the dialog. Similar photos are labelled by pHash
   distance (of 64 bits): Identical (0–2), Very similar (3–8) and Similar
