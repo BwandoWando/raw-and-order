@@ -148,25 +148,6 @@ alembic upgrade head    # create / migrate data/app.db
 pre-commit install      # optional: lint + type-check on commit
 ```
 
-**Upgrading from `my-agent`:** the project used to be called `my-agent`
-(command, conda env and project folder) with the Python package `my_agent`.
-To switch an existing setup, keeping your `data/` folder and `.env` as they
-are (stop any running `process` or `ui` first):
-
-```bash
-conda deactivate
-conda rename -n my-agent raw-and-order
-mv my-agent raw-and-order && cd raw-and-order   # if your folder has the old name
-git pull
-conda activate raw-and-order
-pip uninstall -y my-agent && pip install -e ".[dev,ollama,heic,ui]"
-git remote set-url origin git@github.com:BwandoWando/raw-and-order.git
-```
-
-Then use `raw-and-order` wherever you used `my-agent`, reopen the renamed
-folder in VS Code and pick the `raw-and-order` interpreter if it still shows
-the old one. The database needs no changes.
-
 **Pick a model.** For Ollama, pull a vision model and set it in `.env`:
 
 ```bash
