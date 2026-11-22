@@ -17,6 +17,7 @@ from raw_and_order.media.capture_date import (
     XMP_DATE_KEYS,
     CaptureDateResolver,
 )
+from raw_and_order.media.exif_values import as_float, as_int, as_text, first_value
 from raw_and_order.media.white_balance import (
     CAMERA_KELVIN_KEYS,
     EDITED_KELVIN_KEYS,
@@ -99,22 +100,22 @@ class ExifMapper:
         capture = self._date_resolver.resolve(tags, path)
         white_balance = resolve_white_balance(tags)
         return ExifData(
-            make=_as_text(_first(tags, MAKE_KEYS)),
-            model=_as_text(_first(tags, MODEL_KEYS)),
+            make=as_text(first_value(tags, MAKE_KEYS)),
+            model=as_text(first_value(tags, MODEL_KEYS)),
             lens_model=first_meaningful_text(tags, LENS_MODEL_KEYS),
             lens_make=first_meaningful_text(tags, LENS_MAKE_KEYS),
             lens_spec=first_meaningful_text(tags, LENS_SPEC_KEYS),
-            iso=_as_int(_first(tags, ISO_KEYS)),
-            exposure_time_s=_as_float(_first(tags, EXPOSURE_KEYS)),
-            f_number=_as_float(_first(tags, F_NUMBER_KEYS)),
-            focal_length_mm=_as_float(_first(tags, FOCAL_KEYS)),
+            iso=as_int(first_value(tags, ISO_KEYS)),
+            exposure_time_s=as_float(first_value(tags, EXPOSURE_KEYS)),
+            f_number=as_float(first_value(tags, F_NUMBER_KEYS)),
+            focal_length_mm=as_float(first_value(tags, FOCAL_KEYS)),
             captured_at=capture.value if capture else None,
             date_source=capture.source if capture else DateSource.NONE,
             white_balance=white_balance.mode,
             white_balance_k=white_balance.kelvin,
             white_balance_k_source=white_balance.source,
-            width_px=_as_int(_first(tags, WIDTH_KEYS)),
-            height_px=_as_int(_first(tags, HEIGHT_KEYS)),
+            width_px=as_int(first_value(tags, WIDTH_KEYS)),
+            height_px=as_int(first_value(tags, HEIGHT_KEYS)),
             gps=map_gps(tags),
         )
 
@@ -126,7 +127,7 @@ def first_meaningful_text(tags: Mapping[str, Any], keys: tuple[str, ...]) -> str
     lens code) and ``"Unknown (61)"``.
     """
     for key in keys:
-        text = _as_text(tags.get(key))
+        text = as_text(tags.get(key))
         if text is not None and not _JUNK_TEXT.match(text):
             return text
     return None
@@ -134,8 +135,8 @@ def first_meaningful_text(tags: Mapping[str, Any], keys: tuple[str, ...]) -> str
 
 def map_gps(tags: Mapping[str, Any]) -> GpsCoordinate | None:
     """Return the GPS position, or ``None`` if absent or out of range."""
-    latitude = _as_float(_first(tags, LAT_KEYS))
-    longitude = _as_float(_first(tags, LON_KEYS))
+    latitude = as_float(first_value(tags, LAT_KEYS))
+    longitude = as_float(first_value(tags, LON_KEYS))
     if latitude is None or longitude is None:
         return None
     if not (-90 <= latitude <= 90 and -180 <= longitude <= 180):
@@ -143,25 +144,5 @@ def map_gps(tags: Mapping[str, Any]) -> GpsCoordinate | None:
     return GpsCoordinate(
         latitude=latitude,
         longitude=longitude,
-        altitude_m=_as_float(_first(tags, ALT_KEYS)),
+        altitude_m=as_float(first_value(tags, ALT_KEYS)),
     )
-
-
-def _first(tags: Mapping[str, Any], keys: tuple[str, ...]) -> Any:
-    return next((tags[key] for key in keys if tags.get(key) not in (None, "")), None)
-
-
-def _as_text(value: Any) -> str | None:
-    return None if value is None else str(value).strip() or None
-
-
-def _as_float(value: Any) -> float | None:
-    try:
-        return None if value is None else float(value)
-    except (TypeError, ValueError):
-        return None
-
-
-def _as_int(value: Any) -> int | None:
-    number = _as_float(value)
-    return None if number is None else int(number)

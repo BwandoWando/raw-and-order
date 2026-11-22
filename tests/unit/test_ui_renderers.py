@@ -16,7 +16,8 @@ from raw_and_order.schemas import (
 )
 from raw_and_order.schemas.query import NearDuplicate
 from raw_and_order.ui.detail import similar_button_key
-from raw_and_order.ui.gallery import open_button_key
+from raw_and_order.ui.filters import FilterKey
+from raw_and_order.ui.gallery import GalleryKey, open_button_key
 from raw_and_order.ui.library import PhotoLibrary
 from tests.fakes import SAMPLE_ANNOTATION, FakePhotoLibrary
 
@@ -64,7 +65,7 @@ def test_gallery_pages_through_the_injected_library() -> None:
     app = _app(FakePhotoLibrary([_record(i) for i in range(30)]))
 
     assert "Showing 1–24 of 30 photos" in [c.value for c in app.caption]
-    app.button(key="g_next").click().run()
+    app.button(key=GalleryKey.NEXT).click().run()
     assert "Showing 25–30 of 30 photos" in [c.value for c in app.caption]
 
 
@@ -197,10 +198,10 @@ def test_tag_filter_shows_photo_counts() -> None:
     only_sea = SAMPLE_ANNOTATION.model_copy(update={"tags": ["sea"]})
     app = _app(FakePhotoLibrary([_record(0, sea), _record(1, only_sea)]))
 
-    tags = app.multiselect(key="f_tags")
+    tags = app.multiselect(key=FilterKey.TAGS)
     assert list(tags.options) == ["sea (2)", "sky (1)"]
     tags.select("sea").run()
-    assert app.multiselect(key="f_tags").value == ["sea"]  # the plain tag
+    assert app.multiselect(key=FilterKey.TAGS).value == ["sea"]  # the plain tag
 
 
 def test_details_photo_opens_full_screen_on_click(tmp_path: Path) -> None:

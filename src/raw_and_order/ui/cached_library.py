@@ -28,7 +28,6 @@ from raw_and_order.schemas.tags import TagGraph
 
 CACHE_TTL_S = 30  # pick up photos saved by a running pipeline
 THUMBNAIL_CACHE_ENTRIES = 3000  # about 30 full pages of 99
-PAGING_FIELDS = {"page", "page_size", "sort"}
 
 
 class CachedPhotoLibrary:
@@ -108,12 +107,11 @@ class CachedPhotoLibrary:
         self, filters: PhotoQuery, top_n: int, min_strength: float
     ) -> TagGraph:
         """Return the network of the ``top_n`` most-used tags under ``filters``."""
-        # Paging and sort do not change the graph; reset them for more cache hits.
-        filters_only = PhotoQuery(**filters.model_dump(exclude=PAGING_FIELDS))
+        # Paging and sort do not change the graph; dropping them gets more cache hits.
         return _tag_graph(
             self._catalog,
             self._key,
-            filters_only.model_dump_json(),
+            filters.filters_only().model_dump_json(),
             top_n,
             min_strength,
         )

@@ -1,6 +1,8 @@
 """Small JPEG thumbnails of saved previews, for dense gallery grids."""
 
 import io
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 
 from PIL import Image, UnidentifiedImageError
@@ -26,13 +28,10 @@ class JpegThumbnailer:
         Raises:
             PreviewError: If the preview is missing or not an image.
         """
-        try:
-            with Image.open(preview_path) as image:
-                image.thumbnail((max_px, max_px))
-                buffer = io.BytesIO()
-                image.convert("RGB").save(buffer, "JPEG", quality=self._quality)
-        except (OSError, UnidentifiedImageError) as exc:
-            raise PreviewError(f"Could not read preview {preview_path}: {exc}") from exc
+        with _open_preview(preview_path) as image:
+            image.thumbnail((max_px, max_px))
+            buffer = io.BytesIO()
+            image.convert("RGB").save(buffer, "JPEG", quality=self._quality)
         return buffer.getvalue()
 
     def size(self, preview_path: Path) -> tuple[int, int]:
@@ -43,9 +42,20 @@ class JpegThumbnailer:
         Raises:
             PreviewError: If the preview is missing or not an image.
         """
-        try:
-            with Image.open(preview_path) as image:
-                width, height = image.size
-                return int(width), int(height)
-        except (OSError, UnidentifiedImageError) as exc:
-            raise PreviewError(f"Could not read preview {preview_path}: {exc}") from exc
+        with _open_preview(preview_path) as image:
+            width, height = image.size
+        return int(width), int(height)
+
+
+@contextmanager
+def _open_preview(preview_path: Path) -> Iterator[Image.Image]:
+    """Open a saved preview, turning any read failure into a PreviewError.
+
+    Failures while the image is in use (e.g. a truncated file found while
+    shrinking it) are converted too.
+    """
+    try:
+        with Image.open(preview_path) as image:
+            yield image
+    except (OSError, UnidentifiedImageError) as exc:
+        raise PreviewError(f"Could not read preview {preview_path}: {exc}") from exc

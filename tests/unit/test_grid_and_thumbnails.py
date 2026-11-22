@@ -77,3 +77,13 @@ def test_size_is_the_preview_as_shown(tmp_path: Path) -> None:
 def test_size_of_a_missing_preview_is_a_preview_error(tmp_path: Path) -> None:
     with pytest.raises(PreviewError):
         JpegThumbnailer().size(tmp_path / "gone.jpg")
+
+
+def test_a_corrupt_preview_is_a_preview_error(tmp_path: Path) -> None:
+    preview = tmp_path / "broken.jpg"
+    preview.write_bytes(b"not a jpeg")
+
+    with pytest.raises(PreviewError):
+        JpegThumbnailer().thumbnail(preview, 128)
+    with pytest.raises(PreviewError):
+        JpegThumbnailer().size(preview)

@@ -1,11 +1,13 @@
 """Gallery tab: sort, page size, thumbnail grid and pagination."""
 
+from enum import StrEnum
 from pathlib import Path
 
 import streamlit as st
 
 from raw_and_order.schemas import PhotoRecord
 from raw_and_order.schemas.query import PAGE_SIZES, PhotoQuery, SortOrder
+from raw_and_order.ui.css import clickable_tile, keyed, keyed_prefix
 from raw_and_order.ui.detail import details_open, open_details
 from raw_and_order.ui.formatting import card_caption, path_digest
 from raw_and_order.ui.grid import grid_shape, thumbnail_px
@@ -16,6 +18,19 @@ THUMB_KEY_PREFIX = "thumb-"  # container holding the image and the overlay
 # [class*="st-key-thumb-"], which would also match "thumb-open-".
 OPEN_KEY_PREFIX = "thumbopen-"  # the overlay button itself
 GRID_KEY = "gallery-grid"
+
+
+class GalleryKey(StrEnum):
+    """Session State keys of the gallery's controls and paging."""
+
+    SORT = "g_sort"
+    PAGE_SIZE = "g_page_size"  # also the URL query parameter: keep it stable
+    PAGE = "g_page"
+    PAGE_QUERY = "g_signature"  # the query the page number belongs to
+    PREVIOUS = "g_prev"
+    NEXT = "g_next"
+
+
 # Height of everything on the page but the tiles (menu bar, title, tabs, sort
 # row, "Showing" caption, pager and page padding), so the grid fills the rest.
 # Measured with the padding in ui/theme.toml.
@@ -33,20 +48,17 @@ def thumbnail_css(rows: int) -> str:
     tile whole (``object-fit: contain``), so portrait and landscape shots are
     letterboxed rather than cropped.
 
-    Each tile is a keyed container holding the image and a transparent, real
-    button laid over it. Streamlit gives keyed elements the class
-    st-key-<key>, so the overlay is targeted by its own key (the image has a
-    hidden fullscreen button too). Being a real button, it is keyboard- and
-    screen-reader-accessible.
+    Each tile is clickable through a transparent button laid over it (see
+    :func:`~raw_and_order.ui.css.clickable_tile`).
     """
     tile_height = (
         f"calc((100vh - {CHROME_REM}rem - {rows - 1} * {ROW_GAP_REM}rem) / {rows})"
     )
+    tile = keyed_prefix(THUMB_KEY_PREFIX)
     return f"""
 <style>
-.st-key-{GRID_KEY} {{ gap: {ROW_GAP_REM}rem; }}
-[class*="st-key-{THUMB_KEY_PREFIX}"] {{ position: relative; }}
-[class*="st-key-{THUMB_KEY_PREFIX}"] img {{
+{keyed(GRID_KEY)} {{ gap: {ROW_GAP_REM}rem; }}
+{tile} img {{
     display: block;
     width: min(100%, {tile_height});
     height: auto;
@@ -57,24 +69,7 @@ def thumbnail_css(rows: int) -> str:
     border-radius: 0.375rem;
     transition: filter 120ms ease-in-out;
 }}
-[class*="st-key-{THUMB_KEY_PREFIX}"]:hover img {{ filter: brightness(0.85); }}
-[class*="st-key-{OPEN_KEY_PREFIX}"] {{
-    position: absolute;
-    inset: 0;
-    z-index: 1;
-}}
-[class*="st-key-{OPEN_KEY_PREFIX}"] * {{
-    width: 100%;
-    height: 100%;
-}}
-[class*="st-key-{OPEN_KEY_PREFIX}"] button {{
-    opacity: 0;
-    cursor: pointer;
-}}
-[class*="st-key-{THUMB_KEY_PREFIX}"]:has(button:focus-visible) img {{
-    outline: 3px solid #2a78d6;
-    outline-offset: 2px;
-}}
+{clickable_tile(tile, keyed_prefix(OPEN_KEY_PREFIX))}
 </style>
 """
 
@@ -90,10 +85,13 @@ def render_gallery(filters: PhotoQuery, library: PhotoLibrary) -> None:
     """Draw the gallery for the given filters."""
     sort_col, size_col, _ = st.columns([2, 1, 3])
     sort = sort_col.selectbox(
-        "Sort", list(SORT_LABELS), format_func=SORT_LABELS.__getitem__, key="g_sort"
+        "Sort",
+        list(SORT_LABELS),
+        format_func=SORT_LABELS.__getitem__,
+        key=GalleryKey.SORT,
     )
     page_size = size_col.selectbox(
-        "Per page", PAGE_SIZES, key="g_page_size", bind="query-params"
+        "Per page", PAGE_SIZES, key=GalleryKey.PAGE_SIZE, bind="query-params"
     )
     query = filters.model_copy(update={"sort": sort, "page_size": page_size})
     page_number = _current_page(query)
@@ -106,7 +104,13 @@ def render_gallery(filters: PhotoQuery, library: PhotoLibrary) -> None:
     last = first + len(result.items) - 1
     st.caption(f"Showing {first}–{last} of {result.total} photos")
     _grid(result.items, query.page_size, library)
-    _pager(result.pages)
+    _pager(page_number, result.pages)
+
+
+def chosen_sort(default: SortOrder) -> SortOrder:
+    """The sort order picked in the gallery, or ``default`` before it is drawn."""
+    sort = st.session_state.get(GalleryKey.SORT, default)
+    return SortOrder(sort)
 
 
 def thumbnail_key(path: Path | str) -> str:
@@ -162,13 +166,13 @@ def _thumbnail(
 def _current_page(query: PhotoQuery) -> int:
     """Keep the page number, but go back to page 1 when filters change."""
     signature = query.model_dump_json()
-    if st.session_state.get("g_signature") != signature:
-        st.session_state["g_signature"] = signature
-        st.session_state["g_page"] = 1
-    return int(st.session_state.get("g_page", 1))
+    if st.session_state.get(GalleryKey.PAGE_QUERY) != signature:
+        st.session_state[GalleryKey.PAGE_QUERY] = signature
+        st.session_state[GalleryKey.PAGE] = 1
+    return int(st.session_state.get(GalleryKey.PAGE, 1))
 
 
-def _pager(pages: int) -> None:
+def _pager(page: int, pages: int) -> None:
     """Previous and next page buttons, also on the left and right arrow keys.
 
     While the photo details are open the arrow keys step photos instead, so
@@ -177,25 +181,24 @@ def _pager(pages: int) -> None:
     """
     if pages <= 1:
         return
-    page = int(st.session_state.get("g_page", 1))
     keys_free = not details_open()
-    previous, label, following = st.columns([1, 2, 1])
-    previous.button(
+    previous_col, label_col, next_col = st.columns([1, 2, 1])
+    previous_col.button(
         "Previous",
-        key="g_prev",
+        key=GalleryKey.PREVIOUS,
         shortcut="Left" if keys_free else None,
         on_click=_go,
         args=(page - 1,),
         disabled=page <= 1,
         width="stretch",
     )
-    label.markdown(
+    label_col.markdown(
         f"<div style='text-align:center'>Page {page} of {pages}</div>",
         unsafe_allow_html=True,
     )
-    following.button(
+    next_col.button(
         "Next",
-        key="g_next",
+        key=GalleryKey.NEXT,
         shortcut="Right" if keys_free else None,
         on_click=_go,
         args=(page + 1,),
@@ -205,4 +208,4 @@ def _pager(pages: int) -> None:
 
 
 def _go(page: int) -> None:
-    st.session_state["g_page"] = page
+    st.session_state[GalleryKey.PAGE] = page

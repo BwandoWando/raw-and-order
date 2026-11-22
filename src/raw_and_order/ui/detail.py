@@ -21,6 +21,12 @@ from streamlit.delta_generator import DeltaGenerator
 from raw_and_order.analysis.similarity import similarity
 from raw_and_order.schemas import ExifData, PhotoRecord
 from raw_and_order.schemas.query import NearDuplicate
+from raw_and_order.ui.css import (
+    clickable_tile,
+    keyed,
+    keyed_prefix,
+    visually_hidden,
+)
 from raw_and_order.ui.formatting import (
     camera_settings,
     capture_label,
@@ -59,6 +65,19 @@ CHROME_REM = 30
 LANDSCAPE_SHARE = (3, 2)
 PORTRAIT_SHARE = (2, 3)
 
+_LABEL = '[data-testid="stMarkdownContainer"]'  # a button's text label
+# Icon-only buttons: their label (and shortcut hint) stays for screen readers.
+_ICON_ONLY_BUTTONS = visually_hidden(
+    f"{keyed(PREVIOUS_KEY)} {_LABEL}",
+    f"{keyed(NEXT_KEY)} {_LABEL}",
+    f"{keyed(PREVIOUS_KEY)} kbd",
+    f"{keyed(NEXT_KEY)} kbd",
+    f"{keyed(CLOSE_FULL_SCREEN_KEY)} {_LABEL}",
+)
+_SIMILAR_TILES = clickable_tile(
+    keyed_prefix(SIMILAR_TILE_PREFIX), keyed_prefix(SIMILAR_OPEN_PREFIX)
+)
+
 DETAIL_CSS = f"""
 <style>
 .st-key-{FRAME_KEY} img {{
@@ -82,43 +101,13 @@ DETAIL_CSS = f"""
     height: {STEP_BUTTON_PX}px;
     border-radius: 50%;
 }}
-/* Icon-only look; label and shortcut stay readable by screen readers. */
-.st-key-{PREVIOUS_KEY} [data-testid="stMarkdownContainer"],
-.st-key-{NEXT_KEY} [data-testid="stMarkdownContainer"],
-.st-key-{PREVIOUS_KEY} kbd,
-.st-key-{NEXT_KEY} kbd {{
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip: rect(0 0 0 0);
-    white-space: nowrap;
-}}
 .st-key-{SIMILAR_KEY} img {{
     height: 4.5rem;
     object-fit: cover;
     border-radius: 0.25rem;
     transition: filter 120ms ease-in-out;
 }}
-[class*="st-key-{SIMILAR_TILE_PREFIX}"] {{ position: relative; }}
-[class*="st-key-{SIMILAR_TILE_PREFIX}"]:hover img {{ filter: brightness(0.85); }}
-[class*="st-key-{SIMILAR_OPEN_PREFIX}"] {{
-    position: absolute;
-    inset: 0;
-    z-index: 1;
-}}
-[class*="st-key-{SIMILAR_OPEN_PREFIX}"] * {{
-    width: 100%;
-    height: 100%;
-}}
-[class*="st-key-{SIMILAR_OPEN_PREFIX}"] button {{
-    opacity: 0;
-    cursor: pointer;
-}}
-[class*="st-key-{SIMILAR_TILE_PREFIX}"]:has(button:focus-visible) img {{
-    outline: 3px solid #2a78d6;
-    outline-offset: 2px;
-}}
+{_SIMILAR_TILES}
 .st-key-{ZOOM_TARGET_KEY} {{ position: relative; }}
 .st-key-{ZOOM_IN_KEY}, .st-key-{ZOOM_OUT_KEY} {{
     position: absolute;
@@ -176,14 +165,7 @@ DETAIL_CSS = f"""
     background: rgba(255, 255, 255, 0.3);
     color: #fff;
 }}
-.st-key-{CLOSE_FULL_SCREEN_KEY} [data-testid="stMarkdownContainer"] {{
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip: rect(0 0 0 0);
-    white-space: nowrap;
-}}
+{_ICON_ONLY_BUTTONS}
 </style>
 """
 

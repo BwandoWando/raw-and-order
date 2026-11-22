@@ -3,7 +3,7 @@
 Two photos are similar only if both hold:
 
 1. Their pHashes (64-bit) differ in at most
-   :data:`~raw_and_order.db.catalog.NEAR_DUPLICATE_DISTANCE` (14) bits.
+   :data:`SIMILAR_MAX_DISTANCE` (14) bits.
 2. They share at least :data:`MIN_TAG_OVERLAP` (25%) of each photo's tags.
 
 The pHash describes the overall structure of light and dark, so on its own
@@ -26,6 +26,7 @@ from enum import StrEnum
 
 IDENTICAL_MAX_DISTANCE = 2
 VERY_SIMILAR_MAX_DISTANCE = 8
+SIMILAR_MAX_DISTANCE = 14  # of 64 pHash bits; beyond this photos are not similar
 MIN_TAG_OVERLAP = 0.25
 
 

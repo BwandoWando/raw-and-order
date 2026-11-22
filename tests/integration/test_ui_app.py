@@ -21,9 +21,9 @@ from raw_and_order.schemas import (
     SceneType,
     WhiteBalanceSource,
 )
-from raw_and_order.schemas.query import FilterOptions
-from raw_and_order.ui.filters import RESET_KEY, filter_defaults
-from raw_and_order.ui.gallery import open_button_key
+from raw_and_order.schemas.query import FilterOptions, SortOrder
+from raw_and_order.ui.filters import RESET_KEY, FilterKey, filter_defaults
+from raw_and_order.ui.gallery import GalleryKey, open_button_key
 from raw_and_order.ui.launcher import APP_PATH
 
 TIMEOUT_S = 30
@@ -122,7 +122,7 @@ def test_gallery_lists_photos_and_all_tabs_render(app_with) -> None:  # type: ig
 def test_search_filter_narrows_results(app_with) -> None:  # type: ignore[no-untyped-def]
     app = app_with(3)
 
-    app.text_input(key="f_text").input("sunset").run()
+    app.text_input(key=FilterKey.TEXT).input("sunset").run()
 
     assert not app.exception
     assert "Showing 1–1 of 1 photos" in _captions(app)
@@ -132,12 +132,12 @@ def test_page_size_and_pagination(app_with) -> None:  # type: ignore[no-untyped-
     app = app_with(30)
     assert "Showing 1–24 of 30 photos" in _captions(app)
 
-    app.button(key="g_next").click().run()
+    app.button(key=GalleryKey.NEXT).click().run()
 
     assert not app.exception
     assert "Showing 25–30 of 30 photos" in _captions(app)
 
-    app.selectbox(key="g_page_size").select(48).run()
+    app.selectbox(key=GalleryKey.PAGE_SIZE).select(48).run()
     assert "Showing 1–30 of 30 photos" in _captions(app)
 
 
@@ -169,8 +169,8 @@ def test_empty_database_shows_hint(app_with) -> None:  # type: ignore[no-untyped
 def test_white_balance_slider_filters(app_with, tmp_path: Path) -> None:  # type: ignore[no-untyped-def]
     app = app_with(3)  # 5000, 5100 and 5200 K
 
-    assert app.slider(key="f_kelvin").value == (5000, 5200)
-    app.slider(key="f_kelvin").set_range(5100, 5200).run()
+    assert app.slider(key=FilterKey.KELVIN).value == (5000, 5200)
+    app.slider(key=FilterKey.KELVIN).set_range(5100, 5200).run()
 
     assert not app.exception
     assert "Showing 1–2 of 2 photos" in _captions(app)
@@ -203,8 +203,13 @@ def test_page_sizes_and_tooltips_show_captions(
 ) -> None:
     app = app_with(3)
 
-    assert list(app.selectbox(key="g_page_size").options) == ["24", "48", "72", "99"]
-    app.selectbox(key="g_page_size").select(99).run()
+    assert list(app.selectbox(key=GalleryKey.PAGE_SIZE).options) == [
+        "24",
+        "48",
+        "72",
+        "99",
+    ]
+    app.selectbox(key=GalleryKey.PAGE_SIZE).select(99).run()
     assert "Showing 1–3 of 3 photos" in _captions(app)
     button = app.button(key=open_button_key(tmp_path / "IMG_0.ARW"))
     assert button.help == "2026-01-11 · landscape"
@@ -226,20 +231,20 @@ def _sidebar_filters(app: AppTest) -> dict[str, object]:
 def test_reset_filters_restores_every_filter(app_with) -> None:  # type: ignore[no-untyped-def]
     app = app_with(6)
     untouched = _sidebar_filters(app)
-    app.text_input(key="f_text").input("photo").run()
+    app.text_input(key=FilterKey.TEXT).input("photo").run()
     for key, value in [
-        ("f_scenes", "street"),
-        ("f_tags", "city"),
-        ("f_cameras", "ILCE-6400"),
-        ("f_lenses", "Sigma 17-40mm F1.8 DC | A"),
-        ("f_models", "ollama:gemma3:12b"),
+        (FilterKey.SCENES, "street"),
+        (FilterKey.TAGS, "city"),
+        (FilterKey.CAMERAS, "ILCE-6400"),
+        (FilterKey.LENSES, "Sigma 17-40mm F1.8 DC | A"),
+        (FilterKey.ANNOTATED_BY, "ollama:gemma3:12b"),
     ]:
         app.multiselect(key=key).select(value).run()
-    app.button_group(key="f_people").set_value("Yes").run()
-    app.checkbox(key="f_gps").check().run()
-    app.slider(key="f_kelvin").set_range(5100, 5300).run()
+    app.button_group(key=FilterKey.PEOPLE).set_value("Yes").run()
+    app.checkbox(key=FilterKey.GPS).check().run()
+    app.slider(key=FilterKey.KELVIN).set_range(5100, 5300).run()
     day = date(2026, 1, 11)
-    app.date_input(key="f_dates").set_value((day, day)).run()
+    app.date_input(key=FilterKey.DATES).set_value((day, day)).run()
     assert "Showing 1–6 of 6 photos" not in _captions(app)
 
     app.button(key=RESET_KEY).click().run()
@@ -264,3 +269,19 @@ def test_reset_covers_every_sidebar_filter(app_with) -> None:  # type: ignore[no
     )
 
     assert set(_sidebar_filters(app)) == set(filter_defaults(options))
+    assert set(_sidebar_filters(app)) == set(FilterKey)
+
+
+def _export_first_file(app: AppTest) -> str:
+    table = next(d.value for d in app.dataframe if "file_name" in d.value)
+    return str(table["file_name"].iloc[0])
+
+
+def test_export_follows_the_gallery_sort(app_with) -> None:  # type: ignore[no-untyped-def]
+    app = app_with(3)  # IMG_1 is the newest capture, IMG_0 the oldest
+    assert _export_first_file(app) == "IMG_1.ARW"
+
+    app.selectbox(key=GalleryKey.SORT).select(SortOrder.CAPTURED_OLDEST).run()
+
+    assert not app.exception
+    assert _export_first_file(app) == "IMG_0.ARW"

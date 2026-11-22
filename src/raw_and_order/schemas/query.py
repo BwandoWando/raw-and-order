@@ -8,6 +8,9 @@ from pydantic import BaseModel, ConfigDict, Field
 from raw_and_order.schemas.photo import PhotoRecord
 
 PAGE_SIZES = (24, 48, 72, 99)
+# PhotoStats conventions shared by the catalog (which fills it) and the UI.
+UNKNOWN_LABEL = "Unknown"  # label of the count for photos without the value
+KELVIN_BAND_K = 500  # width of a white balance band in by_white_balance
 
 
 class SortOrder(StrEnum):
@@ -38,6 +41,24 @@ class PhotoQuery(BaseModel):
     sort: SortOrder = SortOrder.CAPTURED_NEWEST
     page: int = Field(default=1, ge=1)
     page_size: int = Field(default=PAGE_SIZES[0], ge=1)
+
+    def filters_only(self) -> "PhotoQuery":
+        """This query with the default sort and first page: just its filters.
+
+        For answers that do not depend on order or paging (a count, the tag
+        network, an export), so equal filters compare and cache as equal.
+        """
+        return self.model_copy(update=_PAGING_DEFAULTS)
+
+    def has_filters(self) -> bool:
+        """True if any filter narrows the photos (sort and paging aside)."""
+        return self.filters_only() != PhotoQuery()
+
+
+_PAGING_DEFAULTS = {
+    name: PhotoQuery.model_fields[name].get_default(call_default_factory=True)
+    for name in ("sort", "page", "page_size")
+}
 
 
 class PhotoPage(BaseModel):
@@ -89,7 +110,8 @@ class PhotoStats(BaseModel):
     by_camera: list[CountRow]
     by_month: list[CountRow] = Field(description="YYYY-MM, oldest first.")
     by_white_balance: list[CountRow] = Field(
-        default_factory=list, description="500 K buckets, coolest light first."
+        default_factory=list,
+        description="KELVIN_BAND_K-wide bands, lowest kelvin (warmest light) first.",
     )
     copies: int = Field(default=0, description="Exact copies skipped as duplicates.")
 

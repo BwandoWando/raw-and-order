@@ -15,13 +15,15 @@ from sqlalchemy import Select, Text, cast, func, or_, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, sessionmaker
 
-from raw_and_order.analysis.similarity import shares_tags
+from raw_and_order.analysis.similarity import SIMILAR_MAX_DISTANCE, shares_tags
 from raw_and_order.db.mappers import to_record
 from raw_and_order.db.models import CopyRow, PhotoRow
 from raw_and_order.exceptions import PersistenceError
 from raw_and_order.media.hashing import hamming_distance
 from raw_and_order.schemas import PhotoRecord
 from raw_and_order.schemas.query import (
+    KELVIN_BAND_K,
+    UNKNOWN_LABEL,
     CountRow,
     FilterOptions,
     NearDuplicate,
@@ -32,9 +34,6 @@ from raw_and_order.schemas.query import (
 )
 
 LIKE_ESCAPE = "\\"
-KELVIN_BUCKET = 500
-NEAR_DUPLICATE_DISTANCE = 14  # of 64 pHash bits; see analysis/similarity.py
-UNKNOWN_LABEL = "Unknown"
 
 
 class PhotoCatalog(Protocol):
@@ -53,7 +52,7 @@ class PhotoCatalog(Protocol):
         ...
 
     def near_duplicates(
-        self, record: PhotoRecord, max_distance: int = NEAR_DUPLICATE_DISTANCE
+        self, record: PhotoRecord, max_distance: int = SIMILAR_MAX_DISTANCE
     ) -> list[NearDuplicate]:
         """Return similar photos (close pHash and shared tags), closest first."""
         ...
@@ -187,7 +186,7 @@ class SqlAlchemyPhotoCatalog:
             return to_record(row) if row else None
 
     def near_duplicates(
-        self, record: PhotoRecord, max_distance: int = NEAR_DUPLICATE_DISTANCE
+        self, record: PhotoRecord, max_distance: int = SIMILAR_MAX_DISTANCE
     ) -> list[NearDuplicate]:
         """Return similar photos, closest first.
 
@@ -271,9 +270,9 @@ class SqlAlchemyPhotoCatalog:
 
     @staticmethod
     def _kelvin_buckets(session: Session) -> list[CountRow]:
-        """Photos per 500 K band, labelled by the band's start (e.g. 5000)."""
+        """Photos per white balance band, labelled by its start (e.g. 5000)."""
         # ``//`` is integer division (SQLAlchemy 2's ``/`` is true division).
-        bucket = (PhotoRow.white_balance_k // KELVIN_BUCKET) * KELVIN_BUCKET
+        bucket = (PhotoRow.white_balance_k // KELVIN_BAND_K) * KELVIN_BAND_K
         query = (
             select(bucket, func.count(PhotoRow.id))
             .where(PhotoRow.white_balance_k.is_not(None))
@@ -285,8 +284,8 @@ class SqlAlchemyPhotoCatalog:
         }
         if not counts:
             return []
-        # Include empty bands between the coolest and warmest, so gaps show.
-        bands = range(min(counts), max(counts) + KELVIN_BUCKET, KELVIN_BUCKET)
+        # Include empty bands between the lowest and highest, so gaps show.
+        bands = range(min(counts), max(counts) + KELVIN_BAND_K, KELVIN_BAND_K)
         return [CountRow(label=str(band), count=counts.get(band, 0)) for band in bands]
 
     @staticmethod

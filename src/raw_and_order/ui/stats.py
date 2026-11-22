@@ -5,7 +5,7 @@ from collections.abc import Callable
 import altair as alt
 import streamlit as st
 
-from raw_and_order.schemas.query import CountRow
+from raw_and_order.schemas.query import KELVIN_BAND_K, UNKNOWN_LABEL, CountRow
 from raw_and_order.ui.charts import (
     columns_by_month,
     horizontal_bars,
@@ -16,7 +16,6 @@ from raw_and_order.ui.charts import (
 from raw_and_order.ui.library import PhotoLibrary
 
 TOP_LENSES = 10
-UNKNOWN = "Unknown"
 
 
 def render_stats(library: PhotoLibrary) -> None:
@@ -43,8 +42,8 @@ def render_stats(library: PhotoLibrary) -> None:
         lenses,
         lambda rows: horizontal_bars(rows, theme),
     )
-    dated = [row for row in summary.by_month if row.label != UNKNOWN]
-    undated = sum(row.count for row in summary.by_month if row.label == UNKNOWN)
+    dated = [row for row in summary.by_month if row.label != UNKNOWN_LABEL]
+    undated = sum(row.count for row in summary.by_month if row.label == UNKNOWN_LABEL)
     _section(
         "Photos by capture month", dated, lambda rows: columns_by_month(rows, theme)
     )
@@ -53,7 +52,7 @@ def render_stats(library: PhotoLibrary) -> None:
             f"{undated} photo(s) have no capture date and are not shown by month."
         )
     _section(
-        "Photos by white balance (500 K bands, warm to cool light)",
+        f"Photos by white balance ({KELVIN_BAND_K} K bands, warm to cool light)",
         summary.by_white_balance,
         lambda rows: ordered_columns(
             rows, theme, x_title="Band start (K)", x_name="Band from (K)"

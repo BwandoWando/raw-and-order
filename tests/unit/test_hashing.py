@@ -5,8 +5,11 @@ from pathlib import Path
 import pytest
 from PIL import Image, ImageDraw, ImageEnhance
 
-from raw_and_order.analysis.similarity import Similarity, similarity
-from raw_and_order.db.catalog import NEAR_DUPLICATE_DISTANCE
+from raw_and_order.analysis.similarity import (
+    SIMILAR_MAX_DISTANCE,
+    Similarity,
+    similarity,
+)
 from raw_and_order.exceptions import FingerprintError
 from raw_and_order.media.hashing import (
     PHASH_HEX_LENGTH,
@@ -109,7 +112,7 @@ def test_phash_differs_for_different_pictures() -> None:
     first = phash(_texture(seed=1))
     second = phash(_texture(seed=2))
 
-    assert hamming_distance(first, second) > NEAR_DUPLICATE_DISTANCE
+    assert hamming_distance(first, second) > SIMILAR_MAX_DISTANCE
 
 
 def test_phash_of_invalid_bytes_raises_domain_error() -> None:

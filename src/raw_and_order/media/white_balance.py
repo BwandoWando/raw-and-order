@@ -18,6 +18,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any
 
+from raw_and_order.media.exif_values import as_float, as_text, first_value
 from raw_and_order.schemas.exif import WhiteBalanceSource
 
 MODE_KEYS = ("MakerNotes:WhiteBalance", "EXIF:WhiteBalance", "XMP:WhiteBalance")
@@ -67,7 +68,7 @@ def resolve_white_balance(tags: Mapping[str, Any]) -> WhiteBalance:
     Tries, in order: the camera's recorded kelvin, an estimate from the
     camera's WB calibration, then an editor's (XMP) value.
     """
-    mode = _first_text(tags, MODE_KEYS)
+    mode = as_text(first_value(tags, MODE_KEYS))
     for kelvin, source in (
         (_first_kelvin(tags, CAMERA_KELVIN_KEYS), WhiteBalanceSource.CAMERA),
         (estimate_from_tags(tags), WhiteBalanceSource.ESTIMATED),
@@ -173,20 +174,10 @@ def round_kelvin(kelvin: float) -> int:
 
 
 def _first_kelvin(tags: Mapping[str, Any], keys: tuple[str, ...]) -> float | None:
+    """The first plausible kelvin value among ``keys`` (0 means "not recorded")."""
     low, high = PLAUSIBLE_KELVIN
     for key in keys:
-        try:
-            value = float(tags[key])
-        except (KeyError, TypeError, ValueError):
-            continue
-        if low <= value <= high:  # 0 means "not recorded"
-            return value
-    return None
-
-
-def _first_text(tags: Mapping[str, Any], keys: tuple[str, ...]) -> str | None:
-    for key in keys:
-        value = tags.get(key)
-        if value not in (None, ""):
-            return str(value).strip()
+        kelvin = as_float(tags.get(key))
+        if kelvin is not None and low <= kelvin <= high:
+            return kelvin
     return None
