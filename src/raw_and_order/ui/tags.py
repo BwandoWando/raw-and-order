@@ -13,6 +13,7 @@ while you work and differ next time.
 """
 
 import base64
+import html
 import random
 from collections.abc import Mapping, Sequence
 from functools import partial
@@ -28,6 +29,7 @@ from raw_and_order.schemas.tags import TagCluster, TagGraph
 from raw_and_order.ui.charts import theme_for
 from raw_and_order.ui.css import FOCUS_RING, keyed_prefix, overlay_button
 from raw_and_order.ui.filters import show_tags
+from raw_and_order.ui.grid import HIDPI
 from raw_and_order.ui.library import PhotoLibrary
 from raw_and_order.ui.navigation import Tab, open_tab
 from raw_and_order.ui.tag_network import (
@@ -140,14 +142,16 @@ def _tooltip_images(
 ) -> dict[str, list[str]]:
     """Each tag's example photos as small JPEG data URIs for its tooltip.
 
-    Missing previews are left out. Thumbnails are cached, so this is cheap
-    after the first run.
+    Square crops at twice the tile size, so they stay sharp on high-DPI
+    screens. Missing previews are left out. Thumbnails are cached, so this is
+    cheap after the first run.
     """
+    px = TOOLTIP_TILE_PX * HIDPI
     return {
         tag: [
             data_uri(image)
             for path in paths
-            if (image := library.thumbnail(path, TOOLTIP_TILE_PX)) is not None
+            if (image := library.square_thumbnail(path, px)) is not None
         ]
         for tag, paths in samples.items()
     }
@@ -209,19 +213,29 @@ def _cluster_photos(
     """Small photos to the right of a card's text, one per tag in its name.
 
     A different photo for each tag where possible, in the order of the
-    name. Each is named after its tag for screen readers.
+    name. Plain ``<img>`` tags rather than ``st.image``, which would add a
+    full-screen button to each; a click anywhere on the card opens its
+    photos in the Gallery instead.
     """
     picks = one_per_tag(samples, cluster.tags[:CLUSTER_NAME_TAGS])
     images = [
         (tag, image)
         for tag, path in picks
-        if (image := library.thumbnail(path, CLUSTER_THUMB_PX)) is not None
+        if (image := library.square_thumbnail(path, CLUSTER_THUMB_PX * HIDPI))
+        is not None
     ]
-    if not images:
-        return
-    with st.container(horizontal=True, width="content", gap="xsmall"):
-        for tag, image in images:
-            st.image(image, width=CLUSTER_THUMB_PX, alt=f"A photo tagged {tag}")
+    if images:
+        st.html(cluster_photos_html(images), width="content")
+
+
+def cluster_photos_html(images: Sequence[tuple[str, bytes]]) -> str:
+    """A row of ``(tag, JPEG)`` photos, each named after its tag for screen readers."""
+    tiles = "".join(
+        f'<img src="{data_uri(image)}" alt="{html.escape(f"A photo tagged {tag}")}"'
+        f' width="{CLUSTER_THUMB_PX}" height="{CLUSTER_THUMB_PX}">'
+        for tag, image in images
+    )
+    return f'<div style="display:flex;gap:0.25rem">{tiles}</div>'
 
 
 def tags_to_show(graph: TagGraph, node_index: int) -> list[str]:

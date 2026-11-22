@@ -255,6 +255,9 @@ class FakePhotoLibrary:
     def thumbnail(self, preview_path: Path, max_px: int) -> bytes | None:
         return preview_path.read_bytes() if preview_path.is_file() else None
 
+    def square_thumbnail(self, preview_path: Path, px: int) -> bytes | None:
+        return preview_path.read_bytes() if preview_path.is_file() else None
+
     def is_favorite(self, path: Path) -> bool:
         return path in self.favorites
 

@@ -59,6 +59,10 @@ class PhotoLibrary(Protocol):
         """Return a small JPEG of a preview, or ``None`` if it is missing."""
         ...
 
+    def square_thumbnail(self, preview_path: Path, px: int) -> bytes | None:
+        """Return the preview's centre as a ``px`` square JPEG, or ``None``."""
+        ...
+
     def preview_size(self, preview_path: Path) -> tuple[int, int] | None:
         """Return a preview's width and height, or ``None`` if it is missing."""
         ...

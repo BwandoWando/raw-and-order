@@ -105,6 +105,18 @@ class CachedPhotoLibrary:
         except (OSError, PreviewError):
             return None
 
+    def square_thumbnail(self, preview_path: Path, px: int) -> bytes | None:
+        """Return the preview's centre as a ``px`` square JPEG, or ``None``.
+
+        ``None`` if the preview is missing; cached per file version, like
+        :meth:`thumbnail`.
+        """
+        try:
+            version = preview_path.stat().st_mtime_ns
+            return _square(self._thumbnailer, str(preview_path), px, version)
+        except (OSError, PreviewError):
+            return None
+
     def preview_size(self, preview_path: Path) -> tuple[int, int] | None:
         """Return a preview's width and height, or ``None`` if it is missing.
 
@@ -229,6 +241,13 @@ def _thumbnail(
     _thumbnailer: Thumbnailer, preview_path: str, max_px: int, version: int
 ) -> bytes:
     return _thumbnailer.thumbnail(Path(preview_path), max_px)
+
+
+@st.cache_data(max_entries=THUMBNAIL_CACHE_ENTRIES, show_spinner=False)
+def _square(
+    _thumbnailer: Thumbnailer, preview_path: str, px: int, version: int
+) -> bytes:
+    return _thumbnailer.square(Path(preview_path), px)
 
 
 @st.cache_data(max_entries=THUMBNAIL_CACHE_ENTRIES, show_spinner=False)

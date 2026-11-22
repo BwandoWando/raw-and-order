@@ -61,6 +61,10 @@ class Thumbnailer(Protocol):
         """Return JPEG bytes no larger than ``max_px`` on the longest side."""
         ...
 
+    def square(self, preview_path: Path, px: int) -> bytes:
+        """Return JPEG bytes of the preview's centre, cropped to ``px`` square."""
+        ...
+
     def size(self, preview_path: Path) -> tuple[int, int]:
         """Return the preview's width and height in pixels."""
         ...

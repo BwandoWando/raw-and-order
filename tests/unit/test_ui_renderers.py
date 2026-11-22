@@ -1,6 +1,7 @@
 """Render the UI against an injected in-memory library (no database)."""
 
 import json
+import re
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -182,8 +183,10 @@ def test_cluster_cards_show_a_photo_for_each_tag_in_the_name(tmp_path: Path) -> 
     photos += [_tagged(i + 3, "sea", "sand") for i in range(3)]
     app = _app(FakePhotoLibrary(_with_previews(photos, tmp_path)))
 
-    alts = [image.proto.imgs[0].alt for image in app.tabs[1].get("image")]
+    html = "".join(h.proto.body for h in app.tabs[1].get("html"))
+    alts = re.findall(r'<img src="data:image/jpeg;base64,[^"]+" alt="([^"]+)"', html)
 
+    assert not app.tabs[1].get("image")  # st.image would add a full-screen button
     assert alts == [
         "A photo tagged city",
         "A photo tagged neon",
@@ -197,7 +200,7 @@ def test_cluster_cards_without_previews_show_only_text() -> None:
     photos = [_tagged(i, "city", "night") for i in range(3)]  # previews missing
     app = _app(FakePhotoLibrary(photos))
 
-    assert not app.tabs[1].get("image")
+    assert "<img" not in "".join(h.proto.body for h in app.tabs[1].get("html"))
     assert "**city · night**" in [m.value for m in app.tabs[1].markdown]
 
 

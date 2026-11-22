@@ -87,3 +87,34 @@ def test_a_corrupt_preview_is_a_preview_error(tmp_path: Path) -> None:
         JpegThumbnailer().thumbnail(preview, 128)
     with pytest.raises(PreviewError):
         JpegThumbnailer().size(preview)
+
+
+def test_square_crops_the_centre_without_stretching(tmp_path: Path) -> None:
+    # Red left and right thirds, blue centre: a centre crop keeps only blue.
+    preview = tmp_path / "landscape.jpg"
+    image = Image.new("RGB", (900, 600), (220, 0, 0))
+    image.paste((0, 0, 220), (150, 0, 750, 600))
+    image.save(preview, quality=95)
+
+    data = JpegThumbnailer().square(preview, 160)
+
+    with Image.open(io.BytesIO(data)) as tile:
+        assert tile.format == "JPEG"
+        assert tile.size == (160, 160)
+        red, _, blue = tile.convert("RGB").getpixel((3, 80))
+        assert blue > 150 and red < 60  # the red side was cropped away
+
+
+def test_square_of_a_portrait_keeps_the_middle_rows(tmp_path: Path) -> None:
+    preview = tmp_path / "portrait.jpg"
+    Image.new("RGB", (400, 600), (10, 160, 10)).save(preview)
+
+    data = JpegThumbnailer().square(preview, 96)
+
+    with Image.open(io.BytesIO(data)) as tile:
+        assert tile.size == (96, 96)
+
+
+def test_square_of_a_missing_preview_is_a_preview_error(tmp_path: Path) -> None:
+    with pytest.raises(PreviewError):
+        JpegThumbnailer().square(tmp_path / "gone.jpg", 96)

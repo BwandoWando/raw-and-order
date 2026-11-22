@@ -9,6 +9,7 @@ from raw_and_order.ui.tag_network import (
     network_spec,
     tooltip_html,
 )
+from raw_and_order.ui.tags import CLUSTER_THUMB_PX, cluster_photos_html
 
 
 def _graph(clusters: int, extra_unclustered: bool = False) -> TagGraph:
@@ -95,3 +96,13 @@ def test_each_tag_carries_its_own_photo_tooltip() -> None:
     assert "data:image/jpeg;base64,AAA" in nodes["t0"]["tooltip"]["formatter"]
     assert nodes["t1"]["tooltip"]["formatter"] == "<b>t1</b>: 11 photos"
     assert spec["tooltip"]["confine"] is True
+
+
+def test_cluster_photos_are_plain_images_named_after_their_tags() -> None:
+    row = cluster_photos_html([("urban", b"\xff\xd8a"), ("<grey>", b"\xff\xd8b")])
+
+    assert row.count("<img ") == 2
+    assert 'alt="A photo tagged urban"' in row
+    assert 'alt="A photo tagged &lt;grey&gt;"' in row
+    assert f'width="{CLUSTER_THUMB_PX}"' in row
+    assert 'src="data:image/jpeg;base64,/9hh"' in row
