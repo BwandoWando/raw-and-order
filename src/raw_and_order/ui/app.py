@@ -29,7 +29,7 @@ def _library() -> PhotoLibrary:
 
 def main(library: PhotoLibrary) -> None:
     """Draw the whole app from the given library."""
-    st.title("📷 Photo library")
+    st.title("📷 Raw and Order")
     try:
         options = library.filter_options()
     except RawAndOrderError as exc:
