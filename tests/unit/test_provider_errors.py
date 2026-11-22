@@ -32,6 +32,7 @@ def _http_status_error(status: int) -> httpx.HTTPStatusError:
     ("exc", "unavailable"),
     [
         (httpx.ConnectError("refused"), True),  # no status: connection problem
+        (ConnectionError("Failed to connect to Ollama"), True),  # ollama client
         (StatusError(401), True),
         (StatusError(403), True),
         (StatusError(404), True),  # model not found

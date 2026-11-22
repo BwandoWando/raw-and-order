@@ -56,6 +56,22 @@ def test_provider_error_becomes_model_unavailable() -> None:
         annotator.annotate(b"jpeg", None)
 
 
+def test_unreachable_ollama_server_becomes_model_unavailable() -> None:
+    # The ollama client raises the built-in ConnectionError, not an httpx error.
+    annotator, _ = _annotator(ConnectionError("Failed to connect to Ollama"))
+
+    with pytest.raises(ModelUnavailableError, match="the LLM is unavailable"):
+        annotator.annotate(b"jpeg", None)
+
+
+def test_a_dropped_connection_is_retried_before_giving_up() -> None:
+    model = ScriptedChatModel(script=[ConnectionError("reset"), SAMPLE_ANNOTATION])
+    annotator = LLMAnnotator(model, "system", max_retries=2)
+
+    assert annotator.annotate(b"jpeg", None) == SAMPLE_ANNOTATION
+    assert len(model.received) == 2
+
+
 def test_build_messages_embeds_image_and_context() -> None:
     messages = build_messages("sys", b"\xff\xd8", "make: Nikon")
     content = messages[1].content

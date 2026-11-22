@@ -22,6 +22,12 @@ _TRANSIENT = {
     ),
 }
 
+# For requests it does not stream, the ``ollama`` client turns a refused
+# connection into Python's built-in ConnectionError (streamed requests, which
+# LangChain's chat uses today, raise httpx.ConnectError instead). Both must
+# count as the server being unreachable.
+_BUILTIN = (ConnectionError,)
+
 _PROVIDER = {
     "httpx": ("HTTPError",),
     "ollama": ("ResponseError", "RequestError"),
@@ -35,17 +41,22 @@ def transient_errors() -> tuple[type[Exception], ...]:
     """Errors worth retrying: timeouts, dropped connections, rate limits, 5xx.
 
     The 5xx and rate-limit types are only the OpenAI and Anthropic ones; for
-    Ollama only ``httpx`` transport errors such as timeouts are retried. (The
-    ``ollama`` client turns a refused connection into the built-in
-    ``ConnectionError``, which neither tuple here includes.)
+    Ollama, ``httpx`` transport errors (timeouts, refused connections) and
+    the built-in ``ConnectionError`` its client raises instead for requests
+    it does not stream are retried, so a restarting server gets another
+    chance.
     """
-    return _resolve(_TRANSIENT)
+    return _resolve(_TRANSIENT) + _BUILTIN
 
 
 @cache
 def provider_errors() -> tuple[type[Exception], ...]:
-    """All provider/client errors, retryable or not."""
-    return _resolve(_PROVIDER)
+    """All provider/client errors, retryable or not.
+
+    Includes the built-in ``ConnectionError`` (Ollama server unreachable),
+    which carries no HTTP status and so counts as an outage.
+    """
+    return _resolve(_PROVIDER) + _BUILTIN
 
 
 def _resolve(spec: dict[str, tuple[str, ...]]) -> tuple[type[Exception], ...]:
