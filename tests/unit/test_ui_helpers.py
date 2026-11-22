@@ -28,6 +28,7 @@ from raw_and_order.ui.formatting import (
     escape_markdown,
     format_exposure,
     format_white_balance,
+    shown_size,
 )
 from raw_and_order.ui.launcher import APP_PATH, THEME_PATH, streamlit_command
 
@@ -59,6 +60,34 @@ def test_camera_settings_skips_missing_values() -> None:
         ("Shutter", "1/250 s"),
         ("ISO", "100"),
     ]
+
+
+SENSOR = ExifData(width_px=6304, height_px=4224)  # as recorded, unrotated
+
+
+@pytest.mark.parametrize(
+    ("preview_size", "expected"),
+    [
+        ((1000, 1500), (4224, 6304)),  # shot in portrait: swapped
+        ((1500, 1000), (6304, 4224)),  # landscape: as recorded
+        ((1200, 1200), (6304, 4224)),  # square preview: nothing to go by
+        (None, (6304, 4224)),  # no preview
+    ],
+)
+def test_shown_size_follows_the_preview(
+    preview_size: tuple[int, int] | None, expected: tuple[int, int]
+) -> None:
+    assert shown_size(SENSOR, preview_size) == expected
+
+
+def test_shown_size_is_none_without_exif_size() -> None:
+    assert shown_size(ExifData(), (1000, 1500)) is None
+
+
+def test_camera_settings_show_a_portrait_shot_upright() -> None:
+    rows = dict(camera_settings(SENSOR, preview_size=(1000, 1500)))
+
+    assert rows["Size"] == "4224 × 6304"
 
 
 def test_card_caption() -> None:

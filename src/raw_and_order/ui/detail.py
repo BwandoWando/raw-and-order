@@ -248,7 +248,7 @@ def _details(paths: tuple[Path, ...], library: PhotoLibrary) -> None:
     with text_column:
         position = paths.index(current) + 1 if current in paths else 0
         _summary(record, position, len(paths))
-        _camera(record.exif)
+        _camera(record.exif, size)
     _sections(record, library)
 
 
@@ -343,8 +343,8 @@ def _summary(record: PhotoRecord, position: int, count: int) -> None:
     )
 
 
-def _camera(exif: ExifData) -> None:
-    rows = camera_settings(exif)
+def _camera(exif: ExifData, preview_size: tuple[int, int] | None) -> None:
+    rows = camera_settings(exif, preview_size)
     if not rows:
         return
     with st.container(horizontal=True, gap="small"):

@@ -26,8 +26,35 @@ def format_exposure(seconds: float | None) -> str | None:
     return f"{seconds:g} s"
 
 
-def camera_settings(exif: ExifData) -> list[tuple[str, str]]:
-    """Return the EXIF rows to show, skipping missing values."""
+def shown_size(
+    exif: ExifData, preview_size: tuple[int, int] | None
+) -> tuple[int, int] | None:
+    """The photo's width and height as shown, or ``None`` if not recorded.
+
+    EXIF records the sensor's size, before the camera's rotation, so a
+    portrait shot often reads as landscape. The saved preview is rotated, so
+    when its shape disagrees, the EXIF numbers are swapped.
+    """
+    width, height = exif.width_px, exif.height_px
+    if not width or not height:
+        return None
+    if preview_size is None or preview_size[0] == preview_size[1]:
+        return width, height  # no preview, or square: nothing to go by
+    preview_portrait = preview_size[1] > preview_size[0]
+    return (height, width) if preview_portrait != (height > width) else (width, height)
+
+
+def camera_settings(
+    exif: ExifData, preview_size: tuple[int, int] | None = None
+) -> list[tuple[str, str]]:
+    """Return the EXIF rows to show, skipping missing values.
+
+    Args:
+        exif: The photo's camera data.
+        preview_size: Width and height of the saved (rotated) preview, used to
+            show the photo's size the way round it is viewed.
+    """
+    size = shown_size(exif, preview_size)
     rows = [
         ("Camera", " ".join(p for p in (exif.make, exif.model) if p) or None),
         ("Lens", exif.lens_model),
@@ -41,12 +68,7 @@ def camera_settings(exif: ExifData) -> list[tuple[str, str]]:
         ("Shutter", format_exposure(exif.exposure_time_s)),
         ("ISO", str(exif.iso) if exif.iso else None),
         ("White balance", format_white_balance(exif)),
-        (
-            "Size",
-            f"{exif.width_px} × {exif.height_px}"
-            if exif.width_px and exif.height_px
-            else None,
-        ),
+        ("Size", f"{size[0]} × {size[1]}" if size else None),
     ]
     return [(label, value) for label, value in rows if value]
 
