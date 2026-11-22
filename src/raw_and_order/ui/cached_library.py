@@ -38,8 +38,8 @@ class CachedPhotoLibrary:
     """Reads from a catalog and a failure log, caching each answer briefly.
 
     Favorites are read fresh every time, so a star shows the moment it is set.
-    Thumbnails and preview sizes have no expiry; they are keyed by the
-    preview's modification time instead.
+    Thumbnails, square crops and preview sizes have no expiry; they are keyed
+    by the preview's modification time instead.
 
     Args:
         catalog: Read-only photo queries.
@@ -135,8 +135,8 @@ class CachedPhotoLibrary:
     def set_favorite(self, path: Path, favorite: bool) -> None:
         """Mark or unmark the photo, stamped with this computer's local time.
 
-        Cached searches and tag networks are dropped, since the "Favorites
-        only" filter changes what they contain.
+        Cached searches, tag networks and tag example photos are dropped,
+        since the "Favorites only" filter changes what they contain.
         """
         self._favorites.set_favorite(path, favorite, when=datetime.now())
         _search.clear()

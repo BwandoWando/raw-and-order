@@ -204,12 +204,14 @@ Stop it with Ctrl+C. In VS Code, the **Streamlit UI** debug configuration in
   Export tabs.
 
 - **Gallery:** a grid of square thumbnails (24 / 48 / 72 / 99 per page; the
-  whole photo fits in its tile) sized so a whole page fits on one screen. Below it,
-  the pager shows ten page numbers around the current one (filled), between
-  previous and next arrows (also the left and right arrow keys). Tiles shrink as the page size grows and follow the window when
-  you resize it. The page size is kept in the URL (`?g_page_size=99`), so you
-  can bookmark it. Hover a photo for its file name, description, date and scene; click it to see the
-  large preview, description, tags, camera and lens settings, a map when the
+  whole photo fits in its tile) sized so a whole page fits on one screen.
+  Below it, the pager shows ten page numbers around the current one (filled),
+  between previous and next arrows (also the left and right arrow keys).
+  Tiles shrink as the page size grows and follow the window when you resize
+  it. The page size is kept in the URL (`?g_page_size=99`), so you can
+  bookmark it. Hover a photo for its file name, description, date and scene;
+  click it to see the large preview (over a dimmed background), description,
+  tags, camera and lens settings, a map when the
   photo has GPS, its SHA-256 and pHash, exact copies of it stored elsewhere
   ("Also stored at"), and similar photos. The dialog fits one screen, with the
   file name at the top; click the photo to see it full screen, as large as the
@@ -223,9 +225,9 @@ Stop it with Ctrl+C. In VS Code, the **Streamlit UI** debug configuration in
   the very first or last photo matching the filters). Similar photos follow
   the sidebar filters; click one to show it in the dialog, and the gallery
   turns to the page it is on, so stepping and "Photo N of M" carry on from
-  there. Similar photos are labelled by pHash
-  distance (of 64 bits): Identical (0–2), Very similar (3–8) and Similar
-  (9–14); all of them share at least 25% of their tags.
+  there. Similar photos are labelled by pHash distance (of 64 bits):
+  Identical (0–2), Very similar (3–8) and Similar (9–14); all of them share
+  at least 25% of their tags.
 - **Tags:** a network of the most-used tags (20–100). Bubble size is the number
   of photos; lines join tags that often appear together (Jaccard overlap above
   the "Link strength" slider). Tags are grouped into clusters (Louvain
@@ -304,12 +306,14 @@ src/raw_and_order/
 │                     exif_reread.py (--reread-exif), rehash.py (rehash)
 ├── workflow/         state.py (WorkflowState), steps/ (one class per step),
 │                     runner.py (the order)
-├── media/            discovery, exiftool, raw/Pillow decoding, previews, hashing
+├── media/            discovery, exiftool, raw/Pillow decoding, previews,
+│                     thumbnails, hashing
 ├── llm/              provider factory, capability check, annotator, prompts
 ├── schemas/          Pydantic models shared across layers
 ├── db/               SQLAlchemy models, session, repositories (photos, copies,
 │                     failures, favorites), the read-only catalog for the UI
-├── analysis/         pure computations (tag network, clusters, similarity)
+├── analysis/         pure computations (tag network, clusters, similarity,
+│                     example photos per tag)
 ├── export/           export rows and Excel / CSV / JSON encoding
 └── ui/               Streamlit app; renderers receive a PhotoLibrary
 migrations/           Alembic

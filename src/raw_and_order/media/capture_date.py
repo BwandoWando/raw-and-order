@@ -231,7 +231,7 @@ def build_date_sources(order: Sequence[DateSource]) -> list[CaptureDateSource]:
         order: The sources to try, most trusted first.
 
     Raises:
-        ValueError: If ``order`` contains :attr:`DateSource.NOT_FOUND`.
+        ConfigurationError: If ``order`` contains :attr:`DateSource.NOT_FOUND`.
     """
     factories: dict[DateSource, Callable[[], CaptureDateSource]] = {
         DateSource.EXIF_ORIGINAL: lambda: ExifTagDate(

@@ -8,6 +8,7 @@ again and without calling the LLM:
 - :mod:`~raw_and_order.maintenance.rehash`: recompute perceptual hashes
   (``raw-and-order rehash``).
 
-Both visit every stored photo, update only what changed, and report the
-outcome as a :class:`~raw_and_order.maintenance.report.MaintenanceSummary`.
+Both visit stored photos (the EXIF re-read only those under FOLDER), update
+only what changed, and report the outcome as a
+:class:`~raw_and_order.maintenance.report.MaintenanceSummary`.
 """

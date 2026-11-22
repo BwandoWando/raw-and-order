@@ -285,8 +285,8 @@ def steps(page: GalleryPage, current: Path) -> tuple[Step, Step]:
 
     Within the page they go to the neighbouring photo. From the first photo
     "previous" turns to the previous page, and from the last photo "next"
-    turns to the next page, if there is one. A photo not on the page (a
-    similar photo opened from the details) has no steps.
+    turns to the next page, if there is one. A photo not on the page (one
+    that no longer matches the filters) has no steps.
     """
     if current not in page.paths:
         return None, None

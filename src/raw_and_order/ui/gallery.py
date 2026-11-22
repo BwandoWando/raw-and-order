@@ -231,7 +231,9 @@ def _grid(
 def _thumbnail(
     record: PhotoRecord, page: GalleryPage, max_px: int, library: PhotoLibrary
 ) -> None:
-    """The photo itself, clickable to open its details; date and scene on hover.
+    """The photo itself, clickable to open its details.
+
+    Hovering shows its file name, description, capture date and scene.
 
     ``page`` holds the photos on this page, which the details can step through.
     """
