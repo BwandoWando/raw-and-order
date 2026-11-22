@@ -40,6 +40,7 @@ DUPLICATE_COLUMNS = 6
 TAB_HEIGHT_PX = 130  # fits a row of similar photos with captions
 PHOTO_KEY = "detail-photo"
 FRAME_KEY = "detail-frame"
+TEXT_KEY = "detail-text"  # description, tags and camera settings
 PREVIOUS_KEY = "detail-previous"
 NEXT_KEY = "detail-next"
 SIMILAR_KEY = "detail-similar"
@@ -60,6 +61,9 @@ FULL_SCREEN_Z = 1_000_100  # above Streamlit's dialog
 # Room left for the dialog title, file name and tabs (the description and
 # camera settings sit beside the photo, so they take no height).
 CHROME_REM = 30
+# The photo row's fixed height, so the dialog keeps its size from photo to
+# photo: portrait and landscape photos fit inside it, and longer text scrolls.
+PHOTO_ROW_HEIGHT = f"max(7rem, calc(100vh - {CHROME_REM}rem))"
 # Widths of the photo and text columns. Portrait photos are narrow, so the
 # text gets more of the width beside them.
 LANDSCAPE_SHARE = (3, 2)
@@ -80,8 +84,14 @@ _SIMILAR_TILES = clickable_tile(
 
 DETAIL_CSS = f"""
 <style>
+/* min-height, not height: Streamlit sizes this flex item with flex-basis. */
+.st-key-{PHOTO_KEY} {{ min-height: {PHOTO_ROW_HEIGHT}; }}
+.st-key-{TEXT_KEY} {{
+    max-height: {PHOTO_ROW_HEIGHT};
+    overflow-y: auto;
+}}
 .st-key-{FRAME_KEY} img {{
-    max-height: calc(100vh - {CHROME_REM}rem);
+    max-height: {PHOTO_ROW_HEIGHT};
     min-height: 7rem;
     width: auto !important;
     max-width: 100%;
@@ -229,7 +239,7 @@ def _details(paths: tuple[Path, ...], library: PhotoLibrary) -> None:
     if record is None:
         st.warning("This photo is no longer in the database.")
         return
-    with text_column:
+    with text_column, st.container(key=TEXT_KEY):
         position = paths.index(current) + 1 if current in paths else 0
         _summary(record, position, len(paths))
         _camera(record.exif, size)
