@@ -8,7 +8,7 @@ which follows the real window, including resizes.
 import math
 
 SCREEN_RATIO = 1.6  # width / height of the area left for the grid
-TILE_RATIO = 1.5  # width / height of a tile (3:2, like most camera photos)
+TILE_RATIO = 1.0  # width / height of a tile (square; photos fit inside)
 REFERENCE_WIDTH_PX = 1600  # grid width used to size thumbnails
 HIDPI = 2  # thumbnails at twice the tile width stay sharp on retina screens
 THUMBNAIL_SIZES = (256, 384, 512)  # few sizes, so the cache reuses them

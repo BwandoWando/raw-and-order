@@ -22,10 +22,10 @@ def test_grid_holds_the_whole_page_and_is_wider_than_tall(page_size: int) -> Non
 
 def test_grid_shapes_for_each_page_size() -> None:
     assert [grid_shape(n) for n in PAGE_SIZES] == [
-        (6, 4),
-        (8, 6),
-        (9, 8),
-        (11, 9),
+        (7, 4),
+        (9, 6),
+        (11, 7),
+        (13, 8),
     ]
 
 
@@ -42,6 +42,13 @@ def test_css_divides_the_window_height_by_the_rows() -> None:
     assert "100vh" in css
     assert "/ 9)" in css
     assert "8 * 0.25rem" in css  # gaps between 9 rows
+
+
+def test_css_fits_whole_photos_in_square_tiles() -> None:
+    css = thumbnail_css(rows=4)
+
+    assert "aspect-ratio: 1 / 1" in css
+    assert "object-fit: contain" in css
 
 
 def test_thumbnail_shrinks_to_the_longest_side(tmp_path: Path) -> None:

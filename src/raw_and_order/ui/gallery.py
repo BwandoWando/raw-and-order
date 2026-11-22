@@ -20,10 +20,17 @@ GRID_KEY = "gallery-grid"
 # measured with the padding in ui/theme.toml.
 CHROME_REM = 25.25
 ROW_GAP_REM = 0.25
+# Fill around portrait and landscape photos in their square tile; a
+# translucent grey reads as neutral on both the light and dark theme.
+LETTERBOX = "rgba(128, 128, 128, 0.12)"
 
 
 def thumbnail_css(rows: int) -> str:
-    """CSS that sizes tiles so ``rows`` rows fill the rest of the window.
+    """CSS that sizes square tiles so ``rows`` rows fill the rest of the window.
+
+    Tiles are square, as on Instagram; each photo is scaled to fit inside its
+    tile whole (``object-fit: contain``), so portrait and landscape shots are
+    letterboxed rather than cropped.
 
     Each tile is a keyed container holding the image and a transparent, real
     button laid over it. Streamlit gives keyed elements the class
@@ -39,9 +46,13 @@ def thumbnail_css(rows: int) -> str:
 .st-key-{GRID_KEY} {{ gap: {ROW_GAP_REM}rem; }}
 [class*="st-key-{THUMB_KEY_PREFIX}"] {{ position: relative; }}
 [class*="st-key-{THUMB_KEY_PREFIX}"] img {{
-    height: {tile_height};
-    width: 100%;
-    object-fit: cover;
+    display: block;
+    width: min(100%, {tile_height});
+    height: auto;
+    aspect-ratio: 1 / 1;
+    margin-inline: auto;
+    object-fit: contain;
+    background: {LETTERBOX};
     border-radius: 0.375rem;
     transition: filter 120ms ease-in-out;
 }}
