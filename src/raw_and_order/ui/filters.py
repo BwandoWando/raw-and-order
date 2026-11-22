@@ -19,7 +19,14 @@ def tag_label(tag: str, counts: dict[str, int]) -> str:
 
 
 def render_filters(options: FilterOptions) -> PhotoQuery:
-    """Draw the sidebar filters and return a query (page 1, default sort)."""
+    """Draw the sidebar filters and return a query (page 1, default sort).
+
+    Defaults live in Session State only (not in the widgets' ``value`` or
+    ``default``), because Reset writes them there too and Streamlit warns
+    when a widget gets its value both ways.
+    """
+    for key, value in filter_defaults(options).items():
+        st.session_state.setdefault(key, value)
     sidebar = st.sidebar
     sidebar.header("Filters")
     text = sidebar.text_input("Search", key="f_text", placeholder="description or tag")
@@ -31,9 +38,7 @@ def render_filters(options: FilterOptions) -> PhotoQuery:
         placeholder="Most used first",
         format_func=lambda tag: tag_label(tag, options.tag_counts),
     )
-    people = sidebar.segmented_control(
-        "People", list(PEOPLE_CHOICES), default="Any", key="f_people"
-    )
+    people = sidebar.segmented_control("People", list(PEOPLE_CHOICES), key="f_people")
     cameras = sidebar.multiselect("Camera", options.cameras, key="f_cameras")
     lenses = sidebar.multiselect("Lens", options.lenses, key="f_lenses")
     date_from, date_to = _date_range(options)
@@ -69,7 +74,6 @@ def _date_range(options: FilterOptions) -> tuple[date | None, date | None]:
         return None, None
     picked: Any = st.sidebar.date_input(
         "Capture date",
-        value=(options.earliest, options.latest),
         min_value=options.earliest,
         max_value=options.latest,
         key="f_dates",
@@ -85,16 +89,16 @@ def _kelvin_range(options: FilterOptions) -> tuple[int | None, int | None]:
     low, high = options.kelvin_min, options.kelvin_max
     if low is None or high is None or low == high:
         return None, None  # nothing to choose between
-    start, end = st.sidebar.slider(
+    picked: Any = st.sidebar.slider(  # a range: Session State holds (low, high)
         "White balance (K)",
         min_value=low,
         max_value=high,
-        value=(low, high),
         step=KELVIN_STEP,
         key="f_kelvin",
         help="Colour temperature; most values are estimated from the camera's "
         "Auto white balance.",
     )
+    start, end = picked
     return (None, None) if (start, end) == (low, high) else (start, end)
 
 
