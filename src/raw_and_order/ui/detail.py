@@ -53,6 +53,11 @@ CURRENT_KEY = "detail_current"  # session state: path of the photo shown
 OPEN_KEY = "detail_open"  # session state: True while the dialog is open
 ZOOM_KEY = "detail_zoom"  # session state: True while the photo is full screen
 ZOOM_TARGET_KEY = "detail-zoom-target"  # the photo plus its zoom-in button
+# The star in the photo's top-right corner; one key per state, for the CSS.
+FAVORITE_PREFIX = "detail-favorite-"
+FAVORITE_ON_KEY = f"{FAVORITE_PREFIX}on"
+FAVORITE_OFF_KEY = f"{FAVORITE_PREFIX}off"
+FAVORITE_GOLD = "#f5c518"
 ZOOM_IN_KEY = "detail-zoom-in"
 FULL_SCREEN_KEY = "detail-full-screen"
 ZOOM_OUT_KEY = "detail-zoom-out"  # click anywhere on the full-screen photo
@@ -77,6 +82,7 @@ _ICON_ONLY_BUTTONS = visually_hidden(
     f"{keyed(PREVIOUS_KEY)} kbd",
     f"{keyed(NEXT_KEY)} kbd",
     f"{keyed(CLOSE_FULL_SCREEN_KEY)} {_LABEL}",
+    f"{keyed_prefix(FAVORITE_PREFIX)} {_LABEL}",
 )
 _SIMILAR_TILES = clickable_tile(
     keyed_prefix(SIMILAR_TILE_PREFIX), keyed_prefix(SIMILAR_OPEN_PREFIX)
@@ -135,6 +141,35 @@ DETAIL_CSS = f"""
     cursor: zoom-in;
 }}
 .st-key-{ZOOM_OUT_KEY} button {{ cursor: zoom-out; }}
+/* The favorite star: over the photo's top-right corner, above the zoom-in
+   button laid over the whole photo. */
+{keyed_prefix(FAVORITE_PREFIX)} {{
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    z-index: 2;
+    width: auto;
+}}
+{keyed_prefix(FAVORITE_PREFIX)} button {{
+    width: {STEP_BUTTON_PX}px;
+    height: {STEP_BUTTON_PX}px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(0, 0, 0, 0.45);
+    color: #fff;
+}}
+{keyed_prefix(FAVORITE_PREFIX)} button:hover {{ background: rgba(0, 0, 0, 0.65); }}
+/* The star is a text character, so it can be outlined or filled (the icon
+   font has no filled star). Its label stays for screen readers. */
+{keyed_prefix(FAVORITE_PREFIX)} button::before {{
+    font-size: 1.5rem;
+    line-height: 1;
+}}
+.st-key-{FAVORITE_OFF_KEY} button::before {{ content: "☆"; }}
+.st-key-{FAVORITE_ON_KEY} button::before {{
+    content: "★";
+    color: {FAVORITE_GOLD};
+}}
 .st-key-{FULL_SCREEN_KEY} {{
     position: fixed;
     inset: 0;
@@ -233,7 +268,7 @@ def _details(paths: tuple[Path, ...], library: PhotoLibrary) -> None:
     size = library.preview_size(record.preview_path) if record else None
     photo_column, text_column = st.columns(column_share(size), gap="medium")
     with photo_column:
-        _stepper(paths, current, record.preview_path if record else None)
+        _stepper(paths, current, record, library)
     if record is not None and st.session_state.get(ZOOM_KEY):
         _full_screen(record.preview_path)
     if record is None:
@@ -246,7 +281,12 @@ def _details(paths: tuple[Path, ...], library: PhotoLibrary) -> None:
     _sections(record, library)
 
 
-def _stepper(paths: tuple[Path, ...], current: Path, preview: Path | None) -> None:
+def _stepper(
+    paths: tuple[Path, ...],
+    current: Path,
+    record: PhotoRecord | None,
+    library: PhotoLibrary,
+) -> None:
     """The photo between its previous and next buttons."""
     previous, following = neighbours(paths, current)
     with st.container(
@@ -254,7 +294,7 @@ def _stepper(paths: tuple[Path, ...], current: Path, preview: Path | None) -> No
     ):
         _step_button("Previous photo", previous, PREVIOUS_KEY, "chevron_left", "Left")
         with st.container(key=FRAME_KEY, horizontal_alignment="center"):
-            _photo(preview)
+            _photo(record, library)
         _step_button("Next photo", following, NEXT_KEY, "chevron_right", "Right")
 
 
@@ -290,14 +330,33 @@ def _show(path: Path) -> None:
     st.session_state[CURRENT_KEY] = str(path)
 
 
-def _photo(preview_path: Path | None) -> None:
-    """The preview; clicking it shows it full screen."""
-    if preview_path is None or not preview_path.is_file():
+def _photo(record: PhotoRecord | None, library: PhotoLibrary) -> None:
+    """The preview with its favorite star; clicking the photo shows it full screen."""
+    if record is None or not record.preview_path.is_file():
         st.info("Preview file not found.")
         return
     with st.container(key=ZOOM_TARGET_KEY, width="content"):
-        st.image(str(preview_path), width="content")
+        st.image(str(record.preview_path), width="content")
         st.button("Show full screen", key=ZOOM_IN_KEY, on_click=_zoom, args=(True,))
+        _favorite_star(record.path, library)
+
+
+def _favorite_star(path: Path, library: PhotoLibrary) -> None:
+    """A star that marks the photo as a favorite, or unmarks it, on click.
+
+    Filled and gold for a favorite, outlined otherwise (drawn by the CSS);
+    the label (read by screen readers, shown as a tooltip) says what a click
+    will do.
+    """
+    favorite = library.is_favorite(path)
+    label = "Remove from favorites" if favorite else "Add to favorites"
+    st.button(
+        label,
+        key=FAVORITE_ON_KEY if favorite else FAVORITE_OFF_KEY,
+        help=label,
+        on_click=library.set_favorite,
+        args=(path, not favorite),
+    )
 
 
 def _full_screen(preview_path: Path) -> None:

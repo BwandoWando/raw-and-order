@@ -199,6 +199,7 @@ class FakePhotoLibrary:
         self._failures = list(failures)
         self._copies = copies or {}
         self._similar = similar or {}
+        self.favorites: set[Path] = set()
         self.refreshes = 0
 
     def export_records(self, query: PhotoQuery) -> list[PhotoRecord]:
@@ -239,6 +240,15 @@ class FakePhotoLibrary:
 
     def thumbnail(self, preview_path: Path, max_px: int) -> bytes | None:
         return preview_path.read_bytes() if preview_path.is_file() else None
+
+    def is_favorite(self, path: Path) -> bool:
+        return path in self.favorites
+
+    def set_favorite(self, path: Path, favorite: bool) -> None:
+        if favorite:
+            self.favorites.add(path)
+        else:
+            self.favorites.discard(path)
 
     def preview_size(self, preview_path: Path) -> tuple[int, int] | None:
         if not preview_path.is_file():

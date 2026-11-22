@@ -7,6 +7,7 @@ arguments (Streamlit does not hash those) plus a hashed ``cache_key``, so two
 databases never share cached results.
 """
 
+from datetime import datetime
 from pathlib import Path
 
 import streamlit as st
@@ -14,6 +15,7 @@ import streamlit as st
 from raw_and_order.analysis.tag_graph import build_tag_graph
 from raw_and_order.db.catalog import PhotoCatalog
 from raw_and_order.db.failure_repository import FailureRepository
+from raw_and_order.db.favorite_repository import FavoriteStore
 from raw_and_order.exceptions import PreviewError
 from raw_and_order.media.protocols import Thumbnailer
 from raw_and_order.schemas import FailureRecord, PhotoRecord
@@ -33,9 +35,12 @@ THUMBNAIL_CACHE_ENTRIES = 3000  # about 30 full pages of 99
 class CachedPhotoLibrary:
     """Reads from a catalog and a failure log, caching each answer briefly.
 
+    Favorites are read fresh every time, so a star shows the moment it is set.
+
     Args:
         catalog: Read-only photo queries.
         failures: The processing-failure log.
+        favorites: Which photos are favorites; the only thing the UI writes.
         thumbnailer: Shrinks previews for the gallery grid.
         cache_key: Identifies the data source (e.g. the database URL).
     """
@@ -44,11 +49,13 @@ class CachedPhotoLibrary:
         self,
         catalog: PhotoCatalog,
         failures: FailureRepository,
+        favorites: FavoriteStore,
         thumbnailer: Thumbnailer,
         cache_key: str,
     ) -> None:
         self._catalog = catalog
         self._failures = failures
+        self._favorites = favorites
         self._thumbnailer = thumbnailer
         self._key = cache_key
 
@@ -98,6 +105,14 @@ class CachedPhotoLibrary:
             return _preview_size(self._thumbnailer, str(preview_path), version)
         except (OSError, PreviewError):
             return None
+
+    def is_favorite(self, path: Path) -> bool:
+        """Return True if the photo at ``path`` is a favorite (not cached)."""
+        return self._favorites.is_favorite(path)
+
+    def set_favorite(self, path: Path, favorite: bool) -> None:
+        """Mark or unmark the photo, stamped with this computer's local time."""
+        self._favorites.set_favorite(path, favorite, when=datetime.now())
 
     def stats(self) -> PhotoStats:
         """Return totals and breakdowns."""

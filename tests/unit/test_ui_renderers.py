@@ -15,7 +15,11 @@ from raw_and_order.schemas import (
     SceneType,
 )
 from raw_and_order.schemas.query import NearDuplicate
-from raw_and_order.ui.detail import similar_button_key
+from raw_and_order.ui.detail import (
+    FAVORITE_OFF_KEY,
+    FAVORITE_ON_KEY,
+    similar_button_key,
+)
 from raw_and_order.ui.filters import FilterKey
 from raw_and_order.ui.gallery import GalleryKey, open_button_key
 from raw_and_order.ui.library import PhotoLibrary
@@ -214,6 +218,27 @@ def test_details_photo_opens_full_screen_on_click(tmp_path: Path) -> None:
 
     assert app.button(key="detail-zoom-in").label == "Show full screen"
     assert not [b for b in app.button if b.key == "detail-full-screen-close"]
+
+
+def test_the_star_marks_and_unmarks_a_favorite(tmp_path: Path) -> None:
+    preview = tmp_path / "p0.jpg"
+    Image.new("RGB", (40, 30), (60, 120, 200)).save(preview)
+    record = _record(0).model_copy(update={"preview_path": preview})
+    library = FakePhotoLibrary([record])
+    app = _app(library)
+    # AppTest does not keep a dialog open between runs (a browser does), so
+    # the details are reopened from the gallery after each click.
+    open_details = app.button(key=open_button_key(record.path))
+
+    open_details.click().run()
+    assert app.button(key=FAVORITE_OFF_KEY).label == "Add to favorites"
+    app.button(key=FAVORITE_OFF_KEY).click().run()
+    assert library.favorites == {record.path}
+
+    app.button(key=open_button_key(record.path)).click().run()
+    assert app.button(key=FAVORITE_ON_KEY).label == "Remove from favorites"
+    app.button(key=FAVORITE_ON_KEY).click().run()
+    assert library.favorites == set()
 
 
 def test_export_tab_counts_previews_and_offers_a_download() -> None:

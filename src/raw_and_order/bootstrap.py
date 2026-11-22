@@ -17,6 +17,7 @@ from raw_and_order.config import LLMProvider, LLMSettings, Settings
 from raw_and_order.db.catalog import SqlAlchemyPhotoCatalog
 from raw_and_order.db.copy_repository import SqlAlchemyCopyRepository
 from raw_and_order.db.failure_repository import SqlAlchemyFailureRepository
+from raw_and_order.db.favorite_repository import SqlAlchemyFavoriteRepository
 from raw_and_order.db.repository import SqlAlchemyPhotoRepository
 from raw_and_order.db.session import create_db_engine, create_session_factory
 from raw_and_order.llm.annotator import LLMAnnotator
@@ -221,6 +222,7 @@ def build_ui_library(settings: Settings) -> PhotoLibrary:
     return CachedPhotoLibrary(
         catalog=SqlAlchemyPhotoCatalog(session_factory),
         failures=SqlAlchemyFailureRepository(session_factory),
+        favorites=SqlAlchemyFavoriteRepository(session_factory),
         thumbnailer=JpegThumbnailer(),
         cache_key=settings.database_url,
     )

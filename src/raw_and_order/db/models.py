@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from sqlalchemy import JSON, DateTime, Float, Integer, String, Text
+from sqlalchemy import JSON, DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from raw_and_order.db.base import Base
@@ -77,3 +77,21 @@ class FailureRow(Base):
     attempts: Mapped[int] = mapped_column(Integer, default=1)
     first_failed_at: Mapped[datetime] = mapped_column(UtcDateTime)
     last_failed_at: Mapped[datetime] = mapped_column(UtcDateTime)
+
+
+class FavoriteRow(Base):
+    """A photo marked as a favorite in the photo details.
+
+    Linked by the photo's row id, which stays the same when the photo is
+    processed again. Not by its SHA-256: that is not unique (identical copies
+    each get a row) and changes when the file is edited.
+    """
+
+    __tablename__ = "favorites"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    photo_id: Mapped[int] = mapped_column(
+        ForeignKey("photos.id", ondelete="CASCADE"), unique=True, index=True
+    )
+    # Wall-clock time of this computer when the star was set; no time zone.
+    favorited_at: Mapped[datetime] = mapped_column(DateTime)

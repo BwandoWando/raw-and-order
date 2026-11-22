@@ -1,7 +1,8 @@
-"""The read-only port the UI depends on.
+"""The port the UI depends on for everything stored.
 
 Renderers receive a :class:`PhotoLibrary` instead of reaching for global
-services, so tests can hand them an in-memory fake.
+services, so tests can hand them an in-memory fake. It only reads, except
+for favorites, which the photo details set.
 """
 
 from pathlib import Path
@@ -51,6 +52,14 @@ class PhotoLibrary(Protocol):
 
     def preview_size(self, preview_path: Path) -> tuple[int, int] | None:
         """Return a preview's width and height, or ``None`` if it is missing."""
+        ...
+
+    def is_favorite(self, path: Path) -> bool:
+        """Return True if the photo at ``path`` is a favorite."""
+        ...
+
+    def set_favorite(self, path: Path, favorite: bool) -> None:
+        """Mark (``favorite=True``) or unmark the photo at ``path`` as a favorite."""
         ...
 
     def stats(self) -> PhotoStats:
