@@ -49,6 +49,10 @@ class PhotoLibrary(Protocol):
         """Return a small JPEG of a preview, or ``None`` if it is missing."""
         ...
 
+    def preview_size(self, preview_path: Path) -> tuple[int, int] | None:
+        """Return a preview's width and height, or ``None`` if it is missing."""
+        ...
+
     def stats(self) -> PhotoStats:
         """Return totals and breakdowns."""
         ...

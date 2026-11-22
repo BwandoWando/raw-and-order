@@ -89,6 +89,17 @@ class CachedPhotoLibrary:
         except (OSError, PreviewError):
             return None
 
+    def preview_size(self, preview_path: Path) -> tuple[int, int] | None:
+        """Return a preview's width and height, or ``None`` if it is missing.
+
+        Cached per file version, like :meth:`thumbnail`.
+        """
+        try:
+            version = preview_path.stat().st_mtime_ns
+            return _preview_size(self._thumbnailer, str(preview_path), version)
+        except (OSError, PreviewError):
+            return None
+
     def stats(self) -> PhotoStats:
         """Return totals and breakdowns."""
         return _stats(self._catalog, self._key)
@@ -150,6 +161,13 @@ def _thumbnail(
     _thumbnailer: Thumbnailer, preview_path: str, max_px: int, version: int
 ) -> bytes:
     return _thumbnailer.thumbnail(Path(preview_path), max_px)
+
+
+@st.cache_data(max_entries=THUMBNAIL_CACHE_ENTRIES, show_spinner=False)
+def _preview_size(
+    _thumbnailer: Thumbnailer, preview_path: str, version: int
+) -> tuple[int, int]:
+    return _thumbnailer.size(Path(preview_path))
 
 
 @st.cache_data(ttl=CACHE_TTL_S, show_spinner=False)

@@ -34,3 +34,18 @@ class JpegThumbnailer:
         except (OSError, UnidentifiedImageError) as exc:
             raise PreviewError(f"Could not read preview {preview_path}: {exc}") from exc
         return buffer.getvalue()
+
+    def size(self, preview_path: Path) -> tuple[int, int]:
+        """Return the preview's width and height, read from its header only.
+
+        Previews are saved already rotated, so this is the photo as shown.
+
+        Raises:
+            PreviewError: If the preview is missing or not an image.
+        """
+        try:
+            with Image.open(preview_path) as image:
+                width, height = image.size
+                return int(width), int(height)
+        except (OSError, UnidentifiedImageError) as exc:
+            raise PreviewError(f"Could not read preview {preview_path}: {exc}") from exc

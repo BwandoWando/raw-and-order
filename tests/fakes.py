@@ -240,6 +240,13 @@ class FakePhotoLibrary:
     def thumbnail(self, preview_path: Path, max_px: int) -> bytes | None:
         return preview_path.read_bytes() if preview_path.is_file() else None
 
+    def preview_size(self, preview_path: Path) -> tuple[int, int] | None:
+        if not preview_path.is_file():
+            return None
+        with Image.open(preview_path) as image:
+            width, height = image.size
+            return int(width), int(height)
+
     def stats(self) -> PhotoStats:
         return PhotoStats(
             total=len(self._records),

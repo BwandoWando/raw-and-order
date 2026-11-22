@@ -57,6 +57,10 @@ class Thumbnailer(Protocol):
         """Return JPEG bytes no larger than ``max_px`` on the longest side."""
         ...
 
+    def size(self, preview_path: Path) -> tuple[int, int]:
+        """Return the preview's width and height in pixels."""
+        ...
+
 
 class ImageDecoder(Protocol):
     """Decodes a raw or regular image file into a viewable image."""

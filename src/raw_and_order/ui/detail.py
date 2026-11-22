@@ -52,7 +52,10 @@ FULL_SCREEN_Z = 1_000_100  # above Streamlit's dialog
 # Room left for the dialog title, file name and tabs (the description and
 # camera settings sit beside the photo, so they take no height).
 CHROME_REM = 30
-PHOTO_SHARE = (3, 2)  # widths of the photo and text columns
+# Widths of the photo and text columns. Portrait photos are narrow, so the
+# text gets more of the width beside them.
+LANDSCAPE_SHARE = (3, 2)
+PORTRAIT_SHARE = (2, 3)
 
 DETAIL_CSS = f"""
 <style>
@@ -183,6 +186,17 @@ DETAIL_CSS = f"""
 """
 
 
+def column_share(size: tuple[int, int] | None) -> tuple[int, int]:
+    """Photo and text column widths for a preview of ``size`` (width, height).
+
+    Portrait photos get the narrow column; landscape, square and unknown
+    sizes get the wide one.
+    """
+    if size is not None and size[1] > size[0]:
+        return PORTRAIT_SHARE
+    return LANDSCAPE_SHARE
+
+
 def neighbours(paths: Sequence[Path], current: Path) -> tuple[Path | None, Path | None]:
     """The photos before and after ``current`` in ``paths`` (None at the ends)."""
     if current not in paths:
@@ -222,7 +236,8 @@ def _details(paths: tuple[Path, ...], library: PhotoLibrary) -> None:
     record = library.photo(current)
     st.html(DETAIL_CSS)
     _file_heading(current)
-    photo_column, text_column = st.columns(PHOTO_SHARE, gap="medium")
+    size = library.preview_size(record.preview_path) if record else None
+    photo_column, text_column = st.columns(column_share(size), gap="medium")
     with photo_column:
         _stepper(paths, current, record.preview_path if record else None)
     if record is not None and st.session_state.get(ZOOM_KEY):

@@ -65,3 +65,15 @@ def test_thumbnail_shrinks_to_the_longest_side(tmp_path: Path) -> None:
 def test_thumbnail_of_a_missing_preview_is_a_preview_error(tmp_path: Path) -> None:
     with pytest.raises(PreviewError):
         JpegThumbnailer().thumbnail(tmp_path / "gone.jpg", 128)
+
+
+def test_size_is_the_preview_as_shown(tmp_path: Path) -> None:
+    preview = tmp_path / "portrait.jpg"
+    Image.new("RGB", (300, 450)).save(preview)
+
+    assert JpegThumbnailer().size(preview) == (300, 450)
+
+
+def test_size_of_a_missing_preview_is_a_preview_error(tmp_path: Path) -> None:
+    with pytest.raises(PreviewError):
+        JpegThumbnailer().size(tmp_path / "gone.jpg")
