@@ -1,7 +1,7 @@
 """Drive the Streamlit app headless with AppTest against a seeded database."""
 
 from collections.abc import Callable, Iterator
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from pathlib import Path
 
 import pytest
@@ -21,6 +21,8 @@ from raw_and_order.schemas import (
     SceneType,
     WhiteBalanceSource,
 )
+from raw_and_order.schemas.query import FilterOptions
+from raw_and_order.ui.filters import RESET_KEY, filter_defaults
 from raw_and_order.ui.gallery import open_button_key
 from raw_and_order.ui.launcher import APP_PATH
 
@@ -206,3 +208,59 @@ def test_page_sizes_and_tooltips_show_captions(
     assert "Showing 1–3 of 3 photos" in _captions(app)
     button = app.button(key=open_button_key(tmp_path / "IMG_0.ARW"))
     assert button.help == "2026-01-11 · landscape"
+
+
+def _sidebar_filters(app: AppTest) -> dict[str, object]:
+    """Key and value of every filter widget in the sidebar."""
+    widgets = [
+        *app.sidebar.text_input,
+        *app.sidebar.multiselect,
+        *app.sidebar.button_group,
+        *app.sidebar.date_input,
+        *app.sidebar.checkbox,
+        *app.sidebar.slider,
+    ]
+    return {str(w.key): w.value for w in widgets}
+
+
+def test_reset_filters_restores_every_filter(app_with) -> None:  # type: ignore[no-untyped-def]
+    app = app_with(6)
+    untouched = _sidebar_filters(app)
+    app.text_input(key="f_text").input("photo").run()
+    for key, value in [
+        ("f_scenes", "street"),
+        ("f_tags", "city"),
+        ("f_cameras", "ILCE-6400"),
+        ("f_lenses", "Sigma 17-40mm F1.8 DC | A"),
+        ("f_models", "ollama:gemma3:12b"),
+    ]:
+        app.multiselect(key=key).select(value).run()
+    app.button_group(key="f_people").set_value("Yes").run()
+    app.checkbox(key="f_gps").check().run()
+    app.slider(key="f_kelvin").set_range(5100, 5300).run()
+    day = date(2026, 1, 11)
+    app.date_input(key="f_dates").set_value((day, day)).run()
+    assert "Showing 1–6 of 6 photos" not in _captions(app)
+
+    app.button(key=RESET_KEY).click().run()
+
+    assert not app.exception
+    assert _sidebar_filters(app) == untouched
+    assert "Showing 1–6 of 6 photos" in _captions(app)
+
+
+def test_reset_covers_every_sidebar_filter(app_with) -> None:  # type: ignore[no-untyped-def]
+    app = app_with(3)
+    options = FilterOptions(
+        scenes=[],
+        tags=[],
+        cameras=[],
+        lenses=[],
+        annotated_by=[],
+        earliest=date(2026, 1, 1),
+        latest=date(2026, 2, 1),
+        kelvin_min=5000,
+        kelvin_max=5200,
+    )
+
+    assert set(_sidebar_filters(app)) == set(filter_defaults(options))

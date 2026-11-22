@@ -9,18 +9,7 @@ from raw_and_order.schemas.query import FilterOptions, PhotoQuery
 
 PEOPLE_CHOICES = {"Any": None, "Yes": True, "No": False}
 KELVIN_STEP = 50
-FILTER_KEYS = (
-    "f_text",
-    "f_scenes",
-    "f_tags",
-    "f_people",
-    "f_cameras",
-    "f_lenses",
-    "f_dates",
-    "f_gps",
-    "f_kelvin",
-    "f_models",
-)
+RESET_KEY = "f_reset"
 
 
 def tag_label(tag: str, counts: dict[str, int]) -> str:
@@ -51,7 +40,13 @@ def render_filters(options: FilterOptions) -> PhotoQuery:
     only_gps = sidebar.checkbox("Only photos with GPS", key="f_gps")
     kelvin_min, kelvin_max = _kelvin_range(options)
     models = sidebar.multiselect("Annotated by", options.annotated_by, key="f_models")
-    sidebar.button("Reset filters", on_click=_reset, width="stretch")
+    sidebar.button(
+        "Reset filters",
+        key=RESET_KEY,
+        on_click=_reset,
+        args=(options,),
+        width="stretch",
+    )
     return PhotoQuery(
         text=text or None,
         scenes=tuple(scenes),
@@ -103,6 +98,31 @@ def _kelvin_range(options: FilterOptions) -> tuple[int | None, int | None]:
     return (None, None) if (start, end) == (low, high) else (start, end)
 
 
-def _reset() -> None:
-    for key in FILTER_KEYS:
-        st.session_state.pop(key, None)
+def filter_defaults(options: FilterOptions) -> dict[str, Any]:
+    """Each sidebar widget's key and the value that means "no filter"."""
+    defaults: dict[str, Any] = {
+        "f_text": "",
+        "f_scenes": [],
+        "f_tags": [],
+        "f_people": "Any",
+        "f_cameras": [],
+        "f_lenses": [],
+        "f_gps": False,
+        "f_models": [],
+    }
+    if options.earliest is not None and options.latest is not None:
+        defaults["f_dates"] = (options.earliest, options.latest)
+    low, high = options.kelvin_min, options.kelvin_max
+    if low is not None and high is not None and low != high:
+        defaults["f_kelvin"] = (low, high)
+    return defaults
+
+
+def _reset(options: FilterOptions) -> None:
+    """Put every filter back to its default, on screen as well.
+
+    Assigning the value (rather than deleting the key) is what makes
+    Streamlit send it to the browser; a deleted key resets only the server
+    side, and the browser keeps showing and re-sending the old value.
+    """
+    st.session_state.update(filter_defaults(options))
