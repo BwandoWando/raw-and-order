@@ -1,20 +1,19 @@
 """Pop-up with everything known about one photo, sized to fit one screen.
 
-Under the file name, the photo sits on the left and its description, tags
-and camera settings on the right. The longer sections (similar photos,
-location, files) sit in tabs below, full width, so nothing needs scrolling
-on a normal screen. Buttons either side of the photo (and the arrow keys)
-step to the previous or next photo shown in the gallery without closing the
-dialog. Stepping past the last photo on the page loads the next page and
-shows its first photo; stepping back past the first shows the last photo of
-the previous page. Similar photos follow the sidebar filters; clicking one
-loads the page it is on and shows it here, so stepping carries on from
-there. The dialog loads those pages itself, so it stays open (no flicker),
-with a spinner if loading takes a moment; the gallery behind follows on the
-next full run, e.g. when the dialog closes. A star in the photo's corner marks it as a
-favorite. Clicking the photo shows its preview full
-screen, on a layer over the dialog (Streamlit allows only one dialog at a
-time).
+Under the file name, the photo sits on the left and its description, tags and
+camera settings on the right. The longer sections (similar photos, location,
+files) sit in tabs below, full width, so nothing needs scrolling on a normal
+screen. Buttons either side of the photo (and the arrow keys) step to the
+previous or next photo in the gallery's order (filters and sort) without
+closing the dialog. Stepping past the last photo on the page loads the next
+page and shows its first photo; stepping back past the first shows the last
+photo of the previous page. Similar photos follow the sidebar filters; clicking
+one loads the page it is on and shows it here, so stepping carries on from
+there. The dialog loads those pages itself, so it stays open (no flicker), with
+a spinner if loading takes a moment; the gallery behind follows on the next
+full run, e.g. when the dialog closes. A star in the photo's corner marks it as
+a favorite. Clicking the photo shows its preview full screen, on a layer over
+the dialog (Streamlit allows only one dialog at a time).
 """
 
 from collections.abc import Sequence
@@ -361,7 +360,8 @@ def open_details(path: Path, page: GalleryPage) -> None:
 
     Call it from a widget callback; :func:`show_details` then draws the
     dialog. Pass the gallery page shown (current filters, sort and page), so
-    the dialog never steps to a photo the gallery does not show.
+    the dialog steps in the gallery's order and reads further pages the same
+    way.
     """
     st.session_state[CURRENT_KEY] = str(path)
     st.session_state[PAGE_KEY] = page

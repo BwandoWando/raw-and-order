@@ -443,16 +443,13 @@ def test_the_star_marks_and_unmarks_a_favorite(tmp_path: Path) -> None:
     record = _record(0).model_copy(update={"preview_path": preview})
     library = FakePhotoLibrary([record])
     app = _app(library)
-    # AppTest does not keep a dialog open between runs (a browser does), so
-    # the details are reopened from the gallery after each click.
-    open_details = app.button(key=open_button_key(record.path))
 
-    open_details.click().run()
+    app.button(key=open_button_key(record.path)).click().run()
     assert app.button(key=FAVORITE_OFF_KEY).label == "Add to favorites"
     app.button(key=FAVORITE_OFF_KEY).click().run()
     assert library.favorites == {record.path}
 
-    app.button(key=open_button_key(record.path)).click().run()
+    # The dialog stays open across the rerun, now showing the filled star.
     assert app.button(key=FAVORITE_ON_KEY).label == "Remove from favorites"
     app.button(key=FAVORITE_ON_KEY).click().run()
     assert library.favorites == set()

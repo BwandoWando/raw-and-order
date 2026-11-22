@@ -3,7 +3,8 @@
 :func:`load_settings` is called once per command (and by the Alembic
 environment); the resulting :class:`Settings` is passed down to
 :mod:`raw_and_order.bootstrap`, which builds everything from it. Nested LLM
-settings use a double underscore, e.g. ``LLM__MODEL=gemma3:12b``.
+settings use a double underscore, e.g. ``LLM__MODEL=gemma3:27b``. The model
+has no default and must be set; environment variables override ``.env``.
 """
 
 from enum import StrEnum

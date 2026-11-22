@@ -147,17 +147,26 @@ conda env config vars set PYTHONNOUSERSITE=1      # ignore packages in ~/.local
 conda deactivate && conda activate raw-and-order  # apply it
 
 pip install -e ".[dev,ollama,heic,ui]"
-cp .env.example .env    # then edit (model, provider, limits)
+cp .env.example .env    # then edit: LLM__MODEL is required; provider, limits
 alembic upgrade head    # create / migrate data/app.db
 pre-commit install      # optional: lint + type-check on commit
 ```
 
-**Pick a model.** For Ollama, pull a vision model and set it in `.env`:
+**Pick a model.** `LLM__MODEL` has no default: without it every command
+stops with "An LLM model is required". For Ollama, pull a vision model and
+set it in `.env`:
 
 ```bash
-ollama pull gemma3:12b   # LLM__MODEL=gemma3:12b (also gemma3:4b, gemma3:27b)
+ollama pull gemma3:27b   # LLM__MODEL=gemma3:27b (smaller, faster: gemma3:12b, gemma3:4b)
 raw-and-order check      # config valid, model reachable, supports images
 ```
+
+Two things can make a run use a different model than `.env` says:
+
+- A comment after a value needs a space before the `#`:
+  `LLM__MODEL=gemma3:27b#old` makes the whole line the model name.
+- Environment variables override `.env`. If `env | grep LLM__` shows an old
+  value in your terminal, `unset` it or open a new terminal.
 
 `llama3.2-vision` fails to load on recent Ollama versions ("unknown model
 architecture: 'mllama'"), so use `gemma3` or another vision model. For OpenAI
@@ -270,7 +279,7 @@ All settings come from environment variables or `.env`
 |---|---|---|
 | **LLM** | | |
 | `LLM__PROVIDER` | `ollama` | `ollama`, `openai` or `anthropic` |
-| `LLM__MODEL` | `gemma3:12b` | Model name for the provider |
+| `LLM__MODEL` | **required** | Model name for the provider, e.g. `gemma3:27b` |
 | `LLM__BASE_URL` | provider default | e.g. `http://localhost:11434` for Ollama |
 | `LLM__API_KEY` | - | Required for OpenAI / Anthropic |
 | `LLM__TEMPERATURE` | provider default | Sampling temperature |
@@ -398,15 +407,19 @@ The Gallery, Tags and Export tabs and the Reset button then follow it.
    (`export/rows.py`).
 4. `raw-and-order process FOLDER --reread-exif` fills it for stored photos.
 
-## Resetting and starting from Scratch
-# 1. Delete the previews
-rm -rf data/previews
+## Resetting and starting from scratch
 
-# 2. Delete the database, including SQLite's -wal/-shm side files
-rm -f data/app.db data/app.db-wal data/app.db-shm
+This deletes every annotation, tag, hash, favorite and logged failure; your
+photo files are not touched. Stop the UI (Ctrl+C) and any running `process`
+first, since both keep the database open.
 
-# 3. Create a fresh, empty database
-alembic upgrade head
+```bash
+cp data/app.db data/app.db.bak                       # optional: keep a copy
+rm -rf data/previews                                 # 1. delete the previews
+rm -f data/app.db data/app.db-wal data/app.db-shm    # 2. delete the database and its side files
+alembic upgrade head                                 # 3. create a fresh, empty database
+raw-and-order process /path/to/photos                # 4. start processing again
+```
 
-# 4. Start processing again
-raw-and-order process /path/to/photos
+Each run handles up to `MAX_PHOTOS_PER_RUN` photos (`--max-photos`, up to
+5000); run the same command again to continue.

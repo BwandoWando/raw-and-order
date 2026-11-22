@@ -267,8 +267,8 @@ def _pager(page: int, pages: int) -> None:
 
     The arrows are also the left and right arrow keys. While the photo
     details are open the arrow keys step photos instead, so these shortcuts
-    are off then (Streamlit would fire both). The grid is drawn first, so a
-    click that opens the details is already known here.
+    are off then (Streamlit would fire both). A thumbnail click opens the
+    details in its callback, before the run, so that is already known here.
     """
     if pages <= 1:
         return
