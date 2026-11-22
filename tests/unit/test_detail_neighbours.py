@@ -7,6 +7,7 @@ from raw_and_order.ui.detail import (
     PORTRAIT_SHARE,
     column_share,
     neighbours,
+    page_position,
 )
 
 PATHS = [Path("/a.jpg"), Path("/b.jpg"), Path("/c.jpg")]
@@ -38,3 +39,12 @@ def test_landscape_square_and_unknown_photos_keep_the_wide_photo_column() -> Non
     assert column_share((600, 400)) == LANDSCAPE_SHARE
     assert column_share((500, 500)) == LANDSCAPE_SHARE
     assert column_share(None) == LANDSCAPE_SHARE
+
+
+def test_page_position_counts_from_one() -> None:
+    assert page_position(PATHS, Path("/a.jpg")) == 1
+    assert page_position(PATHS, Path("/c.jpg")) == 3
+
+
+def test_a_photo_off_the_page_has_no_position() -> None:
+    assert page_position(PATHS, Path("/elsewhere.jpg")) is None

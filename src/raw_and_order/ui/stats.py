@@ -5,8 +5,14 @@ from collections.abc import Callable
 import altair as alt
 import streamlit as st
 
-from raw_and_order.schemas.query import KELVIN_BAND_K, UNKNOWN_LABEL, LabelCount
+from raw_and_order.schemas.query import (
+    KELVIN_BAND_K,
+    UNKNOWN_LABEL,
+    LabelCount,
+    PhotoStats,
+)
 from raw_and_order.ui.charts import (
+    ChartTheme,
     columns_by_month,
     horizontal_bars,
     ordered_columns,
@@ -19,29 +25,40 @@ TOP_LENSES = 10
 
 
 def render_stats(library: PhotoLibrary) -> None:
-    """Draw the metrics row and the three breakdown charts."""
+    """Draw the headline numbers, then the breakdown charts."""
     summary = library.stats()
-    failed = len(library.failures())
-    a, b, c, d, e = st.columns(5)
-    a.metric("Photos", summary.total)
-    b.metric("With GPS", summary.with_gps)
-    c.metric("With people", summary.with_people)
-    d.metric("Copies skipped", summary.copies)
-    e.metric("Logged failures", failed)
+    _metrics(summary, failed=len(library.failures()))
     if summary.total == 0:
         st.info("No photos yet.")
         return
-
     theme = theme_for(getattr(st.context.theme, "type", None))
     _section(
         "Photos by scene", summary.by_scene, lambda rows: horizontal_bars(rows, theme)
     )
-    lenses = summary.by_lens[:TOP_LENSES]
     _section(
         f"Photos by lens (top {TOP_LENSES})",
-        lenses,
+        summary.by_lens[:TOP_LENSES],
         lambda rows: horizontal_bars(rows, theme),
     )
+    _by_month(summary, theme)
+    _by_white_balance(summary, theme)
+
+
+def _metrics(summary: PhotoStats, failed: int) -> None:
+    """One row of headline numbers."""
+    metrics = [
+        ("Photos", summary.total),
+        ("With GPS", summary.with_gps),
+        ("With people", summary.with_people),
+        ("Copies skipped", summary.copies),
+        ("Logged failures", failed),
+    ]
+    for column, (label, value) in zip(st.columns(len(metrics)), metrics, strict=True):
+        column.metric(label, value)
+
+
+def _by_month(summary: PhotoStats, theme: ChartTheme) -> None:
+    """Photos per capture month; undated photos are counted below the chart."""
     dated = [row for row in summary.by_month if row.label != UNKNOWN_LABEL]
     undated = sum(row.count for row in summary.by_month if row.label == UNKNOWN_LABEL)
     _section(
@@ -51,6 +68,10 @@ def render_stats(library: PhotoLibrary) -> None:
         st.caption(
             f"{undated} photo(s) have no capture date and are not shown by month."
         )
+
+
+def _by_white_balance(summary: PhotoStats, theme: ChartTheme) -> None:
+    """Photos per white balance band; photos without one are counted below."""
     _section(
         f"Photos by white balance ({KELVIN_BAND_K} K bands, warm to cool light)",
         summary.by_white_balance,
@@ -58,9 +79,9 @@ def render_stats(library: PhotoLibrary) -> None:
             rows, theme, x_title="Band start (K)", x_name="Band from (K)"
         ),
     )
-    unknown_wb = summary.total - sum(row.count for row in summary.by_white_balance)
-    if unknown_wb:
-        st.caption(f"{unknown_wb} photo(s) have no white balance temperature.")
+    unknown = summary.total - sum(row.count for row in summary.by_white_balance)
+    if unknown:
+        st.caption(f"{unknown} photo(s) have no white balance temperature.")
 
 
 def _section(

@@ -260,7 +260,12 @@ def _closed() -> None:
 
 @st.dialog("Photo details", width="large", on_dismiss=_closed)
 def _details(paths: tuple[Path, ...], library: PhotoLibrary) -> None:
-    """Render the current photo. The step buttons rerun only this dialog."""
+    """Render the current photo. The step buttons rerun only this dialog.
+
+    Layout: the file name, then the photo (left) beside its text (right),
+    then the tabs. If the photo has left the database, only the previous and
+    next buttons and a warning are shown, so one can step on.
+    """
     current = Path(st.session_state[CURRENT_KEY])
     record = library.photo(current)
     st.html(DETAIL_CSS)
@@ -269,16 +274,23 @@ def _details(paths: tuple[Path, ...], library: PhotoLibrary) -> None:
     photo_column, text_column = st.columns(column_share(size), gap="medium")
     with photo_column:
         _stepper(paths, current, record, library)
-    if record is not None and st.session_state.get(ZOOM_KEY):
-        _full_screen(record.preview_path)
     if record is None:
         st.warning("This photo is no longer in the database.")
         return
+    if st.session_state.get(ZOOM_KEY):
+        _full_screen(record.preview_path)
     with text_column, st.container(key=TEXT_KEY):
-        position = paths.index(current) + 1 if current in paths else 0
-        _summary(record, position, len(paths))
+        _summary(record, page_position(paths, current), len(paths))
         _camera(record.exif, size)
     _sections(record, library)
+
+
+def page_position(paths: Sequence[Path], current: Path) -> int | None:
+    """``current``'s number on the gallery page (from 1), or None if not on it.
+
+    A similar photo opened from the details may be on another page.
+    """
+    return paths.index(current) + 1 if current in paths else None
 
 
 def _stepper(
@@ -382,7 +394,8 @@ def _zoom(full_screen: bool) -> None:
     st.session_state[ZOOM_KEY] = full_screen
 
 
-def _summary(record: PhotoRecord, position: int, count: int) -> None:
+def _summary(record: PhotoRecord, position: int | None, count: int) -> None:
+    """Description, tags and one caption line of facts about the photo."""
     annotation = record.annotation
     st.markdown(f"**{annotation.description}**")
     st.markdown(" ".join(f"`{tag}`" for tag in annotation.tags) or "_No tags_")
@@ -392,7 +405,11 @@ def _summary(record: PhotoRecord, position: int, count: int) -> None:
         f"Scene: {annotation.scene.value} · People: {people} · "
         f"Taken {capture_label(record)} (from {source}) · "
         f"Annotated by {record.annotated_by}"
-        + (f" · Photo {position} of {count} on this page" if position else "")
+        + (
+            f" · Photo {position} of {count} on this page"
+            if position is not None
+            else ""
+        )
     )
 
 
