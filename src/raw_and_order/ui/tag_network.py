@@ -56,6 +56,9 @@ def network_spec(graph: TagGraph, theme: ChartTheme) -> dict[str, Any]:
                 "top": 48,
                 "roam": True,
                 "draggable": True,
+                # A click selects one tag; the Tags tab then opens its photos.
+                "selectedMode": "single",
+                "select": {"itemStyle": {"borderColor": theme.text, "borderWidth": 2}},
                 "categories": [
                     _category_spec(i, n, theme) for i, n in enumerate(names)
                 ],

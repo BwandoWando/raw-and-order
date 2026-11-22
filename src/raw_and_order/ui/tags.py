@@ -1,18 +1,23 @@
 """Tags tab: the tag network, its clusters and a table view.
 
-Clicking a cluster card shows the cluster's photos in the Gallery: it sets
-the "Tags (any of)" filter to the cluster's tags and opens the Gallery tab.
+Clicking a cluster card, or a tag in the network, shows the cluster's
+photos in the Gallery: it sets the "Tags (all of)" filter to the tags in the
+cluster's name and opens the Gallery tab. Tags always combine with AND, as in
+the sidebar; all of a cluster's tags together would match almost no photo.
+A tag outside every cluster ("Other") shows the photos with that tag.
 """
+
+from functools import partial
 
 import pandas as pd
 import streamlit as st
 
-from raw_and_order.analysis.tag_graph import top_partners
+from raw_and_order.analysis.tag_graph import CLUSTER_NAME_TAGS, top_partners
 from raw_and_order.schemas.query import PhotoQuery
 from raw_and_order.schemas.tags import TagGraph
 from raw_and_order.ui.charts import theme_for
 from raw_and_order.ui.css import FOCUS_RING, keyed_prefix, overlay_button
-from raw_and_order.ui.filters import show_any_of_tags
+from raw_and_order.ui.filters import show_tags
 from raw_and_order.ui.library import PhotoLibrary
 from raw_and_order.ui.navigation import Tab, open_tab
 from raw_and_order.ui.tag_network import OTHER, network_spec
@@ -22,6 +27,11 @@ TOP_N_DEFAULT = 50
 STRENGTH_RANGE = (0.05, 0.5)
 STRENGTH_DEFAULT = 0.15
 CHART_HEIGHT_PX = 640
+NETWORK_KEY = "tag_network"
+# Counts tag clicks handled. Each one gives the network a new key, so it is
+# drawn afresh with nothing selected: otherwise the chart remembers the
+# clicked tag, and the next click on it would only unselect it.
+NETWORK_CLICKS_KEY = "tag_network_clicks"
 CLUSTER_COLUMNS = 3
 PARTNERS_SHOWN = 3
 CLUSTER_TILE_PREFIX = "tag-cluster-"  # the card
@@ -52,13 +62,17 @@ def render_tags(filters: PhotoQuery, library: PhotoLibrary) -> None:
     st.caption(
         f"The {len(graph.nodes)} most-used tags across {graph.photos} photos. "
         "Bigger means more photos; lines join tags that often appear together. "
-        "Hover to highlight a tag's links, drag to rearrange, scroll to zoom."
+        "Hover to highlight a tag's links, drag to rearrange, scroll to zoom. "
+        "Click a tag to see its cluster's photos in the Gallery."
     )
     theme = theme_for(getattr(st.context.theme, "type", None))
+    key = f"{NETWORK_KEY}-{st.session_state.get(NETWORK_CLICKS_KEY, 0)}"
     st.echarts_chart(
         network_spec(graph, theme),
         height=CHART_HEIGHT_PX,
-        key="tag_network",
+        key=key,
+        # The graph drawn now is the one the click refers to.
+        on_select=partial(_open_clicked_tag, graph, key),
         alt="Network of the most-used tags, grouped into clusters.",
     )
     _clusters(graph)
@@ -99,7 +113,10 @@ def _clusters(graph: TagGraph) -> None:
     if not graph.clusters:
         st.caption("No clusters at this link strength; try a lower one.")
         return
-    st.caption("Click a cluster to see its photos (any of its tags) in the Gallery.")
+    st.caption(
+        "Click a cluster to see the photos with all the tags in its name in the "
+        "Gallery."
+    )
     st.html(CLUSTER_CSS)
     counts = {node.tag: node.photos for node in graph.nodes}
     columns = st.columns(CLUSTER_COLUMNS)
@@ -115,13 +132,41 @@ def _clusters(graph: TagGraph) -> None:
                 key=cluster_open_key(index),
                 help="Show these photos in the Gallery",
                 on_click=_show_in_gallery,
-                args=(cluster.tags,),
+                args=(cluster.tags[:CLUSTER_NAME_TAGS],),
             )
 
 
+def tags_to_show(graph: TagGraph, node_index: int) -> list[str]:
+    """The tags whose photos a click on the ``node_index``-th tag shows.
+
+    The tags in its cluster's name (its biggest ones), or just the tag if it
+    is in no cluster.
+    """
+    node = graph.nodes[node_index]
+    if node.cluster is None:
+        return [node.tag]
+    return graph.clusters[node.cluster].tags[:CLUSTER_NAME_TAGS]
+
+
+def _open_clicked_tag(graph: TagGraph, key: str) -> None:
+    """Show the photos of the tag clicked in the network drawn with ``key``."""
+    selection = st.session_state[key].selection
+    clicked = [
+        index
+        for group in selection.selected
+        if group["data_type"] in ("node", "main")
+        for index in group["data_indices"]
+    ]
+    if clicked:
+        _show_in_gallery(tags_to_show(graph, clicked[0]))
+        st.session_state[NETWORK_CLICKS_KEY] = (
+            st.session_state.get(NETWORK_CLICKS_KEY, 0) + 1
+        )
+
+
 def _show_in_gallery(tags: list[str]) -> None:
-    """Filter to photos with any of ``tags`` and open the Gallery tab."""
-    show_any_of_tags(tags)
+    """Filter to photos with all of ``tags`` and open the Gallery tab."""
+    show_tags(tags)
     open_tab(Tab.GALLERY)
 
 

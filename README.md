@@ -194,8 +194,8 @@ Stop it with Ctrl+C. In VS Code, the **Streamlit UI** debug configuration in
 `.vscode/launch.json` runs it with breakpoints.
 
 - **Filters** (sidebar): text search over descriptions and tags, favorites
-  only, scene, tags (all of, and any of; each listed with its number of
-  photos, e.g. `urban (431)`), people, camera, lens, capture-date range, white balance (K)
+  only, scene, tags (all of; each listed with its number of photos, e.g.
+  `urban (431)`), people, camera, lens, capture-date range, white balance (K)
   range, GPS only, annotating model. They apply to the Gallery, Tags and
   Export tabs.
 
@@ -219,8 +219,10 @@ Stop it with Ctrl+C. In VS Code, the **Streamlit UI** debug configuration in
   of photos; lines join tags that often appear together (Jaccard overlap above
   the "Link strength" slider). Tags are grouped into clusters (Louvain
   community detection), each drawn in its own colour and shape, and listed as
-  cards and in a table. Click a cluster card to see its photos in the Gallery
-  (it fills the "Tags (any of)" filter with the cluster's tags). Hover to
+  cards and in a table. Click a cluster card, or any tag in the network, to
+  see the cluster's photos in the Gallery: it fills the "Tags (all of)" filter
+  with the tags in the cluster's name, which combine with AND like every tag
+  filter (a grey "Other" tag shows just that tag's photos). Hover to
   highlight links, drag to rearrange, scroll to zoom. The sidebar filters
   apply.
 - **Failures:** the `processing_failures` log, filterable by stage.

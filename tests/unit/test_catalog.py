@@ -319,9 +319,3 @@ def test_favorites_only_filter(
         ["city", "sunset-ish"],
         ["person"],
     ]
-
-
-def test_any_of_tags_filter(catalog: SqlAlchemyPhotoCatalog) -> None:
-    assert _names(catalog, any_tags=("beach", "city")) == ["beach.arw", "street.arw"]
-    assert _names(catalog, any_tags=("sunset",)) == ["beach.arw"]  # not sunset-ish
-    assert _names(catalog, any_tags=("beach", "city"), tags=("sky",)) == ["beach.arw"]

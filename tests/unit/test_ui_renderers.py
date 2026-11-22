@@ -6,6 +6,7 @@ from pathlib import Path
 from PIL import Image
 from streamlit.testing.v1 import AppTest
 
+from raw_and_order.analysis.tag_graph import build_tag_graph
 from raw_and_order.schemas import (
     Annotation,
     ExifData,
@@ -25,7 +26,7 @@ from raw_and_order.ui.filters import FilterKey
 from raw_and_order.ui.gallery import GalleryKey, open_button_key
 from raw_and_order.ui.library import PhotoLibrary
 from raw_and_order.ui.navigation import TABS_KEY
-from raw_and_order.ui.tags import cluster_open_key
+from raw_and_order.ui.tags import cluster_open_key, tags_to_show
 from tests.fakes import SAMPLE_ANNOTATION, FakePhotoLibrary
 
 TIMEOUT_S = 30
@@ -270,5 +271,16 @@ def test_clicking_a_cluster_shows_its_photos_in_the_gallery() -> None:
 
     app.button(key=cluster_open_key(0)).click().run()
 
-    assert app.multiselect(key=FilterKey.ANY_TAGS).value == ["city", "neon", "night"]
+    assert app.multiselect(key=FilterKey.TAGS).value == ["city", "neon", "night"]
     assert app.session_state[TABS_KEY] == "Gallery"
+
+
+def test_a_clicked_tag_shows_its_cluster_or_just_itself() -> None:
+    city = ["city", "night", "neon", "rain"]
+    tag_lists = [city] * 3 + [["city", "night", "neon"]] + [["sea", "sand"]] * 3
+    graph = build_tag_graph([*tag_lists, ["dog"]], top_n=10, min_strength=0.15)
+    index = {node.tag: i for i, node in enumerate(graph.nodes)}
+
+    # The tags in the cluster's name (its biggest three), not "rain" as well.
+    assert tags_to_show(graph, index["rain"]) == ["city", "neon", "night"]
+    assert tags_to_show(graph, index["dog"]) == ["dog"]  # in no cluster
