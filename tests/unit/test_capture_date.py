@@ -3,6 +3,7 @@ from pathlib import Path
 
 import pytest
 
+from raw_and_order.exceptions import ConfigurationError
 from raw_and_order.media.capture_date import (
     CaptureDateResolver,
     DateValidator,
@@ -175,5 +176,5 @@ def test_exif_tag_date_tries_keys_in_order() -> None:
 
 
 def test_none_is_not_a_configurable_source() -> None:
-    with pytest.raises(ValueError, match="not a date source"):
+    with pytest.raises(ConfigurationError, match="not a date source"):
         build_date_sources([DateSource.NOT_FOUND])

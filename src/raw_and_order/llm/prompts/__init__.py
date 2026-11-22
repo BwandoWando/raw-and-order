@@ -2,6 +2,8 @@
 
 from importlib.resources import files
 
+from raw_and_order.exceptions import ConfigurationError
+
 
 def load_prompt(name: str) -> str:
     """Return the text of ``<name>.md`` from this package."""
@@ -15,12 +17,12 @@ def render_prompt(name: str, **values: object) -> str:
     left alone.
 
     Raises:
-        KeyError: If a given placeholder does not occur in the prompt.
+        ConfigurationError: If a given placeholder does not occur in the prompt.
     """
     text = load_prompt(name)
     for key, value in values.items():
         marker = "{" + key + "}"
         if marker not in text:
-            raise KeyError(f"Prompt {name!r} has no {marker} placeholder")
+            raise ConfigurationError(f"Prompt {name!r} has no {marker} placeholder")
         text = text.replace(marker, str(value))
     return text

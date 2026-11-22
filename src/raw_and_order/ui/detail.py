@@ -349,8 +349,14 @@ def _show(path: Path) -> None:
 
 
 def _photo(record: PhotoRecord | None, library: PhotoLibrary) -> None:
-    """The preview with its favorite star; clicking the photo shows it full screen."""
-    if record is None or not record.preview_path.is_file():
+    """The preview with its favorite star; clicking the photo shows it full screen.
+
+    Nothing is drawn for a photo no longer in the database: ``_details``
+    says so below, and a second message here would only repeat it.
+    """
+    if record is None:
+        return
+    if not record.preview_path.is_file():
         st.info("Preview file not found.")
         return
     with st.container(key=ZOOM_TARGET_KEY, width="content"):

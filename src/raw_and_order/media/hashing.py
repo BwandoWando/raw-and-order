@@ -99,11 +99,18 @@ def hamming_distance(first: str, second: str) -> int:
     calibration are in :mod:`raw_and_order.analysis.similarity`.
 
     Raises:
-        ValueError: If the hashes differ in length or are not hex.
+        FingerprintError: If the hashes differ in length (one is from an older
+            hash size: run ``raw-and-order rehash``) or are not hex.
     """
     if len(first) != len(second):
-        raise ValueError("Hashes must have the same length")
-    return (int(first, 16) ^ int(second, 16)).bit_count()
+        raise FingerprintError(
+            f"pHashes of different lengths ({len(first)} and {len(second)} hex "
+            "digits) cannot be compared; run `raw-and-order rehash` once"
+        )
+    try:
+        return (int(first, 16) ^ int(second, 16)).bit_count()
+    except ValueError as exc:
+        raise FingerprintError(f"Not a hex pHash: {first!r} / {second!r}") from exc
 
 
 class PHasher:

@@ -18,6 +18,7 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any, Protocol
 
+from raw_and_order.exceptions import ConfigurationError
 from raw_and_order.media.exif_values import ExifTags
 from raw_and_order.schemas.exif import DateSource
 
@@ -243,5 +244,5 @@ def build_date_sources(order: Sequence[DateSource]) -> list[CaptureDateSource]:
         DateSource.FILENAME: FilenameDate,
     }
     if DateSource.NOT_FOUND in order:
-        raise ValueError("'none' is not a date source")
+        raise ConfigurationError("'none' is not a date source")
     return [factories[source]() for source in order]

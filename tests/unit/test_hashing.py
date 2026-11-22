@@ -124,5 +124,5 @@ def test_hamming_distance() -> None:
     assert hamming_distance("0000000000000000", "0000000000000000") == 0
     assert hamming_distance("0000000000000000", "000000000000000f") == 4
     assert hamming_distance("ffffffffffffffff", "0000000000000000") == 64
-    with pytest.raises(ValueError, match="same length"):
+    with pytest.raises(FingerprintError, match="different lengths"):
         hamming_distance("ff", "fff")

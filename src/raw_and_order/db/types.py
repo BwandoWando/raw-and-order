@@ -23,6 +23,9 @@ class UtcDateTime(TypeDecorator[datetime]):
         if value is None:
             return None
         if value.tzinfo is None:
+            # A plain ValueError on purpose: SQLAlchemy wraps errors raised
+            # here in StatementError, which database_errors() turns into
+            # PersistenceError for the caller.
             raise ValueError("UtcDateTime requires a timezone-aware datetime")
         return value.astimezone(UTC)
 

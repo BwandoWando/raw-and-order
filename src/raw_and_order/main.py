@@ -36,12 +36,16 @@ MAX_COPIES_LISTED = 5  # the rest are summarised as a count
 
 logger = logging.getLogger(__name__)
 
-app = typer.Typer(help="Extract EXIF from camera raw files and annotate them.")
+app = typer.Typer(
+    help="Catalogue camera raw files and images: EXIF, previews and LLM tags."
+)
 
 
 @app.command()
 def process(
-    source_dir: Annotated[Path, typer.Argument(help="Folder with raw files.")],
+    source_dir: Annotated[
+        Path, typer.Argument(help="Folder of photos (raw and regular images).")
+    ],
     reprocess: Annotated[
         bool, typer.Option(help="Also process files already in the database.")
     ] = False,

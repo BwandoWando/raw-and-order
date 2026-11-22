@@ -284,3 +284,21 @@ def test_a_clicked_tag_shows_its_cluster_or_just_itself() -> None:
     # The tags in the cluster's name (its biggest three), not "rain" as well.
     assert tags_to_show(graph, index["rain"]) == ["city", "neon", "night"]
     assert tags_to_show(graph, index["dog"]) == ["dog"]  # in no cluster
+
+
+class _PhotoDeletedLibrary(FakePhotoLibrary):
+    """Lists the photo in the gallery, but it is gone when the details open."""
+
+    def photo(self, path: Path) -> PhotoRecord | None:
+        return None
+
+
+def test_details_of_a_deleted_photo_say_so_once() -> None:
+    app = _app(_PhotoDeletedLibrary([_record(0)]))
+
+    app.button(key=open_button_key(_record(0).path)).click().run()
+
+    assert [w.value for w in app.warning] == [
+        "This photo is no longer in the database."
+    ]
+    assert not [i for i in app.info if "Preview file not found" in i.value]

@@ -3,6 +3,7 @@ from pydantic import SecretStr, ValidationError
 
 from raw_and_order.bootstrap import build_annotator
 from raw_and_order.config import LLMSettings, Settings
+from raw_and_order.exceptions import ConfigurationError
 from raw_and_order.llm.annotator import LLMAnnotator
 from raw_and_order.llm.prompts import render_prompt
 from raw_and_order.schemas import Annotation, SceneType
@@ -53,7 +54,7 @@ def test_prompt_placeholder_is_filled() -> None:
 
 
 def test_unknown_placeholder_is_an_error() -> None:
-    with pytest.raises(KeyError, match="no_such_value"):
+    with pytest.raises(ConfigurationError, match="no_such_value"):
         render_prompt("annotate_system", no_such_value=1)
 
 
