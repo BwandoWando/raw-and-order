@@ -10,7 +10,7 @@ catalogue. The command is `raw-and-order` and the Python package
 Each run is a plain ordered workflow (`workflow/runner.py`):
 
 ```
-plan:     discover ─▶ fingerprint ─▶ skip_known ─▶ skip_copies ─▶ record_copies ─▶ select_batch
+plan:     discover ─▶ fingerprint ─▶ skip_known ─▶ skip_copies ─▶ sync_copy_log ─▶ select_batch
 per chunk: extract_exif ─▶ decode ─▶ perceptual_hash ─▶ annotate ─▶ persist
 ```
 

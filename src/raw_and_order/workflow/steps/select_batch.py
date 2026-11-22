@@ -31,7 +31,7 @@ class SelectBatchStep:
             )
         early_failures = [item for item in state.items if not item.is_ok]
         return {
-            # Early failures stay in ``items`` so log_planning_failures logs them.
+            # Early failures stay in ``items`` so sync_planning_failures logs them.
             "items": early_failures,
             "queue": selected,
             "selected": len(selected),

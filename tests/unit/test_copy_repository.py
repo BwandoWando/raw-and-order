@@ -4,7 +4,7 @@ from pathlib import Path
 from raw_and_order.db.copy_repository import SqlAlchemyCopyRepository
 from raw_and_order.schemas import PhotoCopy
 from raw_and_order.workflow.state import PhotoItem, WorkflowState
-from raw_and_order.workflow.steps import RecordCopiesStep
+from raw_and_order.workflow.steps import SyncCopyLogStep
 
 WHEN = datetime(2026, 11, 21, tzinfo=UTC)
 
@@ -33,7 +33,7 @@ def test_full_scan_forgets_copies_not_found_again(
     copies: SqlAlchemyCopyRepository,
 ) -> None:
     copies.record([_copy("/in/gone.arw"), _copy("/in/still.arw")], WHEN)
-    node = RecordCopiesStep(copies, clock=lambda: WHEN)
+    node = SyncCopyLogStep(copies, clock=lambda: WHEN)
 
     node(WorkflowState(source_dir=Path("/in"), copies=[_copy("/in/still.arw")]))
 
@@ -44,7 +44,7 @@ def test_reprocess_failed_only_clears_the_retried_files(
     copies: SqlAlchemyCopyRepository,
 ) -> None:
     copies.record([_copy("/in/other.arw"), _copy("/in/retried.arw")], WHEN)
-    node = RecordCopiesStep(copies, clock=lambda: WHEN)
+    node = SyncCopyLogStep(copies, clock=lambda: WHEN)
     state = WorkflowState(
         source_dir=Path("/in"),
         reprocess_failed=True,

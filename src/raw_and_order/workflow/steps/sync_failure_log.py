@@ -9,7 +9,7 @@ from raw_and_order.workflow.state import WorkflowState
 from raw_and_order.workflow.steps.persist import utc_now
 
 
-class LogFailuresStep:
+class SyncFailureLogStep:
     """Logs failed items and clears the log for items that were saved.
 
     Runs after ``persist`` in every chunk, and once after ``select_batch``

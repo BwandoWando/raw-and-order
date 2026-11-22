@@ -9,7 +9,7 @@ from raw_and_order.workflow.state import WorkflowState
 from raw_and_order.workflow.steps.persist import utc_now
 
 
-class RecordCopiesStep:
+class SyncCopyLogStep:
     """Logs the copies found and forgets ones that are no longer copies.
 
     After a full scan, every logged copy under the folder that was not found

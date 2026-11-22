@@ -58,15 +58,15 @@ from raw_and_order.workflow.steps import (
     ExtractExifStep,
     FingerprintStep,
     LoadFailuresStep,
-    LogFailuresStep,
     NextChunkStep,
     PerceptualHashStep,
     PersistStep,
-    RecordChunkStep,
-    RecordCopiesStep,
     SelectBatchStep,
     SkipCopiesStep,
     SkipKnownStep,
+    SyncCopyLogStep,
+    SyncFailureLogStep,
+    TallyChunkStep,
 )
 
 CAPABILITY_CHECK_TIMEOUT_S = 10.0
@@ -160,9 +160,9 @@ def _build_workflow(
         fingerprint=FingerprintStep(Sha256FileHasher()),
         skip_known=SkipKnownStep(repository, failures),
         skip_copies=SkipCopiesStep(repository, Path.is_file),
-        record_copies=RecordCopiesStep(SqlAlchemyCopyRepository(session_factory)),
+        sync_copy_log=SyncCopyLogStep(SqlAlchemyCopyRepository(session_factory)),
         select_batch=SelectBatchStep(),
-        log_planning_failures=LogFailuresStep(failures),
+        sync_planning_failures=SyncFailureLogStep(failures),
         next_chunk=NextChunkStep(),
         extract_exif=ExtractExifStep(exif_reader),
         decode=DecodeStep(decoder, preview_store),
@@ -174,8 +174,8 @@ def _build_workflow(
             max_consecutive_failures=s.max_consecutive_failures,
         ),
         persist=PersistStep(repository, annotated_by=s.llm.label),
-        log_failures=LogFailuresStep(failures),
-        record_chunk=RecordChunkStep(),
+        sync_failure_log=SyncFailureLogStep(failures),
+        tally_chunk=TallyChunkStep(),
     )
     return PhotoWorkflow(steps)
 

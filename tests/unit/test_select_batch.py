@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from raw_and_order.workflow.state import FileError, PhotoItem, Stage, WorkflowState
-from raw_and_order.workflow.steps import NextChunkStep, RecordChunkStep, SelectBatchStep
+from raw_and_order.workflow.steps import NextChunkStep, SelectBatchStep, TallyChunkStep
 
 ERROR = FileError(stage=Stage.FINGERPRINT, error_type="X", message="x")
 
@@ -64,7 +64,7 @@ def test_next_chunk_takes_chunk_size_from_queue() -> None:
     assert update["chunk_index"] == 1
 
 
-def test_record_chunk_folds_results_into_totals() -> None:
+def test_tally_chunk_folds_results_into_totals() -> None:
     items = [
         PhotoItem(path=Path("/in/a.nef"), saved=True),
         PhotoItem(path=Path("/in/b.nef"), error=ERROR),
@@ -73,7 +73,7 @@ def test_record_chunk_folds_results_into_totals() -> None:
         source_dir=Path("/in"), items=items, saved_count=10, selected=12
     )
 
-    update = RecordChunkStep()(state)
+    update = TallyChunkStep()(state)
 
     assert update["saved_count"] == 11
     assert [f.path.name for f in update["failures"]] == ["b.nef"]

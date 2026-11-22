@@ -18,7 +18,7 @@ class SkipCopiesStep:
     The original is the stored photo with that SHA-256 that still exists,
     first by path. If none exists, the first file with that SHA-256 in this
     run is the original and later ones are its copies. Copies are not
-    annotated again; ``record_copies`` logs them. This applies even with
+    annotated again; ``sync_copy_log`` logs them. This applies even with
     ``--reprocess``. Files that could not be hashed are kept (they fail
     later with a clear error).
 

@@ -30,15 +30,15 @@ from raw_and_order.workflow.steps import (
     ExtractExifStep,
     FingerprintStep,
     LoadFailuresStep,
-    LogFailuresStep,
     NextChunkStep,
     PerceptualHashStep,
     PersistStep,
-    RecordChunkStep,
-    RecordCopiesStep,
     SelectBatchStep,
     SkipCopiesStep,
     SkipKnownStep,
+    SyncCopyLogStep,
+    SyncFailureLogStep,
+    TallyChunkStep,
 )
 from tests.fakes import (
     FakeAnnotator,
@@ -72,9 +72,9 @@ def _pipeline(
         fingerprint=FingerprintStep(FakeFileHasher(fail_for=fail_hash_for)),
         skip_known=SkipKnownStep(repository, failures),
         skip_copies=SkipCopiesStep(repository, Path.is_file),
-        record_copies=RecordCopiesStep(copies or InMemoryCopies()),
+        sync_copy_log=SyncCopyLogStep(copies or InMemoryCopies()),
         select_batch=SelectBatchStep(),
-        log_planning_failures=LogFailuresStep(failures),
+        sync_planning_failures=SyncFailureLogStep(failures),
         next_chunk=NextChunkStep(),
         extract_exif=ExtractExifStep(FakeExifReader(exif, fail_for=fail_exif_for)),
         decode=DecodeStep(FakeImageDecoder(), previews),
@@ -86,8 +86,8 @@ def _pipeline(
             max_consecutive_failures=max_consecutive_failures,
         ),
         persist=PersistStep(repository, annotated_by="fake:model"),
-        log_failures=LogFailuresStep(failures),
-        record_chunk=RecordChunkStep(),
+        sync_failure_log=SyncFailureLogStep(failures),
+        tally_chunk=TallyChunkStep(),
     )
     return PhotoPipeline(PhotoWorkflow(steps), lambda: "run-test")
 

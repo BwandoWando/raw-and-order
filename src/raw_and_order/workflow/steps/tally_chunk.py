@@ -8,7 +8,7 @@ from raw_and_order.workflow.state import FileFailure, WorkflowState
 logger = logging.getLogger(__name__)
 
 
-class RecordChunkStep:
+class TallyChunkStep:
     """Adds the chunk's saved count and failures to the totals, then clears it.
 
     By the time this runs, the chunk's photos are already in the database.

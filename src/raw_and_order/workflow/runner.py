@@ -2,12 +2,12 @@
 
 ```
 discover (or load_failures for --reprocess-failed)
-  -> fingerprint -> skip_known -> skip_copies -> record_copies
-  -> select_batch -> log_planning_failures
+  -> fingerprint -> skip_known -> skip_copies -> sync_copy_log
+  -> select_batch -> sync_planning_failures
   -> while photos are queued:
        next_chunk -> extract_exif -> decode -> perceptual_hash -> annotate -> persist
        (stop the chunk's remaining steps early if every photo in it failed)
-       -> log_failures -> record_chunk
+       -> sync_failure_log -> tally_chunk
 ```
 
 Each step receives the current :class:`WorkflowState` and returns the fields
@@ -27,15 +27,15 @@ from raw_and_order.workflow.steps import (
     ExtractExifStep,
     FingerprintStep,
     LoadFailuresStep,
-    LogFailuresStep,
     NextChunkStep,
     PerceptualHashStep,
     PersistStep,
-    RecordChunkStep,
-    RecordCopiesStep,
     SelectBatchStep,
     SkipCopiesStep,
     SkipKnownStep,
+    SyncCopyLogStep,
+    SyncFailureLogStep,
+    TallyChunkStep,
 )
 
 Step = Callable[[WorkflowState], Mapping[str, Any]]
@@ -50,17 +50,17 @@ class WorkflowSteps:
     fingerprint: FingerprintStep
     skip_known: SkipKnownStep
     skip_copies: SkipCopiesStep
-    record_copies: RecordCopiesStep
+    sync_copy_log: SyncCopyLogStep
     select_batch: SelectBatchStep
-    log_planning_failures: LogFailuresStep
+    sync_planning_failures: SyncFailureLogStep
     next_chunk: NextChunkStep
     extract_exif: ExtractExifStep
     decode: DecodeStep
     perceptual_hash: PerceptualHashStep
     annotate: AnnotateStep
     persist: PersistStep
-    log_failures: LogFailuresStep
-    record_chunk: RecordChunkStep
+    sync_failure_log: SyncFailureLogStep
+    tally_chunk: TallyChunkStep
 
 
 def apply(state: WorkflowState, step: Step) -> WorkflowState:
@@ -101,9 +101,9 @@ class PhotoWorkflow:
             s.fingerprint,
             s.skip_known,
             s.skip_copies,
-            s.record_copies,
+            s.sync_copy_log,
             s.select_batch,
-            s.log_planning_failures,
+            s.sync_planning_failures,
         ):
             state = apply(state, step)
         return state
@@ -121,8 +121,8 @@ class PhotoWorkflow:
             if not has_pending_items(state):
                 break  # every photo in this chunk failed; skip to logging
             state = apply(state, step)
-        state = apply(state, s.log_failures)
-        return apply(state, s.record_chunk)
+        state = apply(state, s.sync_failure_log)
+        return apply(state, s.tally_chunk)
 
 
 def has_queued_photos(state: WorkflowState) -> bool:
