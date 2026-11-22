@@ -7,6 +7,7 @@ for providers that are not installed.
 import importlib
 from functools import cache
 
+# Module name -> exception class names. Missing modules or names are skipped.
 _TRANSIENT = {
     "httpx": ("TransportError",),
     "openai": (
@@ -31,7 +32,13 @@ _PROVIDER = {
 
 @cache
 def transient_errors() -> tuple[type[Exception], ...]:
-    """Errors worth retrying: timeouts, dropped connections, rate limits."""
+    """Errors worth retrying: timeouts, dropped connections, rate limits, 5xx.
+
+    The 5xx and rate-limit types are only the OpenAI and Anthropic ones; for
+    Ollama only ``httpx`` transport errors such as timeouts are retried. (The
+    ``ollama`` client turns a refused connection into the built-in
+    ``ConnectionError``, which neither tuple here includes.)
+    """
     return _resolve(_TRANSIENT)
 
 
@@ -42,6 +49,7 @@ def provider_errors() -> tuple[type[Exception], ...]:
 
 
 def _resolve(spec: dict[str, tuple[str, ...]]) -> tuple[type[Exception], ...]:
+    """Import each installed module in ``spec`` and collect the named classes."""
     found: list[type[Exception]] = []
     for module_name, names in spec.items():
         try:

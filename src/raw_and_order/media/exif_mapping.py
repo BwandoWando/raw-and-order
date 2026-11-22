@@ -2,8 +2,9 @@
 
 Exiftool is called with ``-G`` and an explicit tag list (:data:`REQUESTED_TAGS`).
 Numeric fields are requested with a ``#`` suffix so they come back as numbers;
-text fields such as the lens name come back human-readable. Output keys never
-include the ``#``.
+text fields such as the lens name come back human-readable. Exiftool's output
+keys never include the ``#``, so lookups use the plain key names below.
+Each field lists its keys in order of preference; the first usable one wins.
 """
 
 import re
@@ -86,6 +87,8 @@ REQUESTED_TAGS: tuple[str, ...] = (
     *LEVEL_TAG_PATTERNS,  # white balance levels and calibration (wildcards)
 )
 
+# Placeholder text cameras write instead of a real name: blank or dashes,
+# "n/a", "none", "Unknown ..." or a bare number (an unconverted lens code).
 _JUNK_TEXT = re.compile(r"^(?:[-\s]*|n/?a|none|unknown.*|\d+(?:\.\d+)?)$", re.I)
 
 
@@ -138,7 +141,11 @@ def first_meaningful_text(tags: ExifTags, keys: tuple[str, ...]) -> str | None:
 
 
 def map_gps(tags: ExifTags) -> GpsCoordinate | None:
-    """Return the GPS position, or ``None`` if absent or out of range."""
+    """Return the GPS position, or ``None`` if absent or out of range.
+
+    Exiftool's composite tags give signed decimal degrees (south and west are
+    negative). The altitude is optional.
+    """
     latitude = as_float(first_value(tags, LAT_KEYS))
     longitude = as_float(first_value(tags, LON_KEYS))
     if latitude is None or longitude is None:

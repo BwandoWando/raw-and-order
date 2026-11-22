@@ -33,7 +33,10 @@ class SkipCopiesStep:
         self._file_exists = file_exists
 
     def __call__(self, state: WorkflowState) -> StateUpdate:
-        """Return the remaining ``items`` and the ``copies`` found."""
+        """Return the remaining ``items`` and the ``copies`` found.
+
+        Reads ``sha256`` from each item, so it must run after ``fingerprint``.
+        """
         stored = _paths_by_sha(self._photos.known_fingerprints().items())
         first_in_run: dict[str, Path] = {}
         keep: list[PhotoItem] = []
@@ -55,7 +58,11 @@ class SkipCopiesStep:
     def _original(
         self, item: PhotoItem, sha: str, stored: dict[str, list[Path]]
     ) -> Path | None:
-        """First stored photo with ``sha`` still on disk, unless it is ``item``."""
+        """First stored photo with ``sha`` still on disk, unless it is ``item``.
+
+        ``None`` means no stored original, so the caller falls back to the
+        first file with that SHA-256 in this run.
+        """
         existing = (p for p in stored.get(sha, []) if self._file_exists(p))
         original = next(existing, None)
         return None if original == item.path else original

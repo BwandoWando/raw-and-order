@@ -1,4 +1,9 @@
-"""Sidebar filters -> :class:`PhotoQuery` fields."""
+"""Sidebar filters, turned into a :class:`PhotoQuery`.
+
+:func:`render_filters` runs first on every rerun; the query it returns is
+handed to the Gallery, Tags and Export tabs. Other pages change a filter by
+writing its Session State key (see :func:`show_tags`) from a callback.
+"""
 
 from datetime import date
 from enum import StrEnum
@@ -16,8 +21,9 @@ RESET_KEY = "f_reset"
 class FilterKey(StrEnum):
     """Session State key of each sidebar filter widget.
 
-    The single list of filters: the widgets, :func:`filter_defaults` and Reset
-    all go through it, so a filter cannot be drawn without a default.
+    The single list of filter keys: the widgets, :func:`filter_defaults` and
+    Reset all use it. A new filter needs a member here and a default in
+    :func:`filter_defaults`.
     """
 
     TEXT = "f_text"

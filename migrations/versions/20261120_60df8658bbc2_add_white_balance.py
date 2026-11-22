@@ -1,5 +1,8 @@
 """add white balance
 
+White balance mode and temperature (kelvin) columns on photos, and where the
+kelvin value came from.
+
 Revision ID: 60df8658bbc2
 Revises: ac2649200084
 Create Date: 2026-11-20 20:39:46.592376

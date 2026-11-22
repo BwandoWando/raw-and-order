@@ -1,7 +1,8 @@
 """dhash 64 bits: narrow photos.dhash back to 16 hex characters (8x8 dHash).
 
 Run `raw-and-order rehash` afterwards to recompute stored hashes; until then the
-81-bit hashes simply never match the new 64-bit ones.
+81-bit hashes simply never match the new 64-bit ones. (Historical: the
+dhash column is replaced by phash in 5fc1b1027052.)
 
 Revision ID: 0814da5143e3
 Revises: b3e77bc60fc1

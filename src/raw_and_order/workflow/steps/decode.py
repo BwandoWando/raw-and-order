@@ -18,7 +18,11 @@ class DecodeStep:
         self._preview_store = preview_store
 
     def __call__(self, state: WorkflowState) -> StateUpdate:
-        """Return ``items`` with ``preview_path`` filled in."""
+        """Return ``items`` with ``preview_path`` filled in.
+
+        The EXIF capture time, when known, decides where the preview is
+        stored (see :class:`PreviewLayout`).
+        """
         return {"items": apply_step(state.items, Stage.DECODE, self._decode)}
 
     def _decode(self, item: PhotoItem) -> PhotoItem:

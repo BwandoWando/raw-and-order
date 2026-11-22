@@ -12,7 +12,8 @@ class LoadFailuresStep:
     """Lists logged failures under ``source_dir`` whose file still exists.
 
     Entries whose file is gone are removed from the log and reported as
-    ``missing``, since they can never be retried.
+    ``missing``, since they can never be retried. Used instead of
+    ``discover``, so no RAW+JPEG pairing is done for these files.
 
     Args:
         failures: The failure log.

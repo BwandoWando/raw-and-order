@@ -1,4 +1,10 @@
-"""Command-line entry point."""
+"""Command-line entry point: the ``raw-and-order`` Typer app.
+
+Commands: ``process`` (run the pipeline, or ``--reread-exif``), ``check``,
+``rehash`` and ``ui``. Each loads settings, opens what it needs through
+:mod:`raw_and_order.bootstrap` and prints a summary. Domain errors are logged
+here once and end the command with exit code 1.
+"""
 
 import logging
 import subprocess
@@ -162,6 +168,11 @@ def ui(
 
 
 def _startup() -> Settings:
+    """Load settings and configure logging; exit 1 if the settings are invalid.
+
+    Logging falls back to ``INFO`` when settings fail, since the configured
+    level is unknown then but the error must still be logged.
+    """
     try:
         settings = load_settings()
     except RawAndOrderError as exc:
@@ -258,6 +269,7 @@ def _print_summary(summary: RunSummary) -> None:
 
 
 def _stop_aborted(exc: RunAbortedError, settings: Settings) -> NoReturn:
+    """Explain a stopped run (what was kept, how to fix it) and exit 1."""
     typer.echo(f"Stopped: {exc}", err=True)
     saved = "Photos" if exc.saved is None else f"{exc.saved} photo(s)"
     typer.echo(
@@ -277,6 +289,7 @@ def _stop_aborted(exc: RunAbortedError, settings: Settings) -> NoReturn:
 
 
 def _fail(exc: RawAndOrderError) -> NoReturn:
+    """Log ``exc`` (the one place it is logged) and exit with code 1."""
     logger.error("%s", exc)
     raise typer.Exit(code=1) from exc
 

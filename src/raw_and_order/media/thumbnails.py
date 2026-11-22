@@ -13,7 +13,7 @@ THUMBNAIL_QUALITY = 80
 
 
 class JpegThumbnailer:
-    """Shrinks a preview so its longest side is at most ``max_px``.
+    """Shrinks saved previews into JPEG thumbnails and reads their size.
 
     Args:
         quality: JPEG quality of the thumbnails (1-100).
@@ -23,7 +23,9 @@ class JpegThumbnailer:
         self._quality = quality
 
     def thumbnail(self, preview_path: Path, max_px: int) -> bytes:
-        """Return JPEG bytes of the shrunk preview.
+        """Return JPEG bytes of the preview, longest side at most ``max_px``.
+
+        Smaller previews are never enlarged.
 
         Raises:
             PreviewError: If the preview is missing or not an image.

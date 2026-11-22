@@ -1,5 +1,8 @@
 """add date source and lens details
 
+Which source the capture date came from, and the lens make and focal/aperture
+range.
+
 Revision ID: 6452de1ad00f
 Revises: b849b0ea89db
 Create Date: 2026-11-20 18:41:17.246513

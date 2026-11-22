@@ -15,8 +15,8 @@ class PhotoRecord(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     path: Path
-    sha256: str | None = None
-    phash: str | None = None
+    sha256: str | None = None  # of the file; finds unchanged files and copies
+    phash: str | None = None  # of the preview; finds similar photos
     exif: ExifData
     annotation: Annotation
     preview_path: Path

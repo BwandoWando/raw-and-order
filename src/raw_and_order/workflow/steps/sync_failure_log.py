@@ -11,8 +11,10 @@ from raw_and_order.workflow.steps.persist import utc_now
 class SyncFailureLogStep:
     """Logs failed items and clears the log for items that were saved.
 
-    Runs after ``persist`` in every chunk, and once after ``select_batch``
-    for files that failed before any chunk (e.g. could not be hashed).
+    Runs at the end of every chunk (also when the chunk stopped early because
+    every photo failed), and once after ``select_batch`` (as
+    ``sync_planning_failures``) for files that failed before any chunk, e.g.
+    could not be hashed.
 
     Args:
         failures: The failure log.
@@ -26,7 +28,12 @@ class SyncFailureLogStep:
         self._clock = clock
 
     def __call__(self, state: WorkflowState) -> StateUpdate:
-        """Write failures and resolutions; the state is not changed."""
+        """Write failures and resolutions for ``items``; the state is unchanged.
+
+        Raises:
+            PersistenceError: If the failure log cannot be written; this is
+                not recorded per photo, so it ends the run.
+        """
         now = self._clock()
         for item in state.items:
             if item.error is not None:

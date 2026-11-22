@@ -1,4 +1,4 @@
-"""Find raw photo files on disk."""
+"""Find photo files (raw and regular images) on disk."""
 
 from collections.abc import Iterable
 from pathlib import Path
@@ -20,6 +20,8 @@ class FileSystemDiscoverer:
 
     def find(self, root: Path) -> list[Path]:
         """Return supported files under ``root``, sorted by path.
+
+        Extensions match case-insensitively (``.NEF`` counts as ``.nef``).
 
         Raises:
             SourceDirectoryError: If ``root`` is not an existing directory.

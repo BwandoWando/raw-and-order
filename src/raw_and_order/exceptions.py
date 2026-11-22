@@ -72,7 +72,14 @@ class TooManyFailuresError(FatalRunError):
 
 
 class RunAbortedError(RawAndOrderError):
-    """The run stopped early because of a :class:`FatalRunError`."""
+    """The run stopped early because of a :class:`FatalRunError`.
+
+    Raised by the workflow runner, handled by the CLI.
+
+    Attributes:
+        cause: The fatal error that stopped the run.
+        saved: Photos saved before the stop, or ``None`` if unknown.
+    """
 
     def __init__(self, cause: FatalRunError, saved: int | None) -> None:
         super().__init__(str(cause))

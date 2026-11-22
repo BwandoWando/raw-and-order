@@ -1,4 +1,4 @@
-"""Step: find files to process."""
+"""Step: find the photo files under ``source_dir`` (normal runs)."""
 
 import logging
 from datetime import datetime
@@ -13,10 +13,12 @@ logger = logging.getLogger(__name__)
 
 
 class DiscoverStep:
-    """Lists photo files and resolves RAW+JPEG pairs.
+    """Lists photo files and drops images that duplicate a raw file.
 
-    Only files that share a folder and name with a file of the other kind
-    have their capture time read, so pairs are confirmed cheaply. Files
+    An image (e.g. a JPEG) is skipped when a raw file in the same folder has
+    the same name and, if both are known, a matching capture time. Only files
+    that share a folder and name with a file of the other kind have their
+    capture time read, so pairs are confirmed cheaply. Files
     already stored are dropped later by ``skip_known``, after they have been
     fingerprinted, so edited files are picked up again.
 

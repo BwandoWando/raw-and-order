@@ -1,6 +1,10 @@
-"""Streamlit entry point and the UI's composition root.
+"""Streamlit entry point: builds the photo library and draws the app.
 
-Start with ``raw-and-order ui`` or ``streamlit run src/raw_and_order/ui/app.py``.
+Streamlit reruns this script on every interaction. Each run draws the sidebar
+filters, then every tab (see :class:`~raw_and_order.ui.navigation.Tab`) from
+the one :class:`~raw_and_order.ui.library.PhotoLibrary`, which
+``bootstrap.build_ui_library`` builds once per process. Start with
+``raw-and-order ui`` or ``streamlit run src/raw_and_order/ui/app.py``.
 """
 
 from collections.abc import Callable
@@ -29,7 +33,11 @@ def _library() -> PhotoLibrary:
 
 
 def main(library: PhotoLibrary) -> None:
-    """Draw the whole app from the given library."""
+    """Draw the sidebar and every tab from the given library.
+
+    A database error in one tab is shown inside that tab, so the others
+    still work; if the filter options cannot be read, the app stops.
+    """
     st.html(PINNED_MULTISELECT_BUTTONS)
     st.title("📷 Raw and Order")
     try:

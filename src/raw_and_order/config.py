@@ -1,4 +1,10 @@
-"""Application settings loaded from environment variables and ``.env``."""
+"""Application settings loaded from environment variables and ``.env``.
+
+:func:`load_settings` is called once per command (and by the Alembic
+environment); the resulting :class:`Settings` is passed down to
+:mod:`raw_and_order.bootstrap`, which builds everything from it. Nested LLM
+settings use a double underscore, e.g. ``LLM__MODEL=gemma3:12b``.
+"""
 
 from enum import StrEnum
 from pathlib import Path
@@ -69,7 +75,11 @@ class LLMSettings(BaseModel):
 
 
 class Settings(BaseSettings):
-    """Top-level application settings."""
+    """Top-level application settings.
+
+    Each field is read from the environment variable of the same name in
+    upper case (``CHUNK_SIZE``, ``DATE_SOURCES``...), or from ``.env``.
+    """
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -119,6 +129,7 @@ class Settings(BaseSettings):
     @field_validator("date_sources", mode="before")
     @classmethod
     def _split_date_sources(cls, value: Any) -> Any:
+        """Accept ``DATE_SOURCES=exif_original,xmp`` (``NoDecode``: not JSON)."""
         if isinstance(value, str):
             return [part.strip() for part in value.split(",") if part.strip()]
         return value
@@ -126,6 +137,7 @@ class Settings(BaseSettings):
     @field_validator("date_sources")
     @classmethod
     def _reject_none_source(cls, value: list[DateSource]) -> list[DateSource]:
+        """``none`` (NOT_FOUND) marks a photo without a date; it cannot be read."""
         if DateSource.NOT_FOUND in value:
             raise ValueError("'none' is not a date source; leave it out instead")
         return value

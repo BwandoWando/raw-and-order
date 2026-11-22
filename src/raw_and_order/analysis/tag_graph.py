@@ -3,8 +3,10 @@
 Pure functions over the tag lists of photos; the caller fetches them. Links
 are scored by Jaccard overlap (photos with both tags / photos with either),
 so tags that are merely common everywhere do not link to everything.
-Clusters come from Louvain community detection; positions from a
-force-directed layout. Both are seeded so the picture is stable.
+Clusters come from Louvain community detection on those links (tags that
+link more among themselves than to others); positions from a force-directed
+layout. Both are seeded so the picture is stable from run to run. Tags are
+compared exactly as stored (case-sensitive).
 """
 
 from collections import Counter
@@ -16,6 +18,8 @@ import networkx as nx
 from raw_and_order.schemas.tags import TagCluster, TagGraph, TagLink, TagNode
 
 SEED = 7
+# A cluster is named after its most-used tags, and clicking a cluster in the
+# UI filters the gallery by these same tags (not by every tag in the cluster).
 CLUSTER_NAME_TAGS = 3
 LAYOUT_ITERATIONS = 200
 
@@ -27,6 +31,9 @@ def build_tag_graph(
     tag_lists: Sequence[Sequence[str]], top_n: int, min_strength: float
 ) -> TagGraph:
     """Network of the ``top_n`` most-used tags.
+
+    Only links between those tags are counted. Tags with no strong link stay
+    in the graph as unlinked nodes outside any cluster (``cluster=None``).
 
     Args:
         tag_lists: The tags of each photo.
@@ -93,7 +100,12 @@ def jaccard(both: int, a: str, b: str, counts: TagCounts) -> float:
 
 
 def find_clusters(network: nx.Graph, counts: TagCounts) -> list[TagCluster]:
-    """Groups of two or more linked tags, biggest first."""
+    """Groups of two or more linked tags, biggest first.
+
+    "Biggest" is the total photo count of a group's tags. Each group's tags are
+    sorted most-used first, and its name is the first
+    :data:`CLUSTER_NAME_TAGS` of them joined with " · ".
+    """
     if network.number_of_edges() == 0:
         return []
     communities = nx.community.louvain_communities(network, weight="weight", seed=SEED)

@@ -1,4 +1,4 @@
-"""EXIF metadata models."""
+"""EXIF metadata models: what is read from a photo file and stored with it."""
 
 from datetime import datetime
 from enum import StrEnum
@@ -48,7 +48,7 @@ class ExifData(BaseModel):
     exposure_time_s: float | None = None
     f_number: float | None = None
     focal_length_mm: float | None = None
-    captured_at: datetime | None = None
+    captured_at: datetime | None = None  # the camera's clock; no time zone
     date_source: DateSource | None = Field(
         default=None,
         description="Which source captured_at came from; None for legacy rows.",

@@ -1,4 +1,4 @@
-"""Workflow state models."""
+"""The state passed from step to step, and the per-photo records it holds."""
 
 from enum import StrEnum
 from pathlib import Path
@@ -12,7 +12,8 @@ from raw_and_order.schemas import Annotation, ExifData, PhotoCopy
 class Stage(StrEnum):
     """The workflow step a file failed in.
 
-    Stored as text in ``processing_failures.stage`` and shown on the
+    Only the per-photo steps that can fail a single file have a stage. Stored
+    as text in ``processing_failures.stage`` and shown on the
     Failures tab, so the values must not change.
     """
 
@@ -36,7 +37,14 @@ class StepFailure(BaseModel):
 
 
 class PhotoItem(BaseModel):
-    """One file moving through the pipeline."""
+    """One file moving through the pipeline.
+
+    The steps fill the fields in order: ``sha256`` (fingerprint), ``exif``
+    (extract_exif), ``preview_path`` (decode), ``phash`` (perceptual_hash),
+    ``annotation`` (annotate) and ``saved`` (persist). Once ``error`` is set,
+    later steps leave the item unchanged, so the fields after the failing
+    step stay ``None``.
+    """
 
     path: Path
     sha256: str | None = None
@@ -54,7 +62,11 @@ class PhotoItem(BaseModel):
 
 
 class FailedPhoto(BaseModel):
-    """A photo that failed and why, kept for the run summary after its chunk."""
+    """A photo that failed and why, kept for the run summary.
+
+    Built by ``select_batch`` (early failures) and ``tally_chunk`` (chunk
+    failures), after which the photo itself leaves ``items``.
+    """
 
     path: Path
     error: StepFailure
@@ -63,12 +75,21 @@ class FailedPhoto(BaseModel):
 class WorkflowState(BaseModel):
     """State shared by all workflow steps for one run.
 
-    The planning steps (see the order in :mod:`raw_and_order.workflow.runner`)
-    work on every candidate in ``items``. ``select_batch`` then moves the
-    photos to process into ``queue``, leaving only the early failures in
-    ``items`` for ``sync_planning_failures``. The chunk loop then works on one
-    chunk at a time in ``items``. Finished chunks are reduced to counts and
-    failures so the state stays small.
+    The step order and what each step writes are listed in
+    :mod:`raw_and_order.workflow.runner`. ``items`` changes meaning over the
+    run:
+
+    1. Planning: every candidate file; ``skip_known`` and ``skip_copies``
+       remove the ones that need no work (listed in ``unchanged``,
+       ``previously_failed`` and ``copies``).
+    2. ``select_batch`` moves the photos to process into ``queue`` and
+       leaves only the early failures in ``items``, for
+       ``sync_planning_failures`` to log.
+    3. Chunk loop: ``next_chunk`` moves the next chunk from ``queue`` into
+       ``items``; ``tally_chunk`` adds it to ``saved_count`` and ``failures``
+       and empties ``items``, so the state stays small.
+
+    The first five fields are the run's settings and no step changes them.
     """
 
     source_dir: Path
@@ -82,17 +103,17 @@ class WorkflowState(BaseModel):
     chunk_size: int | None = Field(
         default=None, description="Photos saved per chunk; None = one chunk."
     )
-    items: list[PhotoItem] = Field(default_factory=list)
-    queue: list[PhotoItem] = Field(default_factory=list)
-    selected: int = 0
+    items: list[PhotoItem] = Field(default_factory=list)  # what the step works on
+    queue: list[PhotoItem] = Field(default_factory=list)  # not yet in a chunk
+    selected: int = 0  # photos queued by select_batch for this run
     deferred: int = Field(default=0, description="Left for a later run.")
-    chunk_index: int = 0
+    chunk_index: int = 0  # 1-based number of the current chunk
     chunk_total: int = 0
-    saved_count: int = 0
+    saved_count: int = 0  # photos saved in finished chunks
     consecutive_annotate_failures: int = Field(
         default=0, description="Annotation failures in a row, across chunks."
     )
-    failures: list[FailedPhoto] = Field(default_factory=list)
+    failures: list[FailedPhoto] = Field(default_factory=list)  # all, for the summary
     skipped_pairs: list[Path] = Field(
         default_factory=list,
         description="Images skipped because a raw file of the same shot exists.",

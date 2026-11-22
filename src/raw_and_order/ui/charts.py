@@ -44,7 +44,7 @@ def theme_for(theme_type: str | None) -> ChartTheme:
 
 
 def rows_frame(rows: list[LabelCount]) -> pd.DataFrame:
-    """Turn count rows into a two-column DataFrame."""
+    """Turn :class:`LabelCount` rows into a ``label`` / ``count`` DataFrame."""
     return pd.DataFrame(
         {"label": [r.label for r in rows], "count": [r.count for r in rows]}
     )
@@ -89,7 +89,14 @@ def ordered_columns(
     x_title: str | None,
     x_name: str,
 ) -> alt.LayerChart:
-    """Ordered categories left to right, kept in the given order."""
+    """Columns for ordered categories, left to right in the order given.
+
+    Args:
+        rows: One column per row, in this order.
+        theme: Colours for the current Streamlit theme.
+        x_title: Title under the x axis, or ``None`` for none.
+        x_name: Name of the category in the tooltip.
+    """
     data = rows_frame(rows)
     base = alt.Chart(data).encode(
         x=alt.X(
@@ -116,6 +123,7 @@ def ordered_columns(
 
 
 def _style(chart: alt.LayerChart, theme: ChartTheme) -> alt.LayerChart:
+    """Theme the axes and drop the chart's outer border."""
     styled = chart.configure_view(stroke=None).configure_axis(
         gridColor=theme.grid,
         gridWidth=1,

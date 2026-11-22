@@ -4,7 +4,8 @@ Two photos are similar only if both hold:
 
 1. Their pHashes (64-bit) differ in at most
    :data:`SIMILAR_MAX_DISTANCE` (14) bits.
-2. They share at least :data:`MIN_TAG_OVERLAP` (25%) of each photo's tags.
+2. They share at least :data:`MIN_TAG_OVERLAP` (25%) of each photo's tags
+   (see :func:`tag_overlap`).
 
 The pHash describes the overall structure of light and dark, so on its own
 it can also match unrelated photos with a similar layout; the tags confirm
@@ -18,7 +19,10 @@ How alike similar photos look comes from the pHash distance:
 
 - Identical: 0-2 (the same picture, maybe resized or recompressed)
 - Very similar: 3-8 (the same shot, lightly edited or a burst neighbour)
-- Similar: 9 or more (same scene, small changes in framing or light)
+- Similar: 9-14 (same scene, small changes in framing or light)
+
+The search itself (the distance limit and the tag check) runs in the
+database layer; this module only holds the rules.
 """
 
 from collections.abc import Iterable
@@ -39,7 +43,11 @@ class Similarity(StrEnum):
 
 
 def similarity(distance: int) -> Similarity:
-    """Bucket a pHash distance (number of differing bits)."""
+    """Bucket a pHash distance (number of differing bits).
+
+    Assumes the photos already passed :data:`SIMILAR_MAX_DISTANCE`; any larger
+    distance is still reported as :attr:`Similarity.SIMILAR`.
+    """
     if distance <= IDENTICAL_MAX_DISTANCE:
         return Similarity.IDENTICAL
     if distance <= VERY_SIMILAR_MAX_DISTANCE:
@@ -50,8 +58,10 @@ def similarity(distance: int) -> Similarity:
 def tag_overlap(first: Iterable[str], second: Iterable[str]) -> float:
     """Share of each photo's tags that both have (the lower of the two).
 
-    Tags are compared case-insensitively. 1.0 means the same tag set; a
-    photo without tags overlaps with nothing.
+    Shared tags are divided by the larger tag set, so a photo with few tags
+    cannot match one with many just because its few are all present. Tags are
+    compared case-insensitively, ignoring surrounding spaces. 1.0 means the
+    same tag set; a photo without tags overlaps with nothing.
     """
     a = {tag.strip().lower() for tag in first}
     b = {tag.strip().lower() for tag in second}

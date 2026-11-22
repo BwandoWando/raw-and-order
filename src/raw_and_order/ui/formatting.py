@@ -47,7 +47,7 @@ def shown_size(
 def camera_settings(
     exif: ExifData, preview_size: tuple[int, int] | None = None
 ) -> list[tuple[str, str]]:
-    """Return the EXIF rows to show, skipping missing values.
+    """Return the ``(label, value)`` camera settings to show, skipping missing ones.
 
     Args:
         exif: The photo's camera data.
@@ -80,7 +80,7 @@ def capture_label(record: PhotoRecord) -> str:
 
 
 def thumbnail_tooltip(record: PhotoRecord) -> str:
-    """Short caption under a gallery thumbnail."""
+    """Hover tooltip of a gallery thumbnail: capture day and scene."""
     captured = record.exif.captured_at
     day = captured.strftime("%Y-%m-%d") if captured else "Unknown date"
     return f"{day} · {record.annotation.scene.value}"

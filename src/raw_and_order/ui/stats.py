@@ -1,4 +1,8 @@
-"""Stats tab: headline numbers and simple breakdowns."""
+"""Stats tab: headline numbers and simple breakdowns.
+
+Each breakdown is a chart from ``ui/charts.py`` with its numbers in a table
+below it.
+"""
 
 from collections.abc import Callable
 
@@ -89,6 +93,7 @@ def _section(
     rows: list[LabelCount],
     chart: Callable[[list[LabelCount]], alt.LayerChart],
 ) -> None:
+    """A titled chart of ``rows`` and the same rows as a table in an expander."""
     st.subheader(title, divider="gray")
     if not rows:
         st.caption("No data.")

@@ -63,13 +63,20 @@ class PhotoLibrary(Protocol):
         ...
 
     def stats(self) -> PhotoStats:
-        """Return totals and breakdowns."""
+        """Return the totals and breakdowns shown on the Stats tab."""
         ...
 
     def tag_graph(
         self, filters: PhotoQuery, top_n: int, min_strength: float
     ) -> TagGraph:
-        """Return the network of the ``top_n`` most-used tags under ``filters``."""
+        """Return the network of the ``top_n`` most-used tags under ``filters``.
+
+        Args:
+            filters: Which photos count; sort and paging are ignored.
+            top_n: How many of the most-used tags become nodes.
+            min_strength: Smallest link strength (share of the photos with
+                either tag that have both) for two tags to be joined.
+        """
         ...
 
     def failures(self) -> list[FailureRecord]:

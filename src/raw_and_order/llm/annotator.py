@@ -25,6 +25,8 @@ from raw_and_order.schemas.annotation import Annotation
 
 logger = logging.getLogger(__name__)
 
+# Raised when the model's reply does not fit the schema; answered with a
+# correction message (see LLMAnnotator.annotate), not with a plain retry.
 _OUTPUT_ERRORS = (ValidationError, OutputParserException)
 
 
@@ -64,6 +66,8 @@ class LLMAnnotator:
             transiently, the first one included (1 = no retry).
         max_output_fix_attempts: Total tries to get schema-valid output, the
             first one included; each retry tells the model what was wrong.
+            Each try has its own transient retries, so one photo can make up
+            to ``max_retries * max_output_fix_attempts`` requests.
     """
 
     def __init__(
@@ -82,8 +86,11 @@ class LLMAnnotator:
         """Return an annotation, asking the model to fix invalid output.
 
         Raises:
-            ModelUnavailableError: If the provider fails after retries.
-            InvalidModelOutputError: If output never matches the schema.
+            ModelUnavailableError: If the provider cannot be used (outage,
+                auth, missing model, rate limit), after transient retries.
+            ModelRejectedError: If the provider refused this request (other
+                4xx, e.g. the image is too large).
+            InvalidModelOutputError: If the output never matched the schema.
         """
         messages = build_messages(self._system_prompt, image_jpeg, context)
         for attempt in range(1, self._max_output_fix_attempts + 1):
@@ -97,6 +104,12 @@ class LLMAnnotator:
         )
 
     def _invoke(self, messages: list[BaseMessage]) -> Annotation:
+        """Call the model once (with transient retries) and return the result.
+
+        A reply that is not an :class:`Annotation` (e.g. ``None`` when the
+        model returned no structured answer) raises
+        ``OutputParserException``, so :meth:`annotate` asks for a fix.
+        """
         try:
             result = self._runnable.invoke(messages)
         except provider_errors() as exc:
@@ -111,6 +124,11 @@ class LLMAnnotator:
     def _build_runnable(
         chat_model: BaseChatModel, output_schema: type[Annotation], max_retries: int
     ) -> Runnable[list[BaseMessage], Any]:
+        """Wrap the model so it returns ``output_schema`` and retries outages.
+
+        Only :func:`transient_errors` are retried, with exponential backoff
+        and jitter; ``max_retries`` is the total number of tries.
+        """
         structured = chat_model.with_structured_output(output_schema)
         retryable = transient_errors()
         if not retryable or max_retries <= 1:

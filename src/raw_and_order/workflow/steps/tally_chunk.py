@@ -10,7 +10,8 @@ logger = logging.getLogger(__name__)
 class TallyChunkStep:
     """Adds the chunk's saved count and failures to the totals, then clears it.
 
-    By the time this runs, the chunk's photos are already in the database.
+    By the time this runs, the chunk's photos are already in the database
+    and its failures in the failure log, so only counts are kept.
     """
 
     def __call__(self, state: WorkflowState) -> StateUpdate:

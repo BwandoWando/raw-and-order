@@ -1,4 +1,10 @@
-"""Run the workflow for one directory and summarise the outcome."""
+"""Run the workflow for one directory and summarise the outcome.
+
+:class:`PhotoPipeline` is what ``raw-and-order process`` runs (built by
+:func:`raw_and_order.bootstrap.open_pipeline`). It turns the command's options
+into the initial :class:`~raw_and_order.workflow.state.WorkflowState` and the
+final state into a :class:`RunSummary` for the CLI to print.
+"""
 
 import uuid
 from collections.abc import Callable
@@ -12,7 +18,7 @@ from raw_and_order.workflow.state import FailedPhoto, WorkflowState
 
 
 class RunSummary(BaseModel):
-    """Outcome of one pipeline run."""
+    """Outcome of one pipeline run; counts are photos unless noted."""
 
     run_id: str
     selected: int
@@ -45,7 +51,7 @@ def summarise(run_id: str, state: WorkflowState) -> RunSummary:
 
 
 def new_run_id() -> str:
-    """Return a unique id for log lines and the run summary."""
+    """Return a unique id for the run, shown in the run summary."""
     return f"run-{uuid.uuid4().hex[:12]}"
 
 
@@ -76,6 +82,16 @@ class PhotoPipeline:
         Photos are processed and saved ``chunk_size`` at a time, so an
         interrupted run keeps every finished chunk. With ``reprocess_failed``
         only the logged failures under ``source_dir`` are retried.
+
+        Args:
+            source_dir: Folder to scan, including subfolders.
+            reprocess: Process every photo found, even unchanged stored ones
+                and unchanged logged failures.
+            max_photos: Most photos to process this run (``None``: all); the
+                rest wait for the next run.
+            chunk_size: Photos processed and saved together (``None``: one
+                chunk).
+            reprocess_failed: Retry only the photos in the failure log.
 
         Raises:
             RunAbortedError: If the LLM became unavailable or too many photos

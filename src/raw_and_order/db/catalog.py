@@ -269,6 +269,7 @@ class SqlAlchemyPhotoCatalog:
 
     @staticmethod
     def _distinct(session: Session, column: Any) -> list[str]:
+        """Sorted distinct values of ``column``, without ``NULL``."""
         query = select(column).where(column.is_not(None)).distinct().order_by(column)
         return [str(value) for value in session.scalars(query)]
 
@@ -296,6 +297,7 @@ class SqlAlchemyPhotoCatalog:
 
     @staticmethod
     def _counts(session: Session, column: Any) -> list[LabelCount]:
+        """Photos per value of ``column``, most first; ``NULL`` is UNKNOWN_LABEL."""
         query = (
             select(column, func.count(PhotoRow.id))
             .group_by(column)
@@ -315,7 +317,7 @@ def apply_filters(statement: Select[Any], query: PhotoQuery) -> Select[Any]:
 
 
 def filter_conditions(query: PhotoQuery) -> list[ColumnElement[bool]]:
-    """One SQL condition per filter set in ``query``, in sidebar order.
+    """One SQL condition per filter set in ``query``.
 
     Empty filters add nothing, so an empty query matches every photo. Print
     the result to see exactly what a query asks the database.
@@ -348,7 +350,7 @@ def _text_conditions(text: str | None) -> list[ColumnElement[bool]]:
 
 
 def _one_of_conditions(query: PhotoQuery) -> list[ColumnElement[bool]]:
-    """Scene, camera, lens and model: the photo's value is one of those picked."""
+    """Scene, camera, lens, annotating model: the value is one of those picked."""
     picked: list[tuple[InstrumentedAttribute[Any], tuple[str, ...]]] = [
         (PhotoRow.scene, query.scenes),
         (PhotoRow.model, query.cameras),

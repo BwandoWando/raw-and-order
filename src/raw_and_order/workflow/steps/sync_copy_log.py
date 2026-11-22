@@ -11,9 +11,11 @@ from raw_and_order.workflow.steps.persist import utc_now
 class SyncCopyLogStep:
     """Logs the copies found and forgets ones that are no longer copies.
 
-    After a full scan, every logged copy under the folder that was not found
-    again (deleted, moved, or changed so it is no longer identical) is
-    removed. With ``--reprocess-failed`` only the retried files are checked.
+    After a full scan, every logged copy under ``source_dir`` that was not
+    found again (deleted, moved, or changed so it is no longer identical) is
+    removed. With ``--reprocess-failed`` only some files were scanned, so
+    only the retried files that are no longer copies (those still in
+    ``items``) are removed.
 
     Args:
         copies: The copy log.
@@ -27,7 +29,12 @@ class SyncCopyLogStep:
         self._clock = clock
 
     def __call__(self, state: WorkflowState) -> StateUpdate:
-        """Write the copy log; the state is not changed."""
+        """Write the copy log from ``copies`` and ``items``; the state is unchanged.
+
+        Raises:
+            PersistenceError: If the copy log cannot be written; this is not
+                recorded per photo, so it ends the run.
+        """
         self._copies.record(state.copies, self._clock())
         found = {copy.path for copy in state.copies}
         if state.reprocess_failed:

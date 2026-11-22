@@ -1,8 +1,14 @@
 """Work out when a photo was taken, trying several sources in order.
 
-Each source yields candidate dates; the first candidate that passes
-:class:`DateValidator` wins. Times are kept as recorded (camera local time,
-no timezone conversion) so the date matches the day the photo was taken.
+The sources are, by default: EXIF ``DateTimeOriginal``, XMP dates, EXIF
+``CreateDate``, then a date in the file name; the order comes from the
+settings (see :func:`build_date_sources`). Each source yields candidate dates,
+best first. The first candidate that passes :class:`DateValidator` wins, so an
+implausible date (e.g. from a camera whose clock was never set) falls through
+to the next candidate or source.
+
+Times are kept as recorded (camera local time, no timezone conversion) so
+the date matches the day the photo was taken.
 """
 
 import re
@@ -32,6 +38,10 @@ MIN_PLAUSIBLE_YEAR = 1990
 FUTURE_TOLERANCE = timedelta(days=1)
 
 _YEAR = r"((?:19|20)\d{2})"
+# Tried in this order, so a date with a time is preferred over a bare date.
+# (?<!\d) stops a match starting inside a longer number; (?!\d) stops the
+# date-only patterns ending inside one. Trailing digits after a full time
+# (e.g. milliseconds) are allowed.
 FILENAME_PATTERNS: tuple[re.Pattern[str], ...] = (
     # IMG_20240501_183000, PXL_20240501_183000123, 20240501-183000
     re.compile(rf"(?<!\d){_YEAR}(\d{{2}})(\d{{2}})[_\-T]?(\d{{2}})(\d{{2}})(\d{{2}})"),
@@ -92,7 +102,7 @@ class ExifTagDate:
     """Reads a capture date from one or more exiftool tags.
 
     Args:
-        source: How this source is reported.
+        source: Reported as :attr:`CaptureDate.source` when this source wins.
         keys: Exiftool keys to read, in order of preference.
     """
 
@@ -129,7 +139,10 @@ class FilenameDate:
         return DateSource.FILENAME
 
     def candidates(self, tags: ExifTags, path: Path) -> Iterator[datetime]:
-        """Yield each valid date found in ``path``'s name."""
+        """Yield each real calendar date found in ``path``'s name (no extension).
+
+        Plausibility is checked later by :class:`DateValidator`.
+        """
         for pattern in self._patterns:
             for match in pattern.finditer(path.stem):
                 parsed = _datetime_from_groups(match.groups())
@@ -153,6 +166,11 @@ def _datetime_from_groups(groups: Sequence[str]) -> datetime | None:
 
 class DateValidator:
     """Rejects dates that are almost certainly wrong.
+
+    A date is rejected if it is before ``min_year`` (default 1990), falls on a
+    camera's factory-default date (1 January 2000, 2001 or 2010), or is more
+    than ``future_tolerance`` (default one day) after now; the tolerance
+    leaves room for, e.g., a camera clock set to a time zone ahead of ours.
 
     Args:
         clock: Returns "now" in local time; injectable for tests.
@@ -207,6 +225,9 @@ class CaptureDateResolver:
 
 def build_date_sources(order: Sequence[DateSource]) -> list[CaptureDateSource]:
     """Create date sources in the configured order.
+
+    Args:
+        order: The sources to try, most trusted first.
 
     Raises:
         ValueError: If ``order`` contains :attr:`DateSource.NOT_FOUND`.

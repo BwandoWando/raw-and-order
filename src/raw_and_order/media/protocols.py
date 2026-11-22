@@ -46,12 +46,16 @@ class CaptureTimeReader(Protocol):
     """Reads only the capture time of many files at once."""
 
     def capture_times(self, paths: Sequence[Path]) -> dict[Path, datetime | None]:
-        """Return each path's ``DateTimeOriginal``; ``None`` if it has none."""
+        """Return each path's ``DateTimeOriginal``; ``None`` if it has none.
+
+        The value is as recorded, without the fallbacks and plausibility checks
+        of the full capture date.
+        """
         ...
 
 
 class Thumbnailer(Protocol):
-    """Makes small JPEG thumbnails of saved previews."""
+    """Makes small JPEG thumbnails of saved previews and reads their size."""
 
     def thumbnail(self, preview_path: Path, max_px: int) -> bytes:
         """Return JPEG bytes no larger than ``max_px`` on the longest side."""
@@ -66,7 +70,7 @@ class ImageDecoder(Protocol):
     """Decodes a raw or regular image file into a viewable image."""
 
     def decode(self, path: Path) -> Image:
-        """Return an RGB image for ``path``."""
+        """Return an upright RGB image for ``path``."""
         ...
 
 

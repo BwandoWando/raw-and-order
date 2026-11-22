@@ -1,5 +1,8 @@
 """add processing failures log
 
+The processing_failures table: files that failed, at which stage and why,
+until they succeed.
+
 Revision ID: ac2649200084
 Revises: afb0f8df0b58
 Create Date: 2026-11-20 19:39:21.031206

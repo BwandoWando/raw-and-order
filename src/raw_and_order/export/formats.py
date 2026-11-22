@@ -94,6 +94,7 @@ def text_value(value: Value) -> str:
 
 
 def _excel_cell(value: Value) -> object:
+    """A cell Excel can store: numbers and dates stay typed, tags become text."""
     if isinstance(value, list):
         return TAG_SEPARATOR.join(value)
     if isinstance(value, datetime) and value.tzinfo is not None:
@@ -102,7 +103,7 @@ def _excel_cell(value: Value) -> object:
 
 
 def _fit_columns(sheet: Worksheet, rows: Sequence[dict[str, Value]]) -> None:
-    """Width from the header and the first rows, capped for long text."""
+    """Width from the header and the first 200 rows, capped for long text."""
     sample = rows[:200]
     for index, column in enumerate(COLUMNS, start=1):
         longest = max([len(column), *(len(text_value(r[column])) for r in sample)])

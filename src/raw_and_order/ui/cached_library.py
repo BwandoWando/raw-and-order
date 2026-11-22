@@ -36,6 +36,8 @@ class CachedPhotoLibrary:
     """Reads from a catalog and a failure log, caching each answer briefly.
 
     Favorites are read fresh every time, so a star shows the moment it is set.
+    Thumbnails and preview sizes have no expiry; they are keyed by the
+    preview's modification time instead.
 
     Args:
         catalog: Read-only photo queries.
@@ -127,7 +129,11 @@ class CachedPhotoLibrary:
     def tag_graph(
         self, filters: PhotoQuery, top_n: int, min_strength: float
     ) -> TagGraph:
-        """Return the network of the ``top_n`` most-used tags under ``filters``."""
+        """Return the network of the ``top_n`` most-used tags under ``filters``.
+
+        See :meth:`PhotoLibrary.tag_graph
+        <raw_and_order.ui.library.PhotoLibrary.tag_graph>` for the arguments.
+        """
         # Paging and sort do not change the graph; dropping them gets more cache hits.
         return _tag_graph(
             self._catalog,
@@ -142,11 +148,17 @@ class CachedPhotoLibrary:
         return _failures(self._failures, self._key)
 
     def refresh(self) -> None:
-        """Forget cached results so the next read sees fresh data."""
+        """Forget cached results so the next read sees fresh data.
+
+        This clears every ``st.cache_data`` cache in the process, thumbnails
+        included, for all browser sessions.
+        """
         st.cache_data.clear()
 
 
-# The query travels as JSON so it hashes reliably as a cache key.
+# The query travels as JSON so it hashes reliably as a cache key. In all the
+# cached functions below, ``key`` is unused in the body: it is there only so
+# that each database gets its own cache entries.
 @st.cache_data(ttl=CACHE_TTL_S, show_spinner=False)
 def _search(_catalog: PhotoCatalog, key: str, query_json: str) -> PhotoPage:
     return _catalog.search(PhotoQuery.model_validate_json(query_json))

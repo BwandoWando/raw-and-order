@@ -2,7 +2,10 @@
 
 The processing run and the maintenance commands save photos through this
 module. The UI reads through :mod:`raw_and_order.db.catalog` instead; the
-copy and failure logs have their own repositories.
+copy log, failure log and favorites have their own repositories.
+
+:class:`SqlAlchemyPhotoRepository` implements all the protocols below; each
+caller depends only on the narrow one it needs.
 """
 
 from pathlib import Path
@@ -78,7 +81,10 @@ class PerceptualHashStore(Protocol):
 
 
 class SqlAlchemyPhotoRepository:
-    """:class:`PhotoRepository` backed by SQLAlchemy.
+    """Photo storage backed by SQLAlchemy.
+
+    Implements :class:`PhotoRepository`, :class:`FingerprintStore`,
+    :class:`ExifStore` and :class:`PerceptualHashStore`.
 
     Args:
         session_factory: Creates a new session per operation.

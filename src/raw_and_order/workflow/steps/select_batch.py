@@ -18,11 +18,12 @@ class SelectBatchStep:
 
     Photos beyond the limit are deferred: a later run picks them up, because
     saved photos are skipped as unchanged. Files that already failed (e.g.
-    could not be hashed) are recorded as failures and use no slot.
+    could not be hashed) use no slot: they are added to ``failures`` and left
+    in ``items`` so ``sync_planning_failures`` can log them.
     """
 
     def __call__(self, state: WorkflowState) -> StateUpdate:
-        """Return the ``queue``, counts, and any early failures."""
+        """Return the ``queue``, the counts, and the early failures."""
         pending = sorted((i for i in state.items if i.is_ok), key=_path_key)
         selected = pending if state.max_photos is None else pending[: state.max_photos]
         deferred = len(pending) - len(selected)
@@ -51,6 +52,7 @@ def _path_key(item: PhotoItem) -> str:
 
 
 def _chunk_count(count: int, chunk_size: int | None) -> int:
+    """Number of chunks for ``count`` photos; no ``chunk_size`` means one."""
     if count == 0:
         return 0
     return 1 if chunk_size is None else math.ceil(count / chunk_size)

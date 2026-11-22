@@ -1,4 +1,8 @@
-"""Failures tab: the processing_failures log."""
+"""Failures tab: the files the pipeline could not process.
+
+Reads the ``processing_failures`` table, where each failed file is logged
+with the step that failed, so they can be found and reprocessed.
+"""
 
 import pandas as pd
 import streamlit as st
@@ -7,7 +11,7 @@ from raw_and_order.ui.library import PhotoLibrary
 
 
 def render_failures(library: PhotoLibrary) -> None:
-    """Draw the failure log as a table."""
+    """Draw the failure log as a table, optionally narrowed by stage."""
     records = library.failures()
     if not records:
         st.success("No logged failures.")

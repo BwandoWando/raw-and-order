@@ -1,4 +1,9 @@
-"""Workflow steps. Each step is a small class built with its dependencies."""
+"""Workflow steps, in the order :mod:`raw_and_order.workflow.runner` runs them.
+
+Each step is a small class built with its dependencies; calling it with the
+:class:`WorkflowState` returns a :class:`StateUpdate` with the fields it
+changed.
+"""
 
 from raw_and_order.workflow.steps.annotate import AnnotateStep
 from raw_and_order.workflow.steps.decode import DecodeStep

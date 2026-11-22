@@ -58,10 +58,16 @@ class SkipKnownStep:
 
 
 def _matches(item: PhotoItem, stored: dict[Path, str | None]) -> bool:
+    """True if ``item`` is stored at the same path with the same SHA-256."""
     return item.sha256 is not None and stored.get(item.path) == item.sha256
 
 
 def _still_failing(item: PhotoItem, failed: dict[Path, str | None]) -> bool:
+    """True if ``item`` is logged as failed and has not changed since.
+
+    A failure logged without a SHA-256 (the file could not be hashed) matches
+    by path alone.
+    """
     if item.path not in failed:
         return False
     logged_sha = failed[item.path]

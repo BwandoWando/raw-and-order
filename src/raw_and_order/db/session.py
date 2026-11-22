@@ -1,4 +1,4 @@
-"""Engine and session factory creation."""
+"""Engine and session factory creation, with the SQLite settings the app needs."""
 
 from pathlib import Path
 from typing import Any
@@ -15,7 +15,11 @@ def ensure_sqlite_directory(database_url: str) -> None:
 
 
 def create_db_engine(database_url: str) -> Engine:
-    """Create an engine; for SQLite, enable foreign keys and WAL mode."""
+    """Create an engine; for SQLite, also create its folder and set it up.
+
+    Every SQLite connection gets foreign keys and WAL mode (see
+    :func:`_configure_sqlite`).
+    """
     ensure_sqlite_directory(database_url)
     engine = create_engine(database_url)
     if engine.dialect.name == "sqlite":
@@ -29,6 +33,12 @@ def create_session_factory(engine: Engine) -> sessionmaker[Session]:
 
 
 def _configure_sqlite(dbapi_connection: Any, _record: Any) -> None:
+    """Run on each new connection.
+
+    SQLite turns foreign keys off for every new connection unless asked;
+    favorites rely on them to be deleted with their photo. WAL lets the UI
+    read while a run writes.
+    """
     cursor = dbapi_connection.cursor()
     cursor.execute("PRAGMA foreign_keys=ON")
     cursor.execute("PRAGMA journal_mode=WAL")

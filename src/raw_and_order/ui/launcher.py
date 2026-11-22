@@ -1,4 +1,9 @@
-"""Build the command that starts the Streamlit UI."""
+"""Build the command that starts the Streamlit UI.
+
+The ``raw-and-order ui`` command (``main.py``) runs this argv as a child
+process, so the UI always starts on localhost with the same theme, port
+and toolbar.
+"""
 
 import importlib.util
 import sys

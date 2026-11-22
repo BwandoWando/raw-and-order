@@ -18,6 +18,7 @@ class PhotoRow(Base):
     path: Mapped[str] = mapped_column(String(1024), unique=True, index=True)
     # Not unique: identical copies in different folders each get a row.
     sha256: Mapped[str | None] = mapped_column(String(64), index=True)
+    # 64-bit perceptual hash as 16 hex characters; None until hashed.
     phash: Mapped[str | None] = mapped_column(String(16), index=True)
     preview_path: Mapped[str] = mapped_column(String(1024))
 
@@ -31,6 +32,7 @@ class PhotoRow(Base):
     exposure_time_s: Mapped[float | None] = mapped_column(Float)
     f_number: Mapped[float | None] = mapped_column(Float)
     focal_length_mm: Mapped[float | None] = mapped_column(Float)
+    # The camera's clock as recorded; no time zone (unlike processed_at).
     captured_at: Mapped[datetime | None] = mapped_column(DateTime, index=True)
     date_source: Mapped[str | None] = mapped_column(String(32))
     white_balance: Mapped[str | None] = mapped_column(String(64))

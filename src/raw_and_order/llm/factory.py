@@ -31,7 +31,11 @@ def create_chat_model(settings: LLMSettings) -> BaseChatModel:
 
 
 def build_model_kwargs(settings: LLMSettings) -> dict[str, Any]:
-    """Translate :class:`LLMSettings` into constructor arguments."""
+    """Translate :class:`LLMSettings` into constructor arguments.
+
+    ``ChatOllama`` takes the timeout through ``client_kwargs`` (passed to its
+    HTTP client); the other chat classes take a ``timeout`` argument.
+    """
     kwargs: dict[str, Any] = {"model": settings.model}
     if settings.temperature is not None:
         kwargs["temperature"] = settings.temperature

@@ -8,8 +8,8 @@ from raw_and_order.workflow.steps._per_item import apply_step
 class PerceptualHashStep:
     """Hashes what each photo looks like, using its saved preview.
 
-    The preview is already upright and downscaled, so rotated or resized
-    copies of a photo get matching hashes.
+    The preview is already upright (EXIF orientation applied) and downscaled,
+    so copies that differ only in orientation flag or size get matching hashes.
 
     Args:
         hasher: Computes the perceptual hash.
@@ -25,6 +25,7 @@ class PerceptualHashStep:
         return {"items": apply_step(state.items, Stage.PERCEPTUAL_HASH, self._hash)}
 
     def _hash(self, item: PhotoItem) -> PhotoItem:
+        """Hash one preview; a missing one is a step-order bug (``ValueError``)."""
         if item.preview_path is None:
             raise ValueError(f"No preview for {item.path}; decode must run first")
         data = self._preview_store.load(item.preview_path)

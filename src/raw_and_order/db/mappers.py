@@ -1,4 +1,9 @@
-"""Conversion between Pydantic records and ORM rows."""
+"""Conversion between Pydantic records and ORM rows.
+
+A new column on ``PhotoRow`` must be added here in both directions
+(``apply_*`` writes a row, ``to_*`` reads one), or it is silently not saved
+or not loaded.
+"""
 
 from pathlib import Path
 
@@ -104,6 +109,7 @@ def to_exif(row: PhotoRow) -> ExifData:
 
 
 def _to_gps(row: PhotoRow) -> GpsCoordinate | None:
+    """A position only if both latitude and longitude are stored."""
     if row.gps_latitude is None or row.gps_longitude is None:
         return None
     return GpsCoordinate(

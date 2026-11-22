@@ -41,6 +41,11 @@ class OllamaCapabilityChecker:
             )
 
     def _fetch_capabilities(self, model: str) -> list[str]:
+        """Return the ``capabilities`` that ``/api/show`` lists for ``model``.
+
+        Ollama versions that do not report capabilities give an empty list,
+        so the model is treated as having no vision.
+        """
         try:
             response = self._client.post("/api/show", json={"model": model})
         except httpx.TransportError as exc:

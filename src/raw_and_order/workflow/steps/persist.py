@@ -1,4 +1,4 @@
-"""Step: save results to the database."""
+"""Step: save each finished photo to the database."""
 
 from collections.abc import Callable
 from datetime import UTC, datetime
@@ -15,7 +15,10 @@ def utc_now() -> datetime:
 
 
 class PersistStep:
-    """Upserts each annotated photo.
+    """Upserts each annotated photo, keyed by its path.
+
+    A database error is recorded on that photo (stage ``persist``); the
+    other photos are still saved.
 
     Args:
         repository: Where records are stored.
@@ -34,7 +37,7 @@ class PersistStep:
         self._clock = clock
 
     def __call__(self, state: WorkflowState) -> StateUpdate:
-        """Return ``items`` with ``saved`` set."""
+        """Return ``items`` with ``saved`` set to ``True`` for stored photos."""
         return {"items": apply_step(state.items, Stage.PERSIST, self._persist)}
 
     def _persist(self, item: PhotoItem) -> PhotoItem:
@@ -42,6 +45,7 @@ class PersistStep:
         return item.model_copy(update={"saved": True})
 
     def _to_record(self, item: PhotoItem) -> PhotoRecord:
+        """Build the stored record; missing fields mean a step-order bug."""
         if item.exif is None or item.annotation is None or item.preview_path is None:
             raise ValueError(f"{item.path} is incomplete; earlier steps must run first")
         return PhotoRecord(

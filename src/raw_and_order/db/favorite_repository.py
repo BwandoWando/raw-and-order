@@ -1,4 +1,8 @@
-"""Favorites: photos starred in the photo details."""
+"""Favorites: photos starred in the photo details.
+
+The UI reads and sets them through its ``PhotoLibrary``; the catalog's
+``only_favorites`` filter reads the same ``favorites`` table.
+"""
 
 from datetime import datetime
 from pathlib import Path

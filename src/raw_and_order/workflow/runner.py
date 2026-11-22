@@ -1,17 +1,36 @@
 """Run the workflow steps in a fixed order.
 
 ```
-discover (or load_failures for --reprocess-failed)
-  -> fingerprint -> skip_known -> skip_copies -> sync_copy_log
-  -> select_batch -> sync_planning_failures
-  -> while photos are queued:
-       next_chunk -> extract_exif -> decode -> perceptual_hash -> annotate -> persist
-       (stop the chunk's remaining steps early if every photo in it failed)
-       -> sync_failure_log -> tally_chunk
+planning (once per run)
+  discover          -> items (photo files, minus skipped pairs), skipped_pairs
+    or load_failures  (with --reprocess-failed: items = logged failures, missing)
+  fingerprint       -> items[].sha256
+  skip_known        -> items minus unchanged / previously_failed (none are
+                       skipped with --reprocess or --reprocess-failed)
+  skip_copies       -> items minus copies
+  sync_copy_log     (writes the copy log only)
+  select_batch      -> queue, selected, deferred, chunk_total, failures,
+                       chunk_index = 0;
+                       items = only the photos that already failed
+  sync_planning_failures (writes those early failures to the failure log)
+
+chunk loop (while queue is not empty)
+  next_chunk        -> items = next chunk taken from queue, chunk_index
+  extract_exif      -> items[].exif
+  decode            -> items[].preview_path
+  perceptual_hash   -> items[].phash
+  annotate          -> items[].annotation, consecutive_annotate_failures
+  persist           -> items[].saved (row written to the database)
+    (before each of these five steps: if every photo in the chunk has
+    failed, skip the rest and go straight to sync_failure_log)
+  sync_failure_log  (logs the chunk's failures; clears entries of saved photos)
+  tally_chunk       -> saved_count, failures; items = []
 ```
 
-Each step receives the current :class:`WorkflowState` and returns the fields
-it changed; the runner merges them into the next state.
+Each step receives the current :class:`WorkflowState` and returns a
+:class:`StateUpdate` with only the fields it changed; :func:`apply` merges it
+into the next state. A photo that fails a step keeps going through the list
+with ``error`` set, and the later per-photo steps pass it through unchanged.
 """
 
 from collections.abc import Callable
@@ -63,7 +82,11 @@ class WorkflowSteps:
 
 
 def apply(state: WorkflowState, step: Step) -> WorkflowState:
-    """Run ``step`` and return the state with its changes merged in."""
+    """Run ``step`` and return the state with its changes merged in.
+
+    ``model_copy(update=...)`` does not re-validate, so the
+    :class:`StateUpdate` type check (mypy) is what keeps the values valid.
+    """
     return state.model_copy(update=dict(step(state)))
 
 
@@ -82,7 +105,10 @@ class PhotoWorkflow:
 
         Raises:
             RunAbortedError: If a step raised a :class:`FatalRunError` (e.g.
-                the LLM is unavailable); carries the photos saved so far.
+                the LLM is unavailable or too many annotations failed in a
+                row), which happens in ``annotate``. It carries the
+                ``saved_count`` of the chunks finished so far; nothing from the
+                interrupted chunk is saved or written to the failure log.
         """
         try:
             state = self._plan(state)
@@ -93,6 +119,7 @@ class PhotoWorkflow:
         return state
 
     def _plan(self, state: WorkflowState) -> WorkflowState:
+        """Find, filter and queue the photos; log the ones that failed early."""
         s = self._steps
         entry: Step = s.load_failures if state.reprocess_failed else s.discover
         for step in (
@@ -108,6 +135,7 @@ class PhotoWorkflow:
         return state
 
     def _process_chunk(self, state: WorkflowState) -> WorkflowState:
+        """Process the next chunk from the queue, then log and tally it."""
         s = self._steps
         state = apply(state, s.next_chunk)
         for step in (

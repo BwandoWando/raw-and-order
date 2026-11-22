@@ -119,7 +119,7 @@ class PhotoStats(BaseModel):
 
 
 class SimilarPhoto(BaseModel):
-    """A visually similar photo and its pHash distance (0 = identical)."""
+    """A visually similar photo and its pHash distance in bits (0 = identical)."""
 
     record: PhotoRecord
     distance: int

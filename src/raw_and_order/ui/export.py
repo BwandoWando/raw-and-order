@@ -23,8 +23,9 @@ PREVIEW_ROWS = 10
 def render_export(filters: PhotoQuery, library: PhotoLibrary) -> None:
     """Show how many photos match, a preview, and the download button.
 
-    Only a small preview is read here (every tab runs on each rerun); the
-    full export is read and written when the button is clicked.
+    Rows come in the sort order picked in the Gallery. Only a small preview
+    is read here (every tab runs on each rerun); the full export is read and
+    written when the button is clicked.
     """
     query = filters.model_copy(update={"sort": chosen_sort(filters.sort)})
     preview = library.search(

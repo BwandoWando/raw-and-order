@@ -45,8 +45,8 @@ class ExifRereader:
     def run(self, folder: Path) -> RereadSummary:
         """Re-read every stored photo inside ``folder``.
 
-        Missing files are skipped; files whose EXIF cannot be read are listed
-        and left unchanged.
+        Missing files and files whose EXIF cannot be read are listed in the
+        summary and left unchanged in the database.
 
         Raises:
             PersistenceError: If the database cannot be read or written.
@@ -65,6 +65,7 @@ class ExifRereader:
     def _reread_one(
         self, path: Path, old_exif: ExifData, summary: RereadSummary
     ) -> None:
+        """Re-read one photo; save its EXIF only if anything changed."""
         summary.checked += 1
         if not path.is_file():
             summary.missing.append(path)

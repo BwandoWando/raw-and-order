@@ -1,4 +1,8 @@
-"""The app's tabs, and switching between them from code."""
+"""The app's tabs, and switching between them from code.
+
+``app.py`` draws the tabs in :class:`Tab` order under :data:`TABS_KEY`;
+other pages call :func:`open_tab` (e.g. the Tags tab opening the Gallery).
+"""
 
 from enum import StrEnum
 

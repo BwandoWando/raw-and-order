@@ -4,7 +4,11 @@ from raw_and_order.workflow.state import StateUpdate, WorkflowState
 
 
 class NextChunkStep:
-    """Moves up to ``chunk_size`` photos from ``queue`` into ``items``."""
+    """Moves up to ``chunk_size`` photos from ``queue`` into ``items``.
+
+    With no ``chunk_size`` the whole queue becomes one chunk. The previous
+    ``items`` (already logged) are replaced.
+    """
 
     def __call__(self, state: WorkflowState) -> StateUpdate:
         """Return the new chunk, the shorter queue and the chunk number."""

@@ -1,4 +1,4 @@
-"""Step: annotate previews with the LLM."""
+"""Step: annotate previews with the LLM, stopping the run on a failure streak."""
 
 from raw_and_order.exceptions import TooManyFailuresError
 from raw_and_order.llm.annotator import Annotator
@@ -10,6 +10,10 @@ from raw_and_order.workflow.steps._per_item import apply_to_photo
 
 class AnnotateStep:
     """Sends each preview (plus optional EXIF context) to the annotator.
+
+    Every annotation-stage failure (invalid output, an image the model
+    rejected) adds to a streak that carries over between chunks; an outage
+    (:class:`ModelUnavailableError`) is not counted but stops the run at once.
 
     Args:
         annotator: Produces the annotation.
@@ -32,13 +36,16 @@ class AnnotateStep:
         self._max_consecutive_failures = max_consecutive_failures
 
     def __call__(self, state: WorkflowState) -> StateUpdate:
-        """Return ``items`` with ``annotation`` filled in.
+        """Return ``items`` with ``annotation`` and the updated streak.
 
-        Photos are annotated one at a time so the run stops exactly when the
-        failure streak reaches the limit, without further LLM calls.
+        Reads each photo's ``preview_path`` and ``exif``. Photos are annotated
+        one at a time so the run stops as soon as the failure streak reaches
+        the limit, without further LLM calls.
 
         Raises:
-            TooManyFailuresError: If too many photos in a row failed.
+            TooManyFailuresError: If ``max_consecutive_failures`` photos in a
+                row failed annotation.
+            ModelUnavailableError: If the LLM cannot be used at all.
         """
         streak = state.consecutive_annotate_failures
         items: list[PhotoItem] = []
@@ -60,6 +67,11 @@ class AnnotateStep:
         return limit > 0 and streak >= limit
 
     def _annotate(self, item: PhotoItem) -> PhotoItem:
+        """Annotate one photo.
+
+        A missing preview is a bug in the step order, so it raises
+        ``ValueError``, which is not recorded on the photo but ends the run.
+        """
         if item.preview_path is None:
             raise ValueError(f"No preview for {item.path}; decode must run first")
         image = self._preview_store.load(item.preview_path)

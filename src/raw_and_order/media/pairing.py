@@ -2,10 +2,14 @@
 
 A raw file and an image are the same shot when they sit in the same folder,
 share a file name stem (case-insensitive) and were captured within
-:data:`PAIR_MAX_TIME_DIFFERENCE` of each other. Cameras reuse file names
-(e.g. a Sony counter wraps from DSC09999 to DSC00001), so the capture time
-tells a real pair from two different shots with the same name. If either
+:data:`PAIR_MAX_TIME_DIFFERENCE` (1 second) of each other. Cameras reuse file
+names (e.g. a Sony counter wraps from DSC09999 to DSC00001), so the capture
+time tells a real pair from two different shots with the same name. If either
 file has no capture time, the name alone decides.
+
+The raw file is kept and the image skipped. Capture times are the raw EXIF
+``DateTimeOriginal`` (see ``CaptureTimeReader``), read only for the files
+:meth:`RawPairFilter.pair_candidates` returns.
 """
 
 from collections.abc import Iterable, Mapping
@@ -20,7 +24,10 @@ CaptureTimes = Mapping[Path, datetime | None]
 
 @dataclass(frozen=True)
 class PairFilterResult:
-    """Files to process, files skipped as pairs, and same-name non-pairs."""
+    """Files to process, files skipped as pairs, and same-name non-pairs.
+
+    ``different_shots`` is a subset of ``kept``, reported for logging.
+    """
 
     kept: list[Path] = field(default_factory=list)
     skipped: list[Path] = field(default_factory=list)
@@ -54,7 +61,11 @@ class RawPairFilter:
         self._raw_extensions = frozenset(ext.lower() for ext in raw_extensions)
 
     def pair_candidates(self, paths: Iterable[Path]) -> list[Path]:
-        """Files whose folder and stem are shared by a raw file and an image."""
+        """Files whose folder and stem are shared by a raw file and an image.
+
+        Only these need capture times for :meth:`apply`, so the caller can
+        skip reading EXIF for every other file.
+        """
         candidates = list(paths)
         raw_keys = {shot_key(p) for p in candidates if self._is_raw(p)}
         image_keys = {shot_key(p) for p in candidates if not self._is_raw(p)}
@@ -65,6 +76,9 @@ class RawPairFilter:
         self, paths: Iterable[Path], capture_times: CaptureTimes | None = None
     ) -> PairFilterResult:
         """Split ``paths`` into kept and skipped, preserving order.
+
+        An image is skipped if it is the same shot (:func:`same_shot`) as any
+        raw file with its folder and stem.
 
         Args:
             paths: Candidate files.

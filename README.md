@@ -10,11 +10,15 @@ catalogue. The command is `raw-and-order` and the Python package
 Each run is a plain ordered workflow (`workflow/runner.py`):
 
 ```
-plan:     discover ─▶ fingerprint ─▶ skip_known ─▶ skip_copies ─▶ sync_copy_log ─▶ select_batch
-per chunk: extract_exif ─▶ decode ─▶ perceptual_hash ─▶ annotate ─▶ persist
+plan (once):  discover ─▶ fingerprint ─▶ skip_known ─▶ skip_copies ─▶ sync_copy_log
+              ─▶ select_batch ─▶ sync_planning_failures
+per chunk:    next_chunk ─▶ extract_exif ─▶ decode ─▶ perceptual_hash ─▶ annotate
+              ─▶ persist ─▶ sync_failure_log ─▶ tally_chunk
 ```
 
-`--reprocess-failed` starts from the failure log instead of `discover`.
+`--reprocess-failed` starts from the failure log (`load_failures`) instead of
+`discover`. If every photo in a chunk has failed, the chunk skips straight to
+`sync_failure_log`.
 
 **Supported files**
 - Raw (via LibRaw): CR2, CR3, NEF, ARW, RAF, ORF, RW2, DNG (`RAW_EXTENSIONS`)
@@ -199,8 +203,8 @@ Stop it with Ctrl+C. In VS Code, the **Streamlit UI** debug configuration in
   range, annotating model. They apply to the Gallery, Tags and
   Export tabs.
 
-- **Gallery:** a thumbnail grid (24 / 48 / 72 / 99 per page) sized so a whole
-  page fits on one screen, with the pager below it (or the left and right
+- **Gallery:** a grid of square thumbnails (24 / 48 / 72 / 99 per page; the
+  whole photo fits in its tile) sized so a whole page fits on one screen, with the pager below it (or the left and right
   arrow keys). Tiles shrink as the page size grows and follow the window when
   you resize it. The page size is kept in the URL (`?g_page_size=99`), so you
   can bookmark it. Hover a photo for its date and scene; click it to see the
@@ -210,9 +214,9 @@ Stop it with Ctrl+C. In VS Code, the **Streamlit UI** debug configuration in
   file name at the top; click the photo to see it full screen, as large as the
   window allows. The star in the photo's top-right corner marks it as a
   favorite (click again to unmark); the time it was starred is kept in the
-  `favorites` table, in this computer's local time. Step to the previous or next photo on the gallery page with
-  the buttons at its edges (shown on hover) or the arrow keys; click a similar
-  photo to show it in the dialog. Similar photos are labelled by pHash
+  `favorites` table, in this computer's local time. Step to the previous or
+  next photo on the gallery page with the buttons beside the photo (shown on
+  hover) or the arrow keys; click a similar photo to show it in the dialog. Similar photos are labelled by pHash
   distance (of 64 bits): Identical (0–2), Very similar (3–8) and Similar
   (9–14); all of them share at least 25% of their tags.
 - **Tags:** a network of the most-used tags (20–100). Bubble size is the number
@@ -239,8 +243,9 @@ Stop it with Ctrl+C. In VS Code, the **Streamlit UI** debug configuration in
   neutral graphite, as in photo editors, so photos keep their true colours.
   Both themes are defined in `src/raw_and_order/ui/theme.toml`.
 
-The UI only reads the database, so it is safe to keep open during a processing
-run (press **Refresh data** to see new photos). It listens on `localhost` only
+The UI only reads photos (its one write is the favorite star, in its own
+table), so it is safe to keep open during a processing run (press **Refresh
+data** to see new photos). It listens on `localhost` only
 and Streamlit's usage statistics are turned off (see `.streamlit/config.toml`).
 
 ## Configuration
@@ -285,13 +290,15 @@ src/raw_and_order/
 ├── config.py         pydantic-settings
 ├── exceptions.py     domain exception hierarchy
 ├── pipeline.py       runs the workflow, builds the run summary
-├── exif_reread.py    --reread-exif: refresh EXIF columns of stored photos
-├── rehash.py         raw-and-order rehash: recompute stored perceptual hashes
-├── workflow/         state, steps (nodes/), routing, ordered runner
+├── maintenance/      upkeep commands over stored photos (no LLM):
+│                     exif_reread.py (--reread-exif), rehash.py (rehash)
+├── workflow/         state.py (WorkflowState), steps/ (one class per step),
+│                     runner.py (the order)
 ├── media/            discovery, exiftool, raw/Pillow decoding, previews, hashing
 ├── llm/              provider factory, capability check, annotator, prompts
 ├── schemas/          Pydantic models shared across layers
-├── db/               SQLAlchemy models, session, repositories, read-only catalog
+├── db/               SQLAlchemy models, session, repositories (photos, copies,
+│                     failures, favorites), the read-only catalog for the UI
 ├── analysis/         pure computations (tag network, clusters, similarity)
 ├── export/           export rows and Excel / CSV / JSON encoding
 └── ui/               Streamlit app; renderers receive a PhotoLibrary
@@ -312,3 +319,66 @@ strict mypy, Pure DI (constructor injection; only `bootstrap.py` builds
 concrete classes), single-responsibility steps, and only the domain exceptions
 in `exceptions.py`. VS Code debug configurations for the CLI, the current test
 file and the UI are in `.vscode/launch.json`.
+
+## Working on the code
+
+Everything is plain Python with dependencies passed in through constructors,
+so you can follow a run with a debugger or `print` from the entry point down.
+
+**Where things happen**
+
+| You want to... | Start at |
+|---|---|
+| Follow a processing run | `main.py` `process` → `bootstrap.open_pipeline` (wiring) → `workflow/runner.py` (the step order) → one class per step in `workflow/steps/` |
+| See what a step changed | Each step returns a `StateUpdate` (`workflow/state.py`); the runner merges it into `WorkflowState` |
+| Find why a photo failed | The `processing_failures` table or the Failures tab (step, error type, message); the step's class in `workflow/steps/` |
+| Follow a UI filter to SQL | `ui/filters.py` (widget → `PhotoQuery`) → `db/catalog.py` `filter_conditions` (one SQL condition per filter) |
+| Change how EXIF is read | `media/exif_mapping.py` (tag → field), with `capture_date.py` and `white_balance.py` for the two tricky fields |
+| Change what the LLM is asked | `llm/prompts/annotate_system.md` and `schemas/annotation.py` (the schema the model fills) |
+
+**Debugging tips**
+
+- `raw-and-order process FOLDER --max-photos 1 --chunk-size 1` runs a single
+  photo: the quickest way to reproduce a problem. A step that fails for a
+  photo logs a WARNING naming the step, the photo and the error.
+- Point `DATABASE_URL` and `PREVIEW_DIR` at a scratch location to experiment
+  without touching your real catalogue (`alembic upgrade head` creates it).
+- `print(filter_conditions(PhotoQuery(...)))` shows the SQL conditions of any
+  filter combination.
+- The VS Code configurations in `.vscode/launch.json` run the CLI, the current
+  test file and the UI under the debugger.
+- Every class takes its dependencies in `__init__`, and `tests/fakes.py` has
+  in-memory versions (fake annotator, EXIF reader, library ...), so a single
+  step or renderer can be run in a test with no exiftool, LLM or database.
+
+**Adding a sidebar filter**
+
+1. Add a field to `PhotoQuery` (`schemas/query.py`); its default must mean
+   "no filter".
+2. Add its SQL condition in `filter_conditions` (`db/catalog.py`).
+3. Add a `FilterKey` member, the widget in `render_filters` and its default in
+   `filter_defaults` (`ui/filters.py`). A test fails if a widget has no default.
+4. Add a case to `test_filters` in `tests/unit/test_catalog.py`.
+
+The Gallery, Tags and Export tabs and the Reset button then follow it.
+
+**Adding a workflow step**
+
+1. Write a class in `workflow/steps/` whose `__call__(state)` returns a
+   `StateUpdate` with only the fields it changes. For work per photo, use
+   `apply_step` (`steps/_per_item.py`), which records a domain error on the
+   photo instead of stopping the run.
+2. Export it from `workflow/steps/__init__.py`, add it to `WorkflowSteps` and
+   put it in the order in `PhotoWorkflow` (`workflow/runner.py`).
+3. Build it with its dependencies in `bootstrap._build_workflow`, and add a
+   `Stage` if it can fail (`workflow/state.py`).
+
+**Adding an EXIF field**
+
+1. Add it to `ExifData` (`schemas/exif.py`) and read it in `ExifMapper.map`
+   (`media/exif_mapping.py`); add its tag to `REQUESTED_TAGS`.
+2. Add a column to `PhotoRow` (`db/models.py`), map it in `db/mappers.py`, and
+   run `alembic revision --autogenerate -m "..."`, then `alembic upgrade head`.
+3. Optionally show it (`ui/formatting.camera_settings`) or export it
+   (`export/rows.py`).
+4. `raw-and-order process FOLDER --reread-exif` fills it for stored photos.

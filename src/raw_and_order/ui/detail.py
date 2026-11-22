@@ -6,9 +6,9 @@ location, files) sit in tabs below, full width, so nothing needs scrolling
 on a normal screen. Buttons either side of the photo (and the arrow keys)
 step to the previous or next photo shown in the gallery without closing the
 dialog. Clicking a similar photo shows it here; it can only be stepped from
-if it is on the gallery page too. Clicking the photo shows its preview full
-screen, on a layer over the dialog (Streamlit allows only one dialog at a
-time).
+if it is on the gallery page too. A star in the photo's corner marks it as a
+favorite. Clicking the photo shows its preview full screen, on a layer over
+the dialog (Streamlit allows only one dialog at a time).
 """
 
 from collections.abc import Sequence
@@ -254,6 +254,7 @@ def details_open() -> bool:
 
 
 def _closed() -> None:
+    """Note the dialog is shut, so the gallery pager gets the arrow keys back."""
     st.session_state[OPEN_KEY] = False
     st.session_state[ZOOM_KEY] = False
 
@@ -265,6 +266,10 @@ def _details(paths: tuple[Path, ...], library: PhotoLibrary) -> None:
     Layout: the file name, then the photo (left) beside its text (right),
     then the tabs. If the photo has left the database, only the previous and
     next buttons and a warning are shown, so one can step on.
+
+    Args:
+        paths: The photos on the gallery page, which the buttons step through.
+        library: Where the photo, its preview size and its tabs are read.
     """
     current = Path(st.session_state[CURRENT_KEY])
     record = library.photo(current)
@@ -339,6 +344,7 @@ def _file_heading(path: Path) -> None:
 
 
 def _show(path: Path) -> None:
+    """Make ``path`` the photo shown; the dialog then reruns with it."""
     st.session_state[CURRENT_KEY] = str(path)
 
 
@@ -414,6 +420,7 @@ def _summary(record: PhotoRecord, position: int | None, count: int) -> None:
 
 
 def _camera(exif: ExifData, preview_size: tuple[int, int] | None) -> None:
+    """Camera settings as small label-value pairs that wrap across lines."""
     rows = camera_settings(exif, preview_size)
     if not rows:
         return
@@ -458,6 +465,7 @@ def _location(record: PhotoRecord) -> None:
 
 
 def _files(record: PhotoRecord, copies: list[Path]) -> None:
+    """The file's path and hashes, then any exact copies found elsewhere."""
     st.code(
         f"File     {record.path}\n"
         f"SHA-256  {record.sha256 or '-'}\n"
@@ -483,6 +491,7 @@ def _similar_photos(path: Path, library: PhotoLibrary) -> None:
 
 
 def _similar_tile(match: SimilarPhoto) -> None:
+    """A similar photo under an invisible button, captioned with its similarity."""
     record = match.record
     with st.container(key=f"{SIMILAR_TILE_PREFIX}{path_digest(record.path)}"):
         if record.preview_path.is_file():

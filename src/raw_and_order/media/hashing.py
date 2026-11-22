@@ -21,12 +21,13 @@ from raw_and_order.exceptions import FingerprintError
 DEFAULT_CHUNK_SIZE = 1024 * 1024  # 1 MiB: low memory even for 80 MB raw files
 # 8x8 low frequencies -> 64-bit hash, 16 hex characters. Its few chance
 # matches are filtered out by also requiring shared tags (analysis/similarity.py).
+# Changing either size changes every hash, so stored hashes must be recomputed.
 PHASH_SIZE = 8
 PHASH_DCT_SIZE = 32  # the image is shrunk to 32x32 before the DCT
 
 
 def hex_length(size: int) -> int:
-    """Hex characters for a ``size`` x ``size`` pHash (bits rounded up to 4)."""
+    """Hex characters for a ``size`` x ``size`` pHash (bits / 4, rounded up)."""
     return -(-size * size // 4)
 
 
@@ -72,11 +73,13 @@ def phash(
 ) -> str:
     """Return the perceptual hash of ``image`` as a hex string.
 
-    The image is shrunk to ``dct_size`` x ``dct_size`` greyscale pixels and
-    turned into frequencies (a 2-D DCT). The ``size`` x ``size`` lowest
-    frequencies describe its overall structure; each bit records whether one
-    of them is above their median. Brightness, contrast and compression
-    changes barely move these, unlike pixel-by-pixel comparisons.
+    The image is shrunk to ``dct_size`` x ``dct_size`` greyscale pixels
+    (ignoring its aspect ratio) and turned into frequencies (a 2-D DCT). The
+    ``size`` x ``size`` lowest frequencies describe its overall structure;
+    each bit records whether one of them is above their median. Brightness,
+    contrast and compression changes barely move these, unlike pixel-by-pixel
+    comparisons. Bits are read row by row, the first being the most
+    significant, and the result is zero-padded hex.
     """
     grey = image.convert("L").resize((dct_size, dct_size), Image.Resampling.LANCZOS)
     pixels = np.asarray(grey, dtype=np.float64)
@@ -91,9 +94,9 @@ def phash(
 def hamming_distance(first: str, second: str) -> int:
     """Count differing bits between two equal-length hex hashes.
 
-    For 64-bit pHashes, about 2 or less means the same picture (resized or
-    recompressed) and 14 or less a close variant; see
-    :mod:`raw_and_order.analysis.similarity`.
+    For 64-bit pHashes, 2 or less means the same picture (resized or
+    recompressed) and up to 14 a similar photo; the limits and their
+    calibration are in :mod:`raw_and_order.analysis.similarity`.
 
     Raises:
         ValueError: If the hashes differ in length or are not hex.

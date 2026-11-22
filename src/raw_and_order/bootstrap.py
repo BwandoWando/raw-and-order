@@ -198,6 +198,10 @@ def build_annotator(llm: LLMSettings, max_tags: int) -> LLMAnnotator:
 def check_model(llm: LLMSettings) -> None:
     """Fail fast if the configured model is unreachable or cannot see images.
 
+    Only Ollama is actually asked (its ``/api/show`` lists the model's
+    capabilities). Cloud providers are assumed to support images, so a wrong
+    model name or key there shows up on the first annotation instead.
+
     Raises:
         ConfigurationError: If the model cannot be used.
     """
@@ -210,9 +214,11 @@ def check_model(llm: LLMSettings) -> None:
 
 
 def build_ui_library(settings: Settings) -> PhotoLibrary:
-    """Build the UI's read-only, cached photo library from settings.
+    """Build the UI's cached photo library from settings.
 
-    The engine lives as long as the UI process; the UI caches the result.
+    It reads photos, the failure log and favorites, and writes only
+    favorites. The engine lives as long as the UI process; the UI caches the
+    result.
     Streamlit is imported here, not at module level, so the CLI runs
     without the ``ui`` extra installed.
     """

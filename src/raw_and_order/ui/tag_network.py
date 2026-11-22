@@ -1,4 +1,7 @@
-"""ECharts option for the tag network.
+"""ECharts option for the tag network drawn on the Tags tab.
+
+Node positions and clusters come from ``analysis/tag_graph.py``; this module
+only turns a :class:`TagGraph` into the chart's option dictionary.
 
 Each cluster is a colour and shape pair. A network is an all-pairs chart
 (any two clusters can sit side by side), and only the first three
@@ -6,7 +9,7 @@ categorical hues stay distinguishable all-pairs, colour-blind included, in
 both themes (checked with the data-viz palette validator). So three hues x
 three shapes give up to nine clusters; the rest, and tags with no cluster,
 are grey "Other". Every tag is also labelled by name, and the clusters are
-listed in text next to the chart, so colour is never the only cue.
+listed in text below the chart, so colour is never the only cue.
 """
 
 import math
@@ -95,6 +98,7 @@ def _category(node: TagNode, styled: int) -> int:
 
 
 def _category_spec(index: int, name: str, theme: ChartTheme) -> dict[str, Any]:
+    """Legend entry ``index`` (named ``name``) with its colour and shape."""
     colour, shape = cluster_style(None if name == OTHER else index, theme)
     return {"name": name, "symbol": shape, "itemStyle": {"color": colour}}
 

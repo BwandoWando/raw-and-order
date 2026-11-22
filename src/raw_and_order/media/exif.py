@@ -96,7 +96,11 @@ class PyExifToolReader:
     def capture_times(self, paths: Sequence[Path]) -> dict[Path, datetime | None]:
         """Return each path's ``DateTimeOriginal``; ``None`` if it has none.
 
-        Reads only that one tag, in batches, so it is fast for many files.
+        Reads only that one tag, :data:`CAPTURE_TIME_BATCH` files per exiftool
+        call, so it is fast for many files. Used for RAW+JPEG pairing; unlike
+        :meth:`read`, it does not fall back to other date sources or reject
+        implausible dates. Results are matched to paths by exiftool's
+        ``SourceFile``, so a file exiftool skips simply gets ``None``.
 
         Raises:
             ExifReadError: If exiftool fails.
@@ -112,6 +116,7 @@ class PyExifToolReader:
         return {path: times.get(path) for path in paths}
 
     def _get_tags(self, files: list[str], tags: list[str]) -> list[ExifTags]:
+        """Run exiftool on ``files`` for ``tags``; one result per file read."""
         if self._helper is None:
             raise ExifReadError("exiftool is not running; call start() first")
         try:
@@ -123,6 +128,7 @@ class PyExifToolReader:
         return results
 
     def _read_tags(self, path: Path) -> ExifTags:
+        """All :data:`REQUESTED_TAGS` of one file."""
         if self._helper is None:
             raise ExifReadError("exiftool is not running; call start() first")
         try:

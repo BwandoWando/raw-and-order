@@ -1,5 +1,8 @@
 """add sha256 and dhash fingerprints
 
+photos.sha256 finds unchanged files; photos.dhash (later replaced by phash in
+5fc1b1027052) finds similar photos.
+
 Revision ID: afb0f8df0b58
 Revises: 6452de1ad00f
 Create Date: 2026-11-20 19:03:16.221586

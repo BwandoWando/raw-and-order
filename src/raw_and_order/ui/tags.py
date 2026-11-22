@@ -4,7 +4,7 @@ Clicking a cluster card, or a tag in the network, shows the cluster's
 photos in the Gallery: it sets the "Tags (all of)" filter to the tags in the
 cluster's name and opens the Gallery tab. Tags always combine with AND, as in
 the sidebar; all of a cluster's tags together would match almost no photo.
-A tag outside every cluster ("Other") shows the photos with that tag.
+A tag in no cluster shows the photos with just that tag.
 """
 
 from functools import partial
@@ -81,6 +81,7 @@ def render_tags(filters: PhotoQuery, library: PhotoLibrary) -> None:
 
 
 def _controls() -> tuple[int, float]:
+    """The "Tags shown" and "Link strength" sliders: ``(top_n, min_strength)``."""
     top_col, strength_col = st.columns(2)
     top_n = top_col.slider(
         "Tags shown",
@@ -149,7 +150,11 @@ def tags_to_show(graph: TagGraph, node_index: int) -> list[str]:
 
 
 def _open_clicked_tag(graph: TagGraph, key: str) -> None:
-    """Show the photos of the tag clicked in the network drawn with ``key``."""
+    """Show the photos of the tag clicked in the network drawn with ``key``.
+
+    Clicks on links are ignored. A handled click bumps
+    :data:`NETWORK_CLICKS_KEY`, so the next run draws a fresh, unselected chart.
+    """
     selection = st.session_state[key].selection
     clicked = [
         index
@@ -171,6 +176,7 @@ def _show_in_gallery(tags: list[str]) -> None:
 
 
 def _table(graph: TagGraph) -> pd.DataFrame:
+    """One row per tag: photos, cluster and the tags it most often appears with."""
     names = [cluster.name for cluster in graph.clusters]
     return pd.DataFrame(
         {
@@ -186,6 +192,7 @@ def _table(graph: TagGraph) -> pd.DataFrame:
 
 
 def _partners(graph: TagGraph, tag: str) -> str:
+    """``tag``'s strongest links as ``other (shared photos)``, comma-separated."""
     links = top_partners(graph, tag, PARTNERS_SHOWN)
     return ", ".join(
         f"{link.target if link.source == tag else link.source} ({link.photos})"

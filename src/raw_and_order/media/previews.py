@@ -1,4 +1,9 @@
-"""Downscaled JPEG previews that are sent to the LLM."""
+"""Downscaled JPEG previews, saved once and used by both the LLM and the UI.
+
+Not to be confused with the camera's JPEG embedded in a raw file (the
+"embedded image", see :mod:`raw_and_order.media.raw`) or the UI's smaller
+thumbnails (:mod:`raw_and_order.media.thumbnails`), which are made from these.
+"""
 
 import hashlib
 from datetime import datetime
@@ -22,7 +27,12 @@ def make_preview(image: Image.Image, max_px: int) -> Image.Image:
 
 
 def preview_filename(source: Path) -> str:
-    """Return a stable, collision-free file name for the preview of ``source``."""
+    """Return a stable, collision-free file name for the preview of ``source``.
+
+    The suffix is the first 16 hex characters of the SHA-256 of the absolute
+    path, so same-named files in different folders do not collide. It changes
+    if the source file is moved or renamed.
+    """
     digest = hashlib.sha256(str(source.resolve()).encode()).hexdigest()[:16]
     return f"{source.stem}-{digest}.jpg"
 
@@ -44,8 +54,8 @@ class DatedPreviewLayout:
 
     The date is the photo's resolved capture date (``ExifData.captured_at``,
     which may come from EXIF, XMP or the file name); photos without one go
-    under ``unknown-date``. Extensions are kept as written, so ``.jpg`` and
-    ``.jpeg`` get separate folders.
+    under ``unknown-date``. Extensions are lowercased but not merged, so
+    ``.jpg`` and ``.jpeg`` get separate folders.
     """
 
     def relative_path(self, source: Path, captured_at: datetime | None) -> Path:
@@ -83,6 +93,8 @@ class JpegPreviewStore:
         self, image: Image.Image, source: Path, captured_at: datetime | None
     ) -> Path:
         """Write a preview of ``image`` for ``source`` and return its path.
+
+        An existing preview at the same path is overwritten.
 
         Raises:
             PreviewError: If the folder or file cannot be written.

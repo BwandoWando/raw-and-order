@@ -1,4 +1,9 @@
-"""Gallery tab: sort, page size, thumbnail grid and pagination."""
+"""Gallery tab: sort, page size, thumbnail grid and pagination.
+
+Shows one page of the photos matching the sidebar filters as square tiles
+sized to fill the window. Clicking a tile opens the photo details dialog
+(``ui/detail.py``), which can step through the photos on this page.
+"""
 
 from enum import StrEnum
 from pathlib import Path
@@ -146,7 +151,7 @@ def _grid(items: list[PhotoRecord], page_size: int, library: PhotoLibrary) -> No
 def _thumbnail(
     record: PhotoRecord, paths: list[Path], max_px: int, library: PhotoLibrary
 ) -> None:
-    """The photo itself, clickable to open its details; caption on hover.
+    """The photo itself, clickable to open its details; date and scene on hover.
 
     ``paths`` are the photos on this page, which the details can step through.
     """
@@ -164,7 +169,11 @@ def _thumbnail(
 
 
 def _current_page(query: PhotoQuery) -> int:
-    """Keep the page number, but go back to page 1 when filters change."""
+    """Keep the page number, but go back to page 1 when the query changes.
+
+    ``query`` holds the filters, sort and page size (not the page), so a
+    change to any of them starts again from page 1.
+    """
     signature = query.model_dump_json()
     if st.session_state.get(GalleryKey.PAGE_QUERY) != signature:
         st.session_state[GalleryKey.PAGE_QUERY] = signature

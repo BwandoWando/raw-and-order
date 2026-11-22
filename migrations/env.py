@@ -1,4 +1,9 @@
-"""Alembic environment: reads the DB URL from app settings."""
+"""Alembic environment: points ``alembic upgrade`` at the app's database.
+
+The URL comes from ``sqlalchemy.url`` if set (tests do), else from the app
+settings (``DATABASE_URL``). Autogenerate compares against
+:mod:`raw_and_order.db.models`.
+"""
 
 from logging.config import fileConfig
 
@@ -25,6 +30,7 @@ def _database_url() -> str:
 
 
 def _configure(connection: Connection | None = None, url: str | None = None) -> None:
+    """Configure Alembic for a live ``connection`` or, offline, a ``url``."""
     context.configure(
         connection=connection,
         url=url,

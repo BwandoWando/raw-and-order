@@ -17,7 +17,8 @@ def apply_step(items: list[PhotoItem], stage: Stage, step: ItemStep) -> list[Pho
     Items that already failed pass through unchanged. Only
     :class:`RawAndOrderError` is caught, so programming errors still surface, and
     :class:`FatalRunError` (e.g. the model is missing) stops the whole run
-    instead of being blamed on one photo.
+    instead of being blamed on one photo. Each recorded failure is logged once
+    here, as a warning.
     """
     return [apply_to_photo(item, stage, step) for item in items]
 

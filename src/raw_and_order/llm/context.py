@@ -23,6 +23,11 @@ class ExifContextFormatter:
         return "\n".join(lines) or None
 
     def _fields(self, exif: ExifData) -> dict[str, object]:
+        """Non-empty EXIF fields, with GPS as ``lat, lon`` only if allowed.
+
+        ``date_source`` is internal bookkeeping, so it is never sent; GPS
+        altitude is dropped too.
+        """
         fields = exif.model_dump(exclude_none=True, exclude={"gps", "date_source"})
         if self._include_gps and exif.gps is not None:
             fields["gps"] = f"{exif.gps.latitude:.5f}, {exif.gps.longitude:.5f}"
