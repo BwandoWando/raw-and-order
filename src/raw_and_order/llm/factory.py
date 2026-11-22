@@ -35,6 +35,11 @@ def build_model_kwargs(settings: LLMSettings) -> dict[str, Any]:
 
     ``ChatOllama`` takes the timeout through ``client_kwargs`` (passed to its
     HTTP client); the other chat classes take a ``timeout`` argument.
+
+    The OpenAI and Anthropic clients retry failed requests on their own (twice
+    by default). That is switched off (``max_retries=0``): the annotator already
+    retries transient errors with backoff, ``LLM__MAX_RETRIES`` times in total,
+    and two retry layers would multiply the requests per photo.
     """
     kwargs: dict[str, Any] = {"model": settings.model}
     if settings.temperature is not None:
@@ -47,6 +52,7 @@ def build_model_kwargs(settings: LLMSettings) -> dict[str, Any]:
         kwargs["client_kwargs"] = {"timeout": settings.timeout_seconds}
     else:
         kwargs["timeout"] = settings.timeout_seconds
+        kwargs["max_retries"] = 0  # the annotator's retries are the only ones
     return kwargs
 
 

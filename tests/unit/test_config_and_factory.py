@@ -41,6 +41,7 @@ def test_cloud_kwargs_include_key_and_timeout() -> None:
     assert kwargs["api_key"] == "secret"
     assert kwargs["temperature"] == 0.0
     assert "timeout" in kwargs
+    assert kwargs["max_retries"] == 0  # only the annotator retries
 
 
 @pytest.mark.parametrize(
@@ -54,7 +55,11 @@ def test_cloud_kwargs_include_key_and_timeout() -> None:
 def test_factory_builds_each_provider(provider: LLMProvider, class_name: str) -> None:
     settings = LLMSettings(provider=provider, model="m", api_key=SecretStr("k"))
 
-    assert type(create_chat_model(settings)).__name__ == class_name
+    model = create_chat_model(settings)
+
+    assert type(model).__name__ == class_name
+    if provider is not LLMProvider.OLLAMA:  # the SDK's own retries are off
+        assert model.model_dump()["max_retries"] == 0
 
 
 def test_date_sources_parse_from_comma_separated_env(
