@@ -34,7 +34,6 @@ class PhotoQuery(BaseModel):
     lenses: tuple[str, ...] = ()
     date_from: date | None = None
     date_to: date | None = None
-    only_with_gps: bool = False
     only_favorites: bool = Field(
         default=False, description="Only photos starred in the photo details."
     )

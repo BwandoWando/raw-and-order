@@ -328,8 +328,6 @@ def filter_conditions(query: PhotoQuery) -> list[ColumnElement[bool]]:
     if query.contains_people is not None:
         conditions.append(PhotoRow.contains_people.is_(query.contains_people))
     conditions.extend(_date_conditions(query.date_from, query.date_to))
-    if query.only_with_gps:
-        conditions.append(PhotoRow.gps_latitude.is_not(None))
     conditions.extend(
         _between(PhotoRow.white_balance_k, query.kelvin_min, query.kelvin_max)
     )

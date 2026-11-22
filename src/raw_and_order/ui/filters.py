@@ -28,7 +28,6 @@ class FilterKey(StrEnum):
     CAMERAS = "f_cameras"
     LENSES = "f_lenses"
     DATES = "f_dates"
-    GPS = "f_gps"
     KELVIN = "f_kelvin"
     ANNOTATED_BY = "f_annotated_by"
 
@@ -70,7 +69,6 @@ def render_filters(options: FilterOptions) -> PhotoQuery:
     cameras = sidebar.multiselect("Camera", options.cameras, key=FilterKey.CAMERAS)
     lenses = sidebar.multiselect("Lens", options.lenses, key=FilterKey.LENSES)
     date_from, date_to = _date_range(options)
-    only_gps = sidebar.checkbox("Only photos with GPS", key=FilterKey.GPS)
     kelvin_min, kelvin_max = _kelvin_range(options)
     annotators = sidebar.multiselect(
         "Annotated by", options.annotated_by, key=FilterKey.ANNOTATED_BY
@@ -91,7 +89,6 @@ def render_filters(options: FilterOptions) -> PhotoQuery:
         lenses=tuple(lenses),
         date_from=date_from,
         date_to=date_to,
-        only_with_gps=only_gps,
         only_favorites=only_favorites,
         kelvin_min=kelvin_min,
         kelvin_max=kelvin_max,
@@ -113,7 +110,6 @@ def filter_defaults(options: FilterOptions) -> dict[str, object]:
         FilterKey.PEOPLE: "Any",
         FilterKey.CAMERAS: [],
         FilterKey.LENSES: [],
-        FilterKey.GPS: False,
         FilterKey.ANNOTATED_BY: [],
     }
     if (dates := _date_bounds(options)) is not None:

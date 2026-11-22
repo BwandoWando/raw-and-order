@@ -242,7 +242,6 @@ def test_reset_filters_restores_every_filter(app_with) -> None:  # type: ignore[
     ]:
         app.multiselect(key=key).select(value).run()
     app.button_group(key=FilterKey.PEOPLE).set_value("Yes").run()
-    app.checkbox(key=FilterKey.GPS).check().run()
     app.toggle(key=FilterKey.FAVORITES).set_value(True).run()
     app.slider(key=FilterKey.KELVIN).set_range(5100, 5300).run()
     day = date(2026, 1, 11)

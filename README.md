@@ -196,7 +196,7 @@ Stop it with Ctrl+C. In VS Code, the **Streamlit UI** debug configuration in
 - **Filters** (sidebar): text search over descriptions and tags, favorites
   only, scene, tags (all of; each listed with its number of photos, e.g.
   `urban (431)`), people, camera, lens, capture-date range, white balance (K)
-  range, GPS only, annotating model. They apply to the Gallery, Tags and
+  range, annotating model. They apply to the Gallery, Tags and
   Export tabs.
 
 - **Gallery:** a thumbnail grid (24 / 48 / 72 / 99 per page) sized so a whole

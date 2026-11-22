@@ -18,4 +18,4 @@ def test_equal_filters_compare_equal_whatever_the_page() -> None:
 
 def test_sort_and_paging_are_not_filters() -> None:
     assert not PhotoQuery(sort=SortOrder.CAPTURED_OLDEST, page=2).has_filters()
-    assert PhotoQuery(only_with_gps=True).has_filters()
+    assert PhotoQuery(only_favorites=True).has_filters()

@@ -143,7 +143,6 @@ def test_no_filters_returns_all_newest_capture_first_undated_last(
         ),
         ({"date_from": date(2026, 1, 1), "date_to": date(2026, 1, 31)}, ["street.arw"]),
         ({"date_to": date(2025, 12, 31)}, ["odd_100%.arw"]),  # end date is inclusive
-        ({"only_with_gps": True}, ["beach.arw"]),
         ({"annotated_by": ("openai:x",)}, ["portrait.jpg"]),
     ],
 )
@@ -337,9 +336,8 @@ def test_filter_conditions_add_one_condition_per_filter_set() -> None:
         contains_people=False,
         date_from=date(2026, 1, 1),  # a range: one condition per bound
         date_to=date(2026, 2, 1),
-        only_with_gps=True,
         only_favorites=True,
         kelvin_min=4000,
     )
 
-    assert len(filter_conditions(query)) == 11
+    assert len(filter_conditions(query)) == 10
