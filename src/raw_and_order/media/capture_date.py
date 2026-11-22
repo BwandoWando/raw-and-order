@@ -16,6 +16,10 @@ from raw_and_order.schemas.exif import DateSource
 
 EXIF_DATETIME_FORMAT = "%Y:%m:%d %H:%M:%S"
 EXIF_DATE_FORMAT = "%Y:%m:%d"
+# Length of a value in each format; anything after it (sub-seconds, a time
+# zone offset) is ignored.
+EXIF_DATETIME_LENGTH = len("2000:01:01 00:00:00")
+EXIF_DATE_LENGTH = len("2000:01:01")
 
 DATE_TIME_ORIGINAL_KEYS = ("EXIF:DateTimeOriginal",)
 XMP_DATE_KEYS = ("XMP:DateCreated", "XMP:DateTimeOriginal")
@@ -72,8 +76,11 @@ def parse_exif_datetime(value: Any) -> datetime | None:
     if not isinstance(value, str):
         return None
     text = value.strip()
-    for fmt, length in ((EXIF_DATETIME_FORMAT, 19), (EXIF_DATE_FORMAT, 10)):
-        try:
+    for fmt, length in (
+        (EXIF_DATETIME_FORMAT, EXIF_DATETIME_LENGTH),
+        (EXIF_DATE_FORMAT, EXIF_DATE_LENGTH),
+    ):
+        try:  # only the leading date part, so suffixes are ignored
             return datetime.strptime(text[:length], fmt)
         except ValueError:
             continue
@@ -130,8 +137,13 @@ class FilenameDate:
 
 
 def _datetime_from_groups(groups: Sequence[str]) -> datetime | None:
+    """Build a date from regex groups: year, month, day[, hour, minute, second].
+
+    A missing time means midnight; an impossible date (e.g. month 13) gives
+    None instead of raising.
+    """
     year, month, day, *time_parts = (int(part) for part in groups)
-    hour, minute, second = [*time_parts, 0, 0, 0][:3]
+    hour, minute, second = (*time_parts, 0, 0, 0)[:3]  # pad a missing time with 0
     try:
         return datetime(year, month, day, hour, minute, second)
     except ValueError:

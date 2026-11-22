@@ -65,29 +65,44 @@ class WhiteBalance:
 def resolve_white_balance(tags: Mapping[str, Any]) -> WhiteBalance:
     """Return the white balance from exiftool tags.
 
-    Tries, in order: the camera's recorded kelvin, an estimate from the
-    camera's WB calibration, then an editor's (XMP) value.
+    Tries, in order, and stops at the first that gives a kelvin: the camera's
+    recorded kelvin, an estimate from the camera's WB calibration, then an
+    editor's (XMP) value.
     """
     mode = as_text(first_value(tags, MODE_KEYS))
-    for kelvin, source in (
-        (_first_kelvin(tags, CAMERA_KELVIN_KEYS), WhiteBalanceSource.CAMERA),
-        (estimate_from_tags(tags), WhiteBalanceSource.ESTIMATED),
-        (_first_kelvin(tags, EDITED_KELVIN_KEYS), WhiteBalanceSource.EDITED),
-    ):
-        if kelvin is not None:
-            return WhiteBalance(mode=mode, kelvin=round_kelvin(kelvin), source=source)
+    if (kelvin := _first_kelvin(tags, CAMERA_KELVIN_KEYS)) is not None:
+        return _found(mode, kelvin, WhiteBalanceSource.CAMERA)
+    if (kelvin := estimate_kelvin_from_tags(tags)) is not None:
+        return _found(mode, kelvin, WhiteBalanceSource.ESTIMATED)
+    if (kelvin := _first_kelvin(tags, EDITED_KELVIN_KEYS)) is not None:
+        return _found(mode, kelvin, WhiteBalanceSource.EDITED)
     return WhiteBalance(mode=mode, kelvin=None, source=None)
 
 
-def estimate_from_tags(tags: Mapping[str, Any]) -> float | None:
+def _found(mode: str | None, kelvin: float, source: WhiteBalanceSource) -> WhiteBalance:
+    """A white balance with its kelvin rounded to a believable precision."""
+    return WhiteBalance(mode=mode, kelvin=round_kelvin(kelvin), source=source)
+
+
+def estimate_kelvin_from_tags(tags: Mapping[str, Any]) -> float | None:
     """Estimate the as-shot kelvin from WB levels, or ``None`` if impossible."""
-    as_shot = next(
-        (r for key in AS_SHOT_LEVEL_KEYS if (r := red_blue_ratio(tags.get(key)))),
-        None,
-    ) or neutral_red_blue_ratio(tags.get(AS_SHOT_NEUTRAL_KEY))
+    as_shot = _as_shot_ratio(tags)
     if as_shot is None:
         return None
     return estimate_kelvin(as_shot, calibration_points(tags))
+
+
+def _as_shot_ratio(tags: Mapping[str, Any]) -> float | None:
+    """The red/blue ratio the camera applied to this shot, or ``None``.
+
+    Read from the maker notes' WB levels if present, else from the DNG
+    ``AsShotNeutral``.
+    """
+    for key in AS_SHOT_LEVEL_KEYS:
+        ratio = red_blue_ratio(tags.get(key))
+        if ratio:  # None or 0: not recorded
+            return ratio
+    return neutral_red_blue_ratio(tags.get(AS_SHOT_NEUTRAL_KEY))
 
 
 def calibration_points(tags: Mapping[str, Any]) -> list[tuple[int, float]]:

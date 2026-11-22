@@ -192,3 +192,9 @@ def test_maker_levels_are_preferred_over_dng_neutral() -> None:
     }
 
     assert resolve_white_balance(tags).kelvin == 5400
+
+
+def test_the_camera_estimate_wins_over_an_editor_value() -> None:
+    tags = _sony("2964 1024 1024 1972", **{"XMP:ColorTemperature": 7000})
+
+    assert resolve_white_balance(tags).source is WhiteBalanceSource.ESTIMATED
