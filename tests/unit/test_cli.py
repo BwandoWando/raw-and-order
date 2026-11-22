@@ -4,7 +4,7 @@ from typer.testing import CliRunner
 from my_agent.config import MAX_PHOTOS_HARD_LIMIT
 from my_agent.main import app
 
-MISSING_DIR = "/nonexistent/my-agent-test-dir"
+MISSING_DIR = "/nonexistent/raw-and-order-test-dir"
 
 runner = CliRunner()
 

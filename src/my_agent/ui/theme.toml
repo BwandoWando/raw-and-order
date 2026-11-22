@@ -1,6 +1,6 @@
 # Streamlit theme for the photo browser: light and dark, switchable from the
 # top-right menu (System / Light / Dark). Loaded with `--theme.base=<this file>` by
-# `my-agent ui`, and through `.streamlit/config.toml` for `streamlit run`.
+# `raw-and-order ui`, and through `.streamlit/config.toml` for `streamlit run`.
 
 [theme]
 # Tighter than the default so a full gallery page fits on one screen. The

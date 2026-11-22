@@ -4,7 +4,8 @@ Catalogues a folder of camera raw files and regular images. It extracts EXIF
 metadata, makes an upright JPEG preview, asks a vision LLM (local Ollama,
 OpenAI or Anthropic) for a description and tags, and stores everything in
 SQLite. A local Streamlit app lets you browse, filter and explore the
-catalogue. The Python package and command are both called `my-agent`.
+catalogue. The command is `raw-and-order` (the Python package inside is
+`my_agent`).
 
 Each run is a plain ordered workflow (`workflow/runner.py`):
 
@@ -59,16 +60,16 @@ or fixes EXIF fields. Missing files are listed and skipped. Previews stay in
 their original `YYYYMMDD` folder even if a corrected date differs.
 
 **Fingerprints:** every file gets a SHA-256 of its contents and a 64-bit
-perceptual hash (pHash: the 8×8 lowest frequencies of a DCT) of its preview. A stored photo is skipped while its
-SHA-256 is unchanged, so edited files are processed again automatically and
-`--reprocess` forces everything. Two photos count as similar (shown as
-"Similar photos" in the UI) when their pHashes differ in at most 14 of 64 bits
-**and** they share at least 25% of each photo's tags. The pHash describes the
-overall structure of light and dark (it barely changes with resizing,
-compression or brightness edits), so on its own it can also match unrelated
-photos with a similar layout; the tags confirm the content. After
-upgrading from an older hash size, run `my-agent rehash` once: it
-recomputes every stored hash from the saved previews (no LLM calls).
+perceptual hash (pHash: the 8×8 lowest frequencies of a DCT) of its preview. A
+stored photo is skipped while its SHA-256 is unchanged, so edited files are
+processed again automatically and `--reprocess` forces everything. Two photos
+count as similar (shown as "Similar photos" in the UI) when their pHashes
+differ in at most 14 of 64 bits **and** they share at least 25% of each
+photo's tags. The pHash describes the overall structure of light and dark (it
+barely changes with resizing, compression or brightness edits), so on its own
+it can also match unrelated photos with a similar layout; the tags confirm the
+content. After upgrading from an older hash, run `raw-and-order rehash` once:
+it recomputes every stored hash from the saved previews (no LLM calls).
 
 **Exact copies:** a file whose SHA-256 matches a photo stored at another path
 (e.g. the same shot copied to a backup folder) is not annotated again. It is
@@ -134,18 +135,33 @@ exiftool -ver       # if not found, add ~/.local/bin to PATH
 ## Installation
 
 ```bash
-git clone git@github.com:BwandoWando/raw-photos-cataloguer.git
-cd raw-photos-cataloguer
+git clone git@github.com:BwandoWando/raw-and-order.git
+cd raw-and-order
 
-conda create -n my-agent python=3.12 && conda activate my-agent
-conda env config vars set PYTHONNOUSERSITE=1   # ignore packages in ~/.local
-conda deactivate && conda activate my-agent    # apply it
+conda create -n raw-and-order python=3.12 && conda activate raw-and-order
+conda env config vars set PYTHONNOUSERSITE=1      # ignore packages in ~/.local
+conda deactivate && conda activate raw-and-order  # apply it
 
 pip install -e ".[dev,ollama,heic,ui]"
-cp .env.example .env                # then edit (model, provider, limits)
-alembic upgrade head                # create / migrate data/app.db
-pre-commit install                  # optional: lint + type-check on commit
+cp .env.example .env    # then edit (model, provider, limits)
+alembic upgrade head    # create / migrate data/app.db
+pre-commit install      # optional: lint + type-check on commit
 ```
+
+**Upgrading from `my-agent`:** the project used to be called `my-agent`
+(command, package name and conda env). To switch an existing setup, keeping
+your `data/` folder and `.env` as they are:
+
+```bash
+conda deactivate
+conda rename -n my-agent raw-and-order
+conda activate raw-and-order
+pip uninstall -y my-agent && pip install -e ".[dev,ollama,heic,ui]"
+git remote set-url origin git@github.com:BwandoWando/raw-and-order.git
+```
+
+Then use `raw-and-order` wherever you used `my-agent`, and pick the
+`raw-and-order` interpreter in VS Code if it still shows the old one.
 
 Extras: `ollama`, `openai`, `anthropic` (one per LLM provider), `heic` (HEIC/HEIF
 images), `ui` (Streamlit browser; needs Streamlit 1.67+, plus openpyxl for Excel
@@ -158,8 +174,8 @@ linters) and `all` (every provider, `heic` and `ui`).
 **Pick a model.** For Ollama, pull a vision model and set it in `.env`:
 
 ```bash
-ollama pull gemma3:12b              # LLM__MODEL=gemma3:12b (also gemma3:4b, gemma3:27b)
-my-agent check                      # config valid, model reachable, supports images
+ollama pull gemma3:12b   # LLM__MODEL=gemma3:12b (also gemma3:4b, gemma3:27b)
+raw-and-order check      # config valid, model reachable, supports images
 ```
 
 `llama3.2-vision` fails to load on recent Ollama versions ("unknown model
@@ -173,49 +189,52 @@ Whenever you pull new code, run `pip install -e ".[dev,ollama,heic,ui]"` and
 ## Usage
 
 ```bash
-my-agent check                      # config valid, model reachable, supports images
-my-agent process /path/to/photos    # process new and changed files
-my-agent process /path/to/photos --reprocess          # process everything again
-my-agent process /path/to/photos --reprocess-failed   # retry only logged failures
-my-agent process /path/to/photos --reread-exif        # refresh EXIF of stored photos (no LLM)
-my-agent process /path/to/photos --max-photos 1500    # up to 1500 photos this run (max 5000)
-my-agent process /path/to/photos --chunk-size 10      # save every 10 photos
-my-agent process /path/to/photos --skip-model-check   # skip the startup LLM check
-my-agent rehash                                        # recompute similar-photo hashes (no LLM)
+raw-and-order check                                       # config valid, model reachable, supports images
+raw-and-order process /path/to/photos                     # process new and changed files
+raw-and-order process /path/to/photos --reprocess         # process everything again
+raw-and-order process /path/to/photos --reprocess-failed  # retry only logged failures
+raw-and-order process /path/to/photos --reread-exif       # refresh EXIF of stored photos (no LLM)
+raw-and-order process /path/to/photos --max-photos 1500   # up to 1500 photos this run (max 5000)
+raw-and-order process /path/to/photos --chunk-size 10     # save every 10 photos
+raw-and-order process /path/to/photos --skip-model-check  # skip the startup LLM check
+raw-and-order rehash                                      # recompute similar-photo hashes (no LLM)
 ```
 
 Folders are searched recursively. Each run prints a summary: photos processed
 (saved and failed), unchanged, previously failed, RAW+JPEG pairs skipped,
 exact copies skipped (the first five listed with their original), and how many
 remain for the next run.
-`python -m my_agent` works the same as `my-agent`.
+`python -m my_agent` works the same as `raw-and-order`.
 
 ## Photo browser (Streamlit)
 
 ```bash
-my-agent ui                # opens http://localhost:8501 (needs the ui extra)
-my-agent ui --port 8600 --no-open-browser
+raw-and-order ui   # opens http://localhost:8501 (needs the ui extra)
+raw-and-order ui --port 8600 --no-open-browser
 ```
 
 Stop it with Ctrl+C. In VS Code, the **Streamlit UI** debug configuration in
 `.vscode/launch.json` runs it with breakpoints.
 
 - **Filters** (sidebar): text search over descriptions and tags, scene, tags
-  (all of), people, camera, lens, capture-date range, white balance (K) range,
-  GPS only, annotating model. They apply to the Gallery and Tags tabs.
+  (all of; each listed with its number of photos, e.g. `urban (431)`), people,
+  camera, lens, capture-date range, white balance (K) range, GPS only,
+  annotating model. They apply to the Gallery, Tags and Export tabs.
 
-- **Gallery:** a thumbnail grid (24 / 48 / 72 / 99 per page) sized so
-  a whole page fits on one screen, with the pager below it. Tiles shrink as the
-  page size grows and follow the window when you resize it. The page size is
-  kept in the URL (`?g_page_size=99`), so you can bookmark it. Hover a photo
-  for its date and scene; click it to see the large preview, description, tags,
-  camera and lens settings, a map when the photo has GPS, its SHA-256 and pHash,
-  exact copies of it stored elsewhere ("Also stored at"), and similar photos.
-  The dialog fits one screen. Step to the previous or next photo on the
-  gallery page with the buttons at its edges (shown on hover) or the arrow
-  keys; click a similar photo to show it in the dialog. Similar photos are
-  labelled by pHash distance (of 64 bits): Identical (0–2), Very similar
-  (3–8) and Similar (9–14); all of them share at least 25% of their tags.
+- **Gallery:** a thumbnail grid (24 / 48 / 72 / 99 per page) sized so a whole
+  page fits on one screen, with the pager below it (or the left and right
+  arrow keys). Tiles shrink as the page size grows and follow the window when
+  you resize it. The page size is kept in the URL (`?g_page_size=99`), so you
+  can bookmark it. Hover a photo for its date and scene; click it to see the
+  large preview, description, tags, camera and lens settings, a map when the
+  photo has GPS, its SHA-256 and pHash, exact copies of it stored elsewhere
+  ("Also stored at"), and similar photos. The dialog fits one screen, with the
+  file name at the top; click the photo to see it full screen, as large as the
+  window allows. Step to the previous or next photo on the gallery page with
+  the buttons at its edges (shown on hover) or the arrow keys; click a similar
+  photo to show it in the dialog. Similar photos are labelled by pHash
+  distance (of 64 bits): Identical (0–2), Very similar (3–8) and Similar
+  (9–14); all of them share at least 25% of their tags.
 - **Tags:** a network of the most-used tags (20–100). Bubble size is the number
   of photos; lines join tags that often appear together (Jaccard overlap above
   the "Link strength" slider). Tags are grouped into clusters (Louvain
@@ -283,13 +302,14 @@ src/my_agent/
 ├── exceptions.py     domain exception hierarchy
 ├── pipeline.py       runs the workflow, builds the run summary
 ├── exif_reread.py    --reread-exif: refresh EXIF columns of stored photos
-├── rehash.py         my-agent rehash: recompute stored perceptual hashes
+├── rehash.py         raw-and-order rehash: recompute stored perceptual hashes
 ├── workflow/         state, steps (nodes/), routing, ordered runner
-├── media/            discovery, exiftool, rawpy/Pillow decoding, previews, hashing
+├── media/            discovery, exiftool, raw/Pillow decoding, previews, hashing
 ├── llm/              provider factory, capability check, annotator, prompts
 ├── schemas/          Pydantic models shared across layers
 ├── db/               SQLAlchemy models, session, repositories, read-only catalog
-├── analysis/         pure computations (tag network and clusters)
+├── analysis/         pure computations (tag network, clusters, similarity)
+├── export/           export rows and Excel / CSV / JSON encoding
 └── ui/               Streamlit app; renderers receive a PhotoLibrary
 migrations/           Alembic
 tests/                unit/ and integration/, using injected fakes

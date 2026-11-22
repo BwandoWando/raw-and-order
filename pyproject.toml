@@ -3,9 +3,9 @@ requires = ["hatchling>=1.24"]
 build-backend = "hatchling.build"
 
 [project]
-name = "my-agent"
+name = "raw-and-order"
 version = "0.1.0"
-description = "Agent that reads camera raw files, extracts EXIF and annotates them with an LLM."
+description = "Raw and Order: catalogue camera raw files and images with EXIF, previews and LLM tags."
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
@@ -28,7 +28,7 @@ openai = ["langchain-openai>=0.2"]
 anthropic = ["langchain-anthropic>=0.3"]
 heic = ["pillow-heif>=0.16"]
 ui = ["networkx>=3.3", "openpyxl>=3.1", "streamlit>=1.67"]
-all = ["my-agent[ollama,openai,anthropic,heic,ui]"]
+all = ["raw-and-order[ollama,openai,anthropic,heic,ui]"]
 dev = [
     "mypy>=1.10",
     "pre-commit>=3.7",
@@ -38,7 +38,7 @@ dev = [
 ]
 
 [project.scripts]
-my-agent = "my_agent.main:app"
+raw-and-order = "my_agent.main:app"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/my_agent"]

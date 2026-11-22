@@ -1,5 +1,5 @@
 # Used when running `streamlit run src/my_agent/ui/app.py` from the project root.
-# `my-agent ui` passes the same settings on the command line.
+# `raw-and-order ui` passes the same settings on the command line.
 
 [server]
 # Only this computer can open the UI (Streamlit's default listens on all
@@ -16,6 +16,6 @@ toolbarMode = "viewer"
 gatherUsageStats = false
 
 [theme]
-# Light and dark themes plus page padding (`my-agent ui` passes the same file).
+# Light and dark themes plus page padding (`raw-and-order ui` passes the same file).
 # The path is relative to the folder `streamlit run` is started from.
 base = "src/my_agent/ui/theme.toml"

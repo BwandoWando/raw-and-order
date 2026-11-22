@@ -192,7 +192,7 @@ class ExifRereadApplication:
 
 
 class RehashApplication:
-    """Owns the resources for ``my-agent rehash``: the database only.
+    """Owns the resources for ``raw-and-order rehash``: the database only.
 
     Hashes come from saved previews, so no exiftool, decoder or LLM is built.
 

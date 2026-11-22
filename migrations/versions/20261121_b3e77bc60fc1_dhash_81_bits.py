@@ -1,6 +1,6 @@
 """dhash 81 bits: widen photos.dhash to 21 hex characters (9x9 dHash).
 
-Stored 64-bit hashes stay until `my-agent rehash` recomputes them from the
+Stored 64-bit hashes stay until `raw-and-order rehash` recomputes them from the
 previews; until then they simply never match the new ones.
 
 Revision ID: b3e77bc60fc1

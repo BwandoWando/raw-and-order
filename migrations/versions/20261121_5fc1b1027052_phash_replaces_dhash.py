@@ -1,7 +1,7 @@
 """phash replaces dhash: drop photos.dhash, add an empty photos.phash.
 
 Old dHash values are not valid pHashes, so they are dropped rather than
-renamed. Run `my-agent rehash` afterwards to fill phash from the previews;
+renamed. Run `raw-and-order rehash` afterwards to fill phash from the previews;
 until then no similar photos are listed.
 
 Revision ID: 5fc1b1027052

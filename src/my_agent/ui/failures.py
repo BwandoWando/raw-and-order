@@ -14,7 +14,7 @@ def render_failures(library: PhotoLibrary) -> None:
         return
     st.caption(
         f"{len(records)} file(s) failed. Retry them with "
-        "`my-agent process <folder> --reprocess-failed`."
+        "`raw-and-order process <folder> --reprocess-failed`."
     )
     stages = sorted({r.stage for r in records})
     chosen = st.pills("Stage", stages, selection_mode="multi", key="fail_stages")

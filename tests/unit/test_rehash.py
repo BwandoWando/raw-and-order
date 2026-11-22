@@ -1,4 +1,4 @@
-"""Recomputing stored perceptual hashes from previews (``my-agent rehash``)."""
+"""Recomputing stored perceptual hashes from previews (``raw-and-order rehash``)."""
 
 import io
 from datetime import UTC, datetime

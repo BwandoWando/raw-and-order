@@ -268,7 +268,7 @@ def _stop_aborted(exc: RunAbortedError, settings: Settings) -> NoReturn:
             if settings.llm.provider == "ollama"
             else "your API key, model name and provider status"
         )
-        typer.echo(f"Check {hint}, then `my-agent check`.", err=True)
+        typer.echo(f"Check {hint}, then `raw-and-order check`.", err=True)
     typer.echo("Run the same command again to continue.", err=True)
     raise typer.Exit(code=1) from exc
 

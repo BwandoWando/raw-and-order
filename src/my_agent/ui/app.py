@@ -1,6 +1,6 @@
 """Streamlit entry point and the UI's composition root.
 
-Start with ``my-agent ui`` or ``streamlit run src/my_agent/ui/app.py``.
+Start with ``raw-and-order ui`` or ``streamlit run src/my_agent/ui/app.py``.
 """
 
 from collections.abc import Callable
@@ -58,7 +58,7 @@ def main(library: PhotoLibrary) -> None:
 
 def run() -> None:
     """Configure the page, build the library and draw the app."""
-    st.set_page_config(page_title="my-agent photos", page_icon="📷", layout="wide")
+    st.set_page_config(page_title="Raw and Order", page_icon="📷", layout="wide")
     try:
         library = _library()
     except MyAgentError as exc:

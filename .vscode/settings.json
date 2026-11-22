@@ -1,5 +1,5 @@
 {
-    "python.defaultInterpreterPath": "${userHome}/anaconda3/envs/my-agent/bin/python",
+    "python.defaultInterpreterPath": "${userHome}/anaconda3/envs/raw-and-order/bin/python",
     "python.testing.pytestEnabled": true,
     "python.testing.unittestEnabled": false,
     "python.testing.pytestArgs": ["tests"],

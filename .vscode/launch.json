@@ -2,7 +2,7 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "my-agent: process folder",
+            "name": "raw-and-order: process folder",
             "type": "debugpy",
             "request": "launch",
             "module": "my_agent",
@@ -14,7 +14,7 @@
             "justMyCode": true
         },
         {
-            "name": "my-agent: process folder (step into libraries)",
+            "name": "raw-and-order: process folder (step into libraries)",
             "type": "debugpy",
             "request": "launch",
             "module": "my_agent",
@@ -26,7 +26,7 @@
             "justMyCode": false
         },
         {
-            "name": "my-agent: check",
+            "name": "raw-and-order: check",
             "type": "debugpy",
             "request": "launch",
             "module": "my_agent",

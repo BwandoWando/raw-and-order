@@ -1,4 +1,4 @@
-"""Recompute the perceptual hash of stored photos (``my-agent rehash``).
+"""Recompute the perceptual hash of stored photos (``raw-and-order rehash``).
 
 Needed after the pHash changes (e.g. its size), so similar-photo search
 compares like with like. Each hash comes from the saved preview: no raw
