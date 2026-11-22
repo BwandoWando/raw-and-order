@@ -4,7 +4,11 @@ from pathlib import Path
 import pytest
 from sqlalchemy.orm import Session, sessionmaker
 
-from raw_and_order.db.catalog import SqlAlchemyPhotoCatalog, escape_like
+from raw_and_order.db.catalog import (
+    SqlAlchemyPhotoCatalog,
+    escape_like,
+    filter_conditions,
+)
 from raw_and_order.db.copy_repository import SqlAlchemyCopyRepository
 from raw_and_order.db.favorite_repository import SqlAlchemyFavoriteRepository
 from raw_and_order.db.repository import SqlAlchemyPhotoRepository
@@ -319,3 +323,23 @@ def test_favorites_only_filter(
         ["city", "sunset-ish"],
         ["person"],
     ]
+
+
+def test_filter_conditions_add_one_condition_per_filter_set() -> None:
+    assert filter_conditions(PhotoQuery()) == []
+    assert filter_conditions(PhotoQuery(text="   ")) == []  # blank search: no filter
+
+    query = PhotoQuery(
+        text="sea",
+        tags=("sunset", "sky"),  # one condition per tag (all of them)
+        scenes=("landscape",),
+        cameras=("ILCE-6400",),
+        contains_people=False,
+        date_from=date(2026, 1, 1),  # a range: one condition per bound
+        date_to=date(2026, 2, 1),
+        only_with_gps=True,
+        only_favorites=True,
+        kelvin_min=4000,
+    )
+
+    assert len(filter_conditions(query)) == 11

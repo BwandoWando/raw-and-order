@@ -9,12 +9,12 @@ import json
 from collections import Counter
 from collections.abc import Iterator
 from contextlib import contextmanager
-from datetime import datetime, time
+from datetime import date, datetime, time
 from pathlib import Path
 from typing import Any, Protocol
 
-from sqlalchemy import Select, Text, cast, func, or_, select
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy import ColumnElement, Select, Text, cast, func, or_, select
+from sqlalchemy.orm import InstrumentedAttribute, Session, sessionmaker
 
 from raw_and_order.analysis.similarity import SIMILAR_MAX_DISTANCE, shares_tags
 from raw_and_order.db.errors import database_errors
@@ -310,44 +310,75 @@ class SqlAlchemyPhotoCatalog:
 
 
 def apply_filters(statement: Select[Any], query: PhotoQuery) -> Select[Any]:
-    """Add a ``WHERE`` clause for every filter set in ``query``."""
-    conditions: list[Any] = []
-    if query.text and query.text.strip():
-        pattern = f"%{escape_like(query.text.strip())}%"
-        conditions.append(
-            or_(
-                PhotoRow.description.ilike(pattern, escape=LIKE_ESCAPE),
-                cast(PhotoRow.tags, Text).ilike(pattern, escape=LIKE_ESCAPE),
-            )
-        )
-    conditions.extend(_tag_condition(tag) for tag in query.tags)
-    if query.scenes:
-        conditions.append(PhotoRow.scene.in_(query.scenes))
-    if query.contains_people is not None:
-        conditions.append(PhotoRow.contains_people.is_(query.contains_people))
-    if query.cameras:
-        conditions.append(PhotoRow.model.in_(query.cameras))
-    if query.lenses:
-        conditions.append(PhotoRow.lens_model.in_(query.lenses))
-    if query.annotated_by:
-        conditions.append(PhotoRow.annotated_by.in_(query.annotated_by))
-    if query.date_from:
-        conditions.append(
-            PhotoRow.captured_at >= datetime.combine(query.date_from, time.min)
-        )
-    if query.date_to:
-        conditions.append(
-            PhotoRow.captured_at <= datetime.combine(query.date_to, time.max)
-        )
-    if query.only_with_gps:
-        conditions.append(PhotoRow.gps_latitude.is_not(None))
+    """Add a ``WHERE`` clause for every filter set in ``query``; all must hold."""
+    return statement.where(*filter_conditions(query))
+
+
+def filter_conditions(query: PhotoQuery) -> list[ColumnElement[bool]]:
+    """One SQL condition per filter set in ``query``, in sidebar order.
+
+    Empty filters add nothing, so an empty query matches every photo. Print
+    the result to see exactly what a query asks the database.
+    """
+    conditions = _text_conditions(query.text)
     if query.only_favorites:
         conditions.append(PhotoRow.id.in_(select(FavoriteRow.photo_id)))
-    if query.kelvin_min is not None:
-        conditions.append(PhotoRow.white_balance_k >= query.kelvin_min)
-    if query.kelvin_max is not None:
-        conditions.append(PhotoRow.white_balance_k <= query.kelvin_max)
-    return statement.where(*conditions)
+    conditions.extend(_tag_condition(tag) for tag in query.tags)
+    conditions.extend(_one_of_conditions(query))
+    if query.contains_people is not None:
+        conditions.append(PhotoRow.contains_people.is_(query.contains_people))
+    conditions.extend(_date_conditions(query.date_from, query.date_to))
+    if query.only_with_gps:
+        conditions.append(PhotoRow.gps_latitude.is_not(None))
+    conditions.extend(
+        _between(PhotoRow.white_balance_k, query.kelvin_min, query.kelvin_max)
+    )
+    return conditions
+
+
+def _text_conditions(text: str | None) -> list[ColumnElement[bool]]:
+    """The search text appears in the description or the tags (any case)."""
+    if not text or not text.strip():
+        return []
+    pattern = f"%{escape_like(text.strip())}%"
+    return [
+        or_(
+            PhotoRow.description.ilike(pattern, escape=LIKE_ESCAPE),
+            cast(PhotoRow.tags, Text).ilike(pattern, escape=LIKE_ESCAPE),
+        )
+    ]
+
+
+def _one_of_conditions(query: PhotoQuery) -> list[ColumnElement[bool]]:
+    """Scene, camera, lens and model: the photo's value is one of those picked."""
+    picked: list[tuple[InstrumentedAttribute[Any], tuple[str, ...]]] = [
+        (PhotoRow.scene, query.scenes),
+        (PhotoRow.model, query.cameras),
+        (PhotoRow.lens_model, query.lenses),
+        (PhotoRow.annotated_by, query.annotated_by),
+    ]
+    return [column.in_(values) for column, values in picked if values]
+
+
+def _date_conditions(start: date | None, end: date | None) -> list[ColumnElement[bool]]:
+    """Captured on or after ``start`` and on or before ``end`` (whole days)."""
+    return _between(
+        PhotoRow.captured_at,
+        datetime.combine(start, time.min) if start else None,
+        datetime.combine(end, time.max) if end else None,
+    )
+
+
+def _between(
+    column: InstrumentedAttribute[Any], low: object, high: object
+) -> list[ColumnElement[bool]]:
+    """``low <= column <= high``; a bound that is ``None`` is left open."""
+    conditions: list[ColumnElement[bool]] = []
+    if low is not None:
+        conditions.append(column >= low)
+    if high is not None:
+        conditions.append(column <= high)
+    return conditions
 
 
 def apply_sort(statement: Select[Any], sort: SortOrder) -> Select[Any]:
@@ -371,7 +402,7 @@ def escape_like(text: str) -> str:
     )
 
 
-def _tag_condition(tag: str) -> Any:
+def _tag_condition(tag: str) -> ColumnElement[bool]:
     """Exact match of one element in the JSON ``tags`` array."""
     element = json.dumps(tag)  # '"sunset"' - quotes make it an exact element
     pattern = f"%{escape_like(element)}%"
