@@ -8,10 +8,10 @@ from typing import Annotated, NoReturn
 import typer
 
 from raw_and_order.bootstrap import (
-    Application,
-    ExifRereadApplication,
-    RehashApplication,
     check_model,
+    open_exif_rereader,
+    open_pipeline,
+    open_rehasher,
 )
 from raw_and_order.config import MAX_PHOTOS_HARD_LIMIT, Settings, load_settings
 from raw_and_order.exceptions import (
@@ -19,10 +19,11 @@ from raw_and_order.exceptions import (
     RawAndOrderError,
     RunAbortedError,
 )
-from raw_and_order.exif_reread import RereadSummary
 from raw_and_order.logging_config import configure_logging
+from raw_and_order.maintenance.exif_reread import RereadSummary
+from raw_and_order.maintenance.rehash import RehashSummary
+from raw_and_order.maintenance.report import ProblemPhoto
 from raw_and_order.pipeline import RunSummary
-from raw_and_order.rehash import RehashSummary
 from raw_and_order.ui.launcher import streamlit_command
 
 MAX_COPIES_LISTED = 5  # the rest are summarised as a count
@@ -134,10 +135,8 @@ def rehash() -> None:
     """
     settings = _startup()
     try:
-        with RehashApplication(settings) as application:
-            if application.rehasher is None:
-                raise RuntimeError("Application did not build the rehasher")
-            summary = application.rehasher.run()
+        with open_rehasher(settings) as rehasher:
+            summary = rehasher.run()
     except RawAndOrderError as exc:
         _fail(exc)
     _print_rehash_summary(summary)
@@ -180,10 +179,8 @@ def _run(
     max_photos: int,
     chunk_size: int,
 ) -> RunSummary:
-    with Application(settings) as application:
-        if application.pipeline is None:
-            raise RuntimeError("Application did not build a pipeline")
-        return application.pipeline.run(
+    with open_pipeline(settings) as pipeline:
+        return pipeline.run(
             source_dir,
             reprocess=reprocess,
             reprocess_failed=reprocess_failed,
@@ -194,10 +191,8 @@ def _run(
 
 def _reread(settings: Settings, source_dir: Path) -> None:
     try:
-        with ExifRereadApplication(settings) as application:
-            if application.rereader is None:
-                raise RuntimeError("Application did not build the re-reader")
-            summary = application.rereader.run(source_dir)
+        with open_exif_rereader(settings) as rereader:
+            summary = rereader.run(source_dir)
     except RawAndOrderError as exc:
         _fail(exc)
     _print_reread_summary(summary)
@@ -211,8 +206,7 @@ def _print_reread_summary(summary: RereadSummary) -> None:
     )
     for path in summary.missing:
         typer.echo(f"  MISSING {path}")
-    for failed in summary.failed:
-        typer.echo(f"  FAILED {failed.path}: {failed.message}")
+    _echo_problems(summary.failed)
     if summary.checked == 0:
         typer.echo(
             "No stored photos in that folder; run it without --reread-exif first."
@@ -228,8 +222,13 @@ def _print_rehash_summary(summary: RehashSummary) -> None:
     )
     for path in summary.missing_previews:
         typer.echo(f"  MISSING PREVIEW {path}")
-    for failed in summary.failed:
-        typer.echo(f"  FAILED {failed.path}: {failed.message}")
+    _echo_problems(summary.failed)
+
+
+def _echo_problems(problems: list[ProblemPhoto]) -> None:
+    """One ``FAILED`` line per photo a maintenance command could not handle."""
+    for problem in problems:
+        typer.echo(f"  FAILED {problem.path}: {problem.message}")
 
 
 def _print_summary(summary: RunSummary) -> None:

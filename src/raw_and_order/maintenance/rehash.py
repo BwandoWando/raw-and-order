@@ -8,32 +8,26 @@ decoding and no LLM calls; annotations and EXIF stay.
 import logging
 from pathlib import Path
 
-from pydantic import BaseModel, Field
+from pydantic import Field
 
 from raw_and_order.db.repository import PerceptualHashStore
 from raw_and_order.exceptions import MediaError
+from raw_and_order.maintenance.report import MaintenanceSummary, ProblemPhoto
 from raw_and_order.media.protocols import PerceptualHasher, PreviewReader
 
 logger = logging.getLogger(__name__)
 
+# Hashing a small saved preview is fast, so progress is logged less often
+# than for the EXIF re-read.
 PROGRESS_EVERY = 500
 
 
-class FailedRehash(BaseModel):
-    """A stored photo whose preview could not be hashed."""
-
-    path: Path
-    message: str
-
-
-class RehashSummary(BaseModel):
+class RehashSummary(MaintenanceSummary):
     """Outcome of recomputing perceptual hashes."""
 
-    checked: int = 0
-    updated: int = Field(default=0, description="Rows whose pHash changed.")
-    unchanged: int = 0
-    missing_previews: list[Path] = Field(default_factory=list)
-    failed: list[FailedRehash] = Field(default_factory=list)
+    missing_previews: list[Path] = Field(
+        default_factory=list, description="Photos whose saved preview is gone."
+    )
 
 
 class PerceptualRehasher:
@@ -80,7 +74,7 @@ class PerceptualRehasher:
         try:
             new = self._hasher.hash_image_bytes(self._previews.load(preview))
         except MediaError as exc:
-            summary.failed.append(FailedRehash(path=path, message=str(exc)))
+            summary.failed.append(ProblemPhoto(path=path, message=str(exc)))
             return
         if new == old:
             summary.unchanged += 1

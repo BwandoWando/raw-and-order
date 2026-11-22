@@ -7,33 +7,27 @@ read) reach existing photos without new LLM annotations.
 import logging
 from pathlib import Path
 
-from pydantic import BaseModel, Field
+from pydantic import Field
 
 from raw_and_order.db.repository import ExifStore
 from raw_and_order.exceptions import MediaError
+from raw_and_order.maintenance.report import MaintenanceSummary, ProblemPhoto
 from raw_and_order.media.protocols import ExifReader
 from raw_and_order.schemas import ExifData
 
 logger = logging.getLogger(__name__)
 
+# Reading EXIF goes through exiftool for every file (slower than hashing a
+# preview), so progress is logged more often than for the rehash.
 PROGRESS_EVERY = 100
 
 
-class FailedReread(BaseModel):
-    """A stored photo whose EXIF could not be read again."""
-
-    path: Path
-    message: str
-
-
-class RereadSummary(BaseModel):
+class RereadSummary(MaintenanceSummary):
     """Outcome of an EXIF re-read."""
 
-    checked: int = 0
-    updated: int = Field(default=0, description="Rows whose EXIF changed.")
-    unchanged: int = 0
-    missing: list[Path] = Field(default_factory=list)
-    failed: list[FailedReread] = Field(default_factory=list)
+    missing: list[Path] = Field(
+        default_factory=list, description="Stored photos whose file is gone."
+    )
 
 
 class ExifRereader:
@@ -78,7 +72,7 @@ class ExifRereader:
         try:
             new_exif = self._reader.read(path)
         except MediaError as exc:
-            summary.failed.append(FailedReread(path=path, message=str(exc)))
+            summary.failed.append(ProblemPhoto(path=path, message=str(exc)))
             return
         if new_exif == old_exif:
             summary.unchanged += 1

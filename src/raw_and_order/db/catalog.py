@@ -7,18 +7,19 @@ here only reads, so it is safe to use while a processing run is writing
 
 import json
 from collections import Counter
+from collections.abc import Iterator
+from contextlib import contextmanager
 from datetime import datetime, time
 from pathlib import Path
 from typing import Any, Protocol
 
 from sqlalchemy import Select, Text, cast, func, or_, select
-from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, sessionmaker
 
 from raw_and_order.analysis.similarity import SIMILAR_MAX_DISTANCE, shares_tags
+from raw_and_order.db.errors import database_errors
 from raw_and_order.db.mappers import to_record
 from raw_and_order.db.models import CopyRow, PhotoRow
-from raw_and_order.exceptions import PersistenceError
 from raw_and_order.media.hashing import hamming_distance
 from raw_and_order.schemas import PhotoRecord
 from raw_and_order.schemas.query import (
@@ -260,8 +261,11 @@ class SqlAlchemyPhotoCatalog:
                 copies=session.scalar(select(func.count(CopyRow.id))) or 0,
             )
 
-    def _read(self) -> "_ReadSession":
-        return _ReadSession(self._session_factory)
+    @contextmanager
+    def _read(self) -> Iterator[Session]:
+        """A read session; database errors become :class:`PersistenceError`."""
+        with database_errors("query photos"), self._session_factory() as session:
+            yield session
 
     @staticmethod
     def _distinct(session: Session, column: Any) -> list[str]:
@@ -299,24 +303,6 @@ class SqlAlchemyPhotoCatalog:
             CountRow(label=str(label) if label is not None else UNKNOWN_LABEL, count=n)
             for label, n in session.execute(query)
         ]
-
-
-class _ReadSession:
-    """Opens a session and turns database errors into :class:`PersistenceError`."""
-
-    def __init__(self, session_factory: sessionmaker[Session]) -> None:
-        self._session_factory = session_factory
-        self._session: Session | None = None
-
-    def __enter__(self) -> Session:
-        self._session = self._session_factory()
-        return self._session
-
-    def __exit__(self, exc_type: Any, exc: BaseException | None, tb: Any) -> None:
-        if self._session is not None:
-            self._session.close()
-        if isinstance(exc, SQLAlchemyError):
-            raise PersistenceError(f"Photo query failed: {exc}") from exc
 
 
 def apply_filters(statement: Select[Any], query: PhotoQuery) -> Select[Any]:

@@ -1,14 +1,17 @@
 """Composition root: the only place that builds concrete objects.
 
-Everything else receives its dependencies through constructors.
+Everything else receives its dependencies through constructors. Each command
+gets one ``open_*`` function to use in a ``with`` block: it opens what the
+command needs (database, exiftool), builds the object that does the work,
+and closes everything again when the block ends.
 """
 
-from contextlib import ExitStack
+from collections.abc import Iterator
+from contextlib import ExitStack, contextmanager
 from pathlib import Path
-from types import TracebackType
-from typing import Self
 
 import httpx
+from sqlalchemy.orm import Session, sessionmaker
 
 from raw_and_order.config import LLMProvider, LLMSettings, Settings
 from raw_and_order.db.catalog import SqlAlchemyPhotoCatalog
@@ -16,17 +19,17 @@ from raw_and_order.db.copy_repository import SqlAlchemyCopyRepository
 from raw_and_order.db.failure_repository import SqlAlchemyFailureRepository
 from raw_and_order.db.repository import SqlAlchemyPhotoRepository
 from raw_and_order.db.session import create_db_engine, create_session_factory
-from raw_and_order.exif_reread import ExifRereader
 from raw_and_order.llm.annotator import LLMAnnotator
 from raw_and_order.llm.capabilities import (
     DEFAULT_OLLAMA_URL,
     AssumeVisionChecker,
-    CapabilityChecker,
     OllamaCapabilityChecker,
 )
 from raw_and_order.llm.context import ExifContextFormatter
 from raw_and_order.llm.factory import create_chat_model
 from raw_and_order.llm.prompts import render_prompt
+from raw_and_order.maintenance.exif_reread import ExifRereader
+from raw_and_order.maintenance.rehash import PerceptualRehasher
 from raw_and_order.media.capture_date import (
     CaptureDateResolver,
     DateValidator,
@@ -44,7 +47,6 @@ from raw_and_order.media.raw import RawpyDecoder
 from raw_and_order.media.routing import ExtensionRoutingDecoder
 from raw_and_order.media.thumbnails import JpegThumbnailer
 from raw_and_order.pipeline import PhotoPipeline
-from raw_and_order.rehash import PerceptualRehasher
 from raw_and_order.schemas.annotation import annotation_schema
 from raw_and_order.ui.library import PhotoLibrary
 from raw_and_order.workflow.nodes import (
@@ -69,160 +71,112 @@ from raw_and_order.workflow.runner import PhotoWorkflow, WorkflowSteps
 CAPABILITY_CHECK_TIMEOUT_S = 10.0
 
 
-class Application:
-    """Owns long-lived resources and exposes the wired pipeline.
+@contextmanager
+def open_pipeline(settings: Settings) -> Iterator[PhotoPipeline]:
+    """Open the database and exiftool, and give the photo pipeline that uses them.
 
-    Use as a context manager so the exiftool process and database engine
-    are always closed.
+    Used by ``raw-and-order process``. Everything opened here is closed when
+    the ``with`` block ends, also if building the pipeline fails halfway::
 
-    Args:
-        settings: Validated application settings.
+        with open_pipeline(settings) as pipeline:
+            summary = pipeline.run(source_dir)
     """
-
-    def __init__(self, settings: Settings) -> None:
-        self._settings = settings
-        self._stack = ExitStack()
-        self.pipeline: PhotoPipeline | None = None
-
-    def __enter__(self) -> Self:
-        try:
-            self.pipeline = PhotoPipeline(self._build_workflow())
-        except BaseException:
-            self._stack.close()
-            raise
-        return self
-
-    def __exit__(
-        self,
-        exc_type: type[BaseException] | None,
-        exc: BaseException | None,
-        tb: TracebackType | None,
-    ) -> None:
-        self._stack.close()
-
-    def _build_workflow(self) -> PhotoWorkflow:
-        s = self._settings
-        engine = create_db_engine(s.database_url)
-        self._stack.callback(engine.dispose)
-        session_factory = create_session_factory(engine)
-        repository = SqlAlchemyPhotoRepository(session_factory)
-        failures = SqlAlchemyFailureRepository(session_factory)
-        date_resolver = CaptureDateResolver(
-            build_date_sources(s.date_sources), DateValidator()
-        )
-        exif_reader = self._stack.enter_context(
-            PyExifToolReader(ExifMapper(date_resolver))
-        )
-        preview_store = JpegPreviewStore(
-            s.preview_dir, DatedPreviewLayout(), s.preview_max_px, s.preview_quality
-        )
-        enable_heif_support()
-        decoder = ExtensionRoutingDecoder(
-            RawpyDecoder(), PillowDecoder(), s.raw_extensions
-        )
-        discoverer = FileSystemDiscoverer(s.raw_extensions | s.image_extensions)
-        steps = WorkflowSteps(
-            discover=DiscoverNode(
-                discoverer, RawPairFilter(s.raw_extensions), exif_reader
-            ),
-            load_failures=LoadFailuresNode(failures),
-            fingerprint=FingerprintNode(Sha256FileHasher()),
-            skip_known=SkipKnownNode(repository, failures),
-            skip_copies=SkipCopiesNode(repository, Path.is_file),
-            record_copies=RecordCopiesNode(SqlAlchemyCopyRepository(session_factory)),
-            select_batch=SelectBatchNode(),
-            log_planning_failures=LogFailuresNode(failures),
-            next_chunk=NextChunkNode(),
-            extract_exif=ExtractExifNode(exif_reader),
-            decode=DecodeNode(decoder, preview_store),
-            perceptual_hash=PerceptualHashNode(PHasher(), preview_store),
-            annotate=AnnotateNode(
-                build_annotator(s.llm, s.max_tags),
-                preview_store,
-                ExifContextFormatter(s.send_exif_to_llm, include_gps=not s.redact_gps),
-                max_consecutive_failures=s.max_consecutive_failures,
-            ),
-            persist=PersistNode(repository, annotated_by=s.llm.label),
-            log_failures=LogFailuresNode(failures),
-            record_chunk=RecordChunkNode(),
-        )
-        return PhotoWorkflow(steps)
+    with ExitStack() as resources:
+        session_factory = _open_database(resources, settings)
+        exif_reader = _start_exiftool(resources, settings)
+        yield PhotoPipeline(_build_workflow(settings, session_factory, exif_reader))
 
 
-class ExifRereadApplication:
-    """Owns the resources for ``--reread-exif``: database and exiftool only.
+@contextmanager
+def open_exif_rereader(settings: Settings) -> Iterator[ExifRereader]:
+    """Open the database and exiftool for ``process --reread-exif``.
 
     No LLM is built, so no model or API key is needed.
-
-    Args:
-        settings: Validated application settings.
     """
-
-    def __init__(self, settings: Settings) -> None:
-        self._settings = settings
-        self._stack = ExitStack()
-        self.rereader: ExifRereader | None = None
-
-    def __enter__(self) -> Self:
-        try:
-            self.rereader = self._build()
-        except BaseException:
-            self._stack.close()
-            raise
-        return self
-
-    def __exit__(
-        self,
-        exc_type: type[BaseException] | None,
-        exc: BaseException | None,
-        tb: TracebackType | None,
-    ) -> None:
-        self._stack.close()
-
-    def _build(self) -> ExifRereader:
-        s = self._settings
-        engine = create_db_engine(s.database_url)
-        self._stack.callback(engine.dispose)
-        store = SqlAlchemyPhotoRepository(create_session_factory(engine))
-        date_resolver = CaptureDateResolver(
-            build_date_sources(s.date_sources), DateValidator()
-        )
-        reader = self._stack.enter_context(PyExifToolReader(ExifMapper(date_resolver)))
-        return ExifRereader(store, reader)
+    with ExitStack() as resources:
+        session_factory = _open_database(resources, settings)
+        exif_reader = _start_exiftool(resources, settings)
+        yield ExifRereader(SqlAlchemyPhotoRepository(session_factory), exif_reader)
 
 
-class RehashApplication:
-    """Owns the resources for ``raw-and-order rehash``: the database only.
+@contextmanager
+def open_rehasher(settings: Settings) -> Iterator[PerceptualRehasher]:
+    """Open the database for ``raw-and-order rehash``.
 
-    Hashes come from saved previews, so no exiftool, decoder or LLM is built.
-
-    Args:
-        settings: Validated application settings.
+    Hashes come from the saved previews, so no exiftool, decoder or LLM is
+    built.
     """
-
-    def __init__(self, settings: Settings) -> None:
-        self._settings = settings
-        self._stack = ExitStack()
-        self.rehasher: PerceptualRehasher | None = None
-
-    def __enter__(self) -> Self:
-        s = self._settings
-        engine = create_db_engine(s.database_url)
-        self._stack.callback(engine.dispose)
-        store = SqlAlchemyPhotoRepository(create_session_factory(engine))
-        previews = JpegPreviewStore(
-            s.preview_dir, DatedPreviewLayout(), s.preview_max_px, s.preview_quality
+    with ExitStack() as resources:
+        session_factory = _open_database(resources, settings)
+        yield PerceptualRehasher(
+            SqlAlchemyPhotoRepository(session_factory),
+            PHasher(),
+            _preview_store(settings),
         )
-        self.rehasher = PerceptualRehasher(store, PHasher(), previews)
-        return self
 
-    def __exit__(
-        self,
-        exc_type: type[BaseException] | None,
-        exc: BaseException | None,
-        tb: TracebackType | None,
-    ) -> None:
-        self._stack.close()
+
+def _open_database(resources: ExitStack, settings: Settings) -> sessionmaker[Session]:
+    """Connect to the database; the connection closes with ``resources``."""
+    engine = create_db_engine(settings.database_url)
+    resources.callback(engine.dispose)
+    return create_session_factory(engine)
+
+
+def _start_exiftool(resources: ExitStack, settings: Settings) -> PyExifToolReader:
+    """Start the exiftool process; it stops with ``resources``."""
+    date_resolver = CaptureDateResolver(
+        build_date_sources(settings.date_sources), DateValidator()
+    )
+    return resources.enter_context(PyExifToolReader(ExifMapper(date_resolver)))
+
+
+def _preview_store(settings: Settings) -> JpegPreviewStore:
+    """Where previews are saved and read, sized as configured."""
+    return JpegPreviewStore(
+        settings.preview_dir,
+        DatedPreviewLayout(),
+        settings.preview_max_px,
+        settings.preview_quality,
+    )
+
+
+def _build_workflow(
+    settings: Settings,
+    session_factory: sessionmaker[Session],
+    exif_reader: PyExifToolReader,
+) -> PhotoWorkflow:
+    """Wire every workflow step to its collaborators (see workflow/runner.py)."""
+    s = settings
+    repository = SqlAlchemyPhotoRepository(session_factory)
+    failures = SqlAlchemyFailureRepository(session_factory)
+    preview_store = _preview_store(s)
+    enable_heif_support()
+    decoder = ExtensionRoutingDecoder(RawpyDecoder(), PillowDecoder(), s.raw_extensions)
+    discoverer = FileSystemDiscoverer(s.raw_extensions | s.image_extensions)
+    steps = WorkflowSteps(
+        discover=DiscoverNode(discoverer, RawPairFilter(s.raw_extensions), exif_reader),
+        load_failures=LoadFailuresNode(failures),
+        fingerprint=FingerprintNode(Sha256FileHasher()),
+        skip_known=SkipKnownNode(repository, failures),
+        skip_copies=SkipCopiesNode(repository, Path.is_file),
+        record_copies=RecordCopiesNode(SqlAlchemyCopyRepository(session_factory)),
+        select_batch=SelectBatchNode(),
+        log_planning_failures=LogFailuresNode(failures),
+        next_chunk=NextChunkNode(),
+        extract_exif=ExtractExifNode(exif_reader),
+        decode=DecodeNode(decoder, preview_store),
+        perceptual_hash=PerceptualHashNode(PHasher(), preview_store),
+        annotate=AnnotateNode(
+            build_annotator(s.llm, s.max_tags),
+            preview_store,
+            ExifContextFormatter(s.send_exif_to_llm, include_gps=not s.redact_gps),
+            max_consecutive_failures=s.max_consecutive_failures,
+        ),
+        persist=PersistNode(repository, annotated_by=s.llm.label),
+        log_failures=LogFailuresNode(failures),
+        record_chunk=RecordChunkNode(),
+    )
+    return PhotoWorkflow(steps)
 
 
 def build_annotator(llm: LLMSettings, max_tags: int) -> LLMAnnotator:
@@ -247,15 +201,11 @@ def check_model(llm: LLMSettings) -> None:
         ConfigurationError: If the model cannot be used.
     """
     if llm.provider is not LLMProvider.OLLAMA:
-        _ensure_vision(AssumeVisionChecker(), llm.model)
+        AssumeVisionChecker().ensure_vision_support(llm.model)
         return
     base_url = llm.base_url or DEFAULT_OLLAMA_URL
     with httpx.Client(base_url=base_url, timeout=CAPABILITY_CHECK_TIMEOUT_S) as client:
-        _ensure_vision(OllamaCapabilityChecker(client), llm.model)
-
-
-def _ensure_vision(checker: CapabilityChecker, model: str) -> None:
-    checker.ensure_vision_support(model)
+        OllamaCapabilityChecker(client).ensure_vision_support(llm.model)
 
 
 def build_ui_library(settings: Settings) -> PhotoLibrary:

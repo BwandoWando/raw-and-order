@@ -7,8 +7,8 @@ from pathlib import Path
 from PIL import Image
 
 from raw_and_order.db.repository import SqlAlchemyPhotoRepository
+from raw_and_order.maintenance.rehash import PerceptualRehasher
 from raw_and_order.media.hashing import PHASH_HEX_LENGTH, PHasher
-from raw_and_order.rehash import PerceptualRehasher
 from raw_and_order.schemas import ExifData, PhotoRecord
 from tests.fakes import SAMPLE_ANNOTATION
 

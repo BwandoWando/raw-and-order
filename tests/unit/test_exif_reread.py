@@ -5,7 +5,7 @@ import pytest
 
 from raw_and_order.db.repository import SqlAlchemyPhotoRepository
 from raw_and_order.exceptions import ExifReadError
-from raw_and_order.exif_reread import ExifRereader
+from raw_and_order.maintenance.exif_reread import ExifRereader
 from raw_and_order.schemas import ExifData, PhotoRecord, WhiteBalanceSource
 from tests.fakes import SAMPLE_ANNOTATION
 
