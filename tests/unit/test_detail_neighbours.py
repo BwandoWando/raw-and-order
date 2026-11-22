@@ -2,17 +2,20 @@
 
 from pathlib import Path
 
+from raw_and_order.schemas.query import PhotoQuery
 from raw_and_order.ui.detail import (
     LANDSCAPE_SHARE,
     PORTRAIT_SHARE,
     GalleryPage,
     PageTurn,
     column_share,
+    follow,
     neighbours,
+    page_of,
     page_position,
     steps,
 )
-from raw_and_order.ui.gallery import page_of
+from tests.fakes import FakePhotoLibrary
 
 PATHS = [Path("/a.jpg"), Path("/b.jpg"), Path("/c.jpg")]
 
@@ -82,3 +85,57 @@ def test_a_photo_off_the_page_never_turns_it() -> None:
 
 def test_page_of_finds_the_page_a_position_is_on() -> None:
     assert [page_of(n, 24) for n in (1, 24, 25, 48, 49)] == [1, 1, 2, 2, 3]
+
+
+def _library_of(count: int) -> FakePhotoLibrary:
+    from tests.unit.test_ui_renderers import _record
+
+    return FakePhotoLibrary([_record(i) for i in range(count)])
+
+
+def _first_page(library: FakePhotoLibrary, page_size: int = 24) -> GalleryPage:
+    query = PhotoQuery(page_size=page_size)
+    return GalleryPage.from_result(library.search(query), query)
+
+
+def test_follow_a_turn_reads_the_next_page_and_shows_its_first_photo() -> None:
+    library = _library_of(30)
+    page = _first_page(library)
+
+    turned, path = follow(PageTurn.NEXT, page, library)
+
+    assert turned.number == 2 and len(turned.paths) == 6
+    assert turned.has_previous and not turned.has_next
+    assert path == turned.paths[0]
+
+
+def test_follow_back_shows_the_last_photo_of_the_previous_page() -> None:
+    library = _library_of(30)
+    second, _ = follow(PageTurn.NEXT, _first_page(library), library)
+
+    back, path = follow(PageTurn.PREVIOUS, second, library)
+
+    assert back.number == 1 and path == back.paths[-1]
+
+
+def test_follow_a_photo_on_another_page_reads_that_page() -> None:
+    library = _library_of(30)
+    target = Path("/photos/IMG_27.DNG")
+
+    page, path = follow(target, _first_page(library), library)
+
+    assert page.number == 2 and path == target and target in page.paths
+
+
+def test_follow_a_photo_on_this_page_or_off_the_filters_keeps_the_page() -> None:
+    library = _library_of(30)
+    first = _first_page(library)
+
+    assert follow(Path("/photos/IMG_3.DNG"), first, library) == (
+        first,
+        Path("/photos/IMG_3.DNG"),
+    )
+    assert follow(Path("/photos/gone.DNG"), first, library) == (
+        first,
+        Path("/photos/gone.DNG"),
+    )

@@ -295,10 +295,16 @@ def test_next_on_the_last_photo_of_a_page_shows_the_next_page_first() -> None:
     app.button(key=open_button_key(_record(23).path)).click().run()
     app.button(key="detail-next").click().run()
 
+    # The dialog loaded page 2 itself; the gallery behind is still on page 1.
     assert not app.exception, app.exception
-    assert "Showing 25–30 of 30 photos" in [c.value for c in app.caption]
     assert r"**IMG\_24\.DNG** :gray[/photos]" in [m.value for m in app.markdown]
     assert _shown_position(app) == "Photo 1 of 6 on this page"
+    assert "Showing 1–24 of 30 photos" in [c.value for c in app.caption]
+
+    app.run()  # the next full run (e.g. closing the dialog): the gallery follows
+
+    assert "Showing 25–30 of 30 photos" in [c.value for c in app.caption]
+    assert _shown_position(app) == "Photo 1 of 6 on this page"  # still open
 
 
 def test_previous_on_the_first_photo_of_a_page_shows_the_previous_page_last() -> None:
@@ -309,9 +315,10 @@ def test_previous_on_the_first_photo_of_a_page_shows_the_previous_page_last() ->
     app.button(key="detail-previous").click().run()
 
     assert not app.exception, app.exception
-    assert "Showing 1–24 of 30 photos" in [c.value for c in app.caption]
     assert r"**IMG\_23\.DNG** :gray[/photos]" in [m.value for m in app.markdown]
     assert _shown_position(app) == "Photo 24 of 24 on this page"
+    app.run()
+    assert "Showing 1–24 of 30 photos" in [c.value for c in app.caption]
 
 
 def test_no_step_past_the_first_or_last_photo_of_all_pages() -> None:
@@ -334,11 +341,24 @@ def test_a_similar_photo_on_another_page_opens_on_its_page() -> None:
     app.button(key=similar_button_key(records[27].path)).click().run()
 
     assert not app.exception, app.exception
-    assert "Showing 25–30 of 30 photos" in [c.value for c in app.caption]
     assert r"**IMG\_27\.DNG** :gray[/photos]" in [m.value for m in app.markdown]
     assert _shown_position(app) == "Photo 4 of 6 on this page"
     keys = {b.key for b in app.button}
     assert "detail-previous" in keys and "detail-next" in keys
+    app.run()
+    assert "Showing 25–30 of 30 photos" in [c.value for c in app.caption]
+
+
+def test_the_open_dialog_survives_a_full_rerun_and_closing_ends_it() -> None:
+    app = _app(FakePhotoLibrary([_record(i) for i in range(3)]))
+    app.button(key=open_button_key(_record(1).path)).click().run()
+
+    app.run()  # a full rerun with no click: the dialog is drawn again in place
+
+    assert _shown_position(app) == "Photo 2 of 3 on this page"
+    app.session_state["detail_open"] = False  # what dismissing the dialog sets
+    app.run()
+    assert not [c for c in app.caption if "on this page" in c.value]
 
 
 def test_similar_photos_hidden_by_the_filters_are_not_offered() -> None:

@@ -5,11 +5,13 @@ and camera settings on the right. The longer sections (similar photos,
 location, files) sit in tabs below, full width, so nothing needs scrolling
 on a normal screen. Buttons either side of the photo (and the arrow keys)
 step to the previous or next photo shown in the gallery without closing the
-dialog. Stepping past the last photo on the page turns the gallery to the next
-page and shows its first photo; stepping back past the first shows the last
-photo of the previous page. Similar photos follow the sidebar filters;
-clicking one turns the gallery to the page it is on and shows it here, so
-stepping carries on from there. A star in the photo's corner marks it as a
+dialog. Stepping past the last photo on the page loads the next page and
+shows its first photo; stepping back past the first shows the last photo of
+the previous page. Similar photos follow the sidebar filters; clicking one
+loads the page it is on and shows it here, so stepping carries on from
+there. The dialog loads those pages itself, so it stays open (no flicker),
+with a spinner if loading takes a moment; the gallery behind follows on the
+next full run, e.g. when the dialog closes. A star in the photo's corner marks it as a
 favorite. Clicking the photo shows its preview full
 screen, on a layer over the dialog (Streamlit allows only one dialog at a
 time).
@@ -26,7 +28,7 @@ from streamlit.delta_generator import DeltaGenerator
 
 from raw_and_order.analysis.similarity import similarity
 from raw_and_order.schemas import ExifData, PhotoRecord
-from raw_and_order.schemas.query import PhotoQuery, SimilarPhoto
+from raw_and_order.schemas.query import PhotoPage, PhotoQuery, SimilarPhoto
 from raw_and_order.ui.css import (
     clickable_tile,
     keyed,
@@ -58,8 +60,11 @@ STEP_BUTTON_PX = 44
 CURRENT_KEY = "detail_current"  # session state: path of the photo shown
 OPEN_KEY = "detail_open"  # session state: True while the dialog is open
 ZOOM_KEY = "detail_zoom"  # session state: True while the photo is full screen
-# Session state: a GalleryRequest the gallery carries out on the next run.
-GALLERY_REQUEST_KEY = "detail_gallery_request"
+PAGE_KEY = "detail_page"  # session state: the GalleryPage the dialog steps on
+PENDING_KEY = "detail_pending"  # session state: a Target to load on the next run
+# Session state: the page the dialog moved to, for the gallery's next full run.
+GALLERY_REQUEST_KEY = "detail_gallery_page"
+LOADING_TEXT = "Loading photos..."
 ZOOM_TARGET_KEY = "detail-zoom-target"  # the photo plus its zoom-in button
 # The star in the photo's top-right corner; one key per state, for the CSS.
 FAVORITE_PREFIX = "detail-favorite-"
@@ -241,16 +246,16 @@ def column_share(size: tuple[int, int] | None) -> tuple[int, int]:
 
 
 class PageTurn(StrEnum):
-    """A step past the end of the gallery page, which the gallery carries out."""
+    """A step past the end of the gallery page; the dialog loads that page."""
 
     PREVIOUS = "previous"  # show the last photo of the previous page
     NEXT = "next"  # show the first photo of the next page
 
 
 Step = Path | PageTurn | None  # where a step button goes; None: no button
-# What the details ask of the gallery: turn the page, or go to the page a
-# photo (a similar photo clicked) is on and show it.
-GalleryRequest = PageTurn | Path
+# Something the dialog must load before showing it: the next or previous
+# page, or the page a photo (a similar photo clicked) is on.
+Target = PageTurn | Path
 
 
 @dataclass(frozen=True)
@@ -261,13 +266,32 @@ class GalleryPage:
         paths: The photos on the page, in gallery order.
         has_previous: True if a page comes before this one.
         has_next: True if a page comes after this one.
-        query: The gallery's filters and sort; similar photos follow them.
+        query: The gallery's filters, sort and page size; similar photos
+            follow them, and other pages are read with them.
+        number: The page's number, from 1.
     """
 
     paths: tuple[Path, ...]
     has_previous: bool = False
     has_next: bool = False
     query: PhotoQuery = field(default_factory=PhotoQuery)
+    number: int = 1
+
+    @classmethod
+    def from_result(cls, result: PhotoPage, query: PhotoQuery) -> "GalleryPage":
+        """The page in ``result``, read with ``query``'s filters and sort."""
+        return cls(
+            paths=tuple(record.path for record in result.items),
+            has_previous=result.page > 1,
+            has_next=result.page < result.pages,
+            query=query,
+            number=result.page,
+        )
+
+
+def page_of(position: int, page_size: int) -> int:
+    """The page (from 1) showing the photo at ``position`` (from 1)."""
+    return (position - 1) // page_size + 1
 
 
 def neighbours(paths: Sequence[Path], current: Path) -> tuple[Path | None, Path | None]:
@@ -300,22 +324,66 @@ def steps(page: GalleryPage, current: Path) -> tuple[Step, Step]:
     return previous, following
 
 
-def open_details(path: Path, page: GalleryPage, library: PhotoLibrary) -> None:
+def follow(
+    target: Target, page: GalleryPage, library: PhotoLibrary
+) -> tuple[GalleryPage, Path | None]:
+    """The page and photo to show after stepping to ``target`` from ``page``.
+
+    A turn reads the next or previous page and shows its first or last
+    photo. A photo is shown on the page it is on under the same filters and
+    sort; one that no longer matches them is shown with ``page`` unchanged
+    (it then has no steps). ``None`` as the photo means stay where you are
+    (the page read was empty).
+    """
+    if isinstance(target, PageTurn):
+        forward = target is PageTurn.NEXT
+        turned = _read_page(page, page.number + (1 if forward else -1), library)
+        if not turned.paths:
+            return page, None
+        return turned, turned.paths[0] if forward else turned.paths[-1]
+    position = library.position(target, page.query)
+    if position is None:
+        return page, target
+    number = page_of(position, page.query.page_size)
+    if number == page.number:
+        return page, target
+    return _read_page(page, number, library), target
+
+
+def _read_page(page: GalleryPage, number: int, library: PhotoLibrary) -> GalleryPage:
+    """Page ``number`` under ``page``'s filters, sort and page size."""
+    query = page.query.model_copy(update={"page": max(1, number)})
+    return GalleryPage.from_result(library.search(query), page.query)
+
+
+def open_details(path: Path, page: GalleryPage) -> None:
     """Open the details of ``path``; ``page`` holds the photos one can step to.
 
-    Pass the gallery page shown (current filters, sort and page), so the
-    dialog never steps to a photo the gallery does not show.
+    Call it from a widget callback; :func:`show_details` then draws the
+    dialog. Pass the gallery page shown (current filters, sort and page), so
+    the dialog never steps to a photo the gallery does not show.
     """
     st.session_state[CURRENT_KEY] = str(path)
+    st.session_state[PAGE_KEY] = page
     st.session_state[OPEN_KEY] = True
     st.session_state[ZOOM_KEY] = False
-    _details(page, library)
+    st.session_state.pop(PENDING_KEY, None)
 
 
-def take_gallery_request() -> GalleryRequest | None:
-    """What the details asked of the gallery, cleared so it happens once."""
-    request: GalleryRequest | None = st.session_state.pop(GALLERY_REQUEST_KEY, None)
-    return request
+def show_details(library: PhotoLibrary) -> None:
+    """Draw the details dialog if it is open.
+
+    Call it on every run from one fixed place, so a full rerun updates the
+    open dialog in place instead of closing and reopening it.
+    """
+    if details_open() and PAGE_KEY in st.session_state:
+        _details(library)
+
+
+def take_gallery_request() -> int | None:
+    """The page the details moved to, cleared so the gallery follows once."""
+    number: int | None = st.session_state.pop(GALLERY_REQUEST_KEY, None)
+    return number
 
 
 def details_open() -> bool:
@@ -330,23 +398,24 @@ def _closed() -> None:
 
 
 @st.dialog("Photo details", width="large", on_dismiss=_closed)
-def _details(page: GalleryPage, library: PhotoLibrary) -> None:
-    """Render the current photo. The step buttons rerun only this dialog.
+def _details(library: PhotoLibrary) -> None:
+    """Render the current photo. The buttons rerun only this dialog.
 
     Layout: the file name, then the photo (left) beside its text (right),
     then the tabs. If the photo has left the database, only the previous and
     next buttons and a warning are shown, so one can step on.
 
-    A step past the page's end, or a click on a similar photo, reruns the
-    whole app instead, so the gallery turns to the right page and opens the
-    details again there.
+    A step past the page's end, or a click on a similar photo, first loads
+    that page here, under Streamlit's spinner if it takes a moment; the
+    dialog stays open over the dimmed app throughout.
 
     Args:
-        page: The gallery page, whose photos the buttons step through.
-        library: Where the photo, its preview size and its tabs are read.
+        library: Where the photo, its pages, preview size and tabs are read.
     """
-    if GALLERY_REQUEST_KEY in st.session_state:
-        st.rerun()  # scope "app": the gallery turns the page and reopens this
+    if PENDING_KEY in st.session_state:
+        with st.spinner(LOADING_TEXT):
+            _load_pending(library)
+    page: GalleryPage = st.session_state[PAGE_KEY]
     paths = page.paths
     current = Path(st.session_state[CURRENT_KEY])
     record = library.photo(current)
@@ -365,6 +434,20 @@ def _details(page: GalleryPage, library: PhotoLibrary) -> None:
         _summary(record, page_position(paths, current), len(paths))
         _camera(record.exif, size)
     _sections(record, page.query, library)
+
+
+def _load_pending(library: PhotoLibrary) -> None:
+    """Load the page a step asked for and make it, and its photo, current.
+
+    The gallery is told the new page number, so it shows the same page on
+    its next full run (e.g. once the dialog closes).
+    """
+    target: Target = st.session_state.pop(PENDING_KEY)
+    page, path = follow(target, st.session_state[PAGE_KEY], library)
+    st.session_state[PAGE_KEY] = page
+    st.session_state[GALLERY_REQUEST_KEY] = page.number
+    if path is not None:
+        st.session_state[CURRENT_KEY] = str(path)
 
 
 def page_position(paths: Sequence[Path], current: Path) -> int | None:
@@ -425,13 +508,13 @@ def _show(path: Path) -> None:
 
 
 def _turn_page(turn: PageTurn) -> None:
-    """Ask the gallery to turn the page; the dialog then reruns the app."""
-    st.session_state[GALLERY_REQUEST_KEY] = turn
+    """Load the next or previous page on the dialog's rerun."""
+    st.session_state[PENDING_KEY] = turn
 
 
-def _show_in_gallery(path: Path) -> None:
-    """Ask the gallery to go to ``path``'s page and show it; reruns the app."""
-    st.session_state[GALLERY_REQUEST_KEY] = path
+def _show_on_its_page(path: Path) -> None:
+    """Load the page ``path`` is on, and show it, on the dialog's rerun."""
+    st.session_state[PENDING_KEY] = path
 
 
 def _photo(record: PhotoRecord | None, library: PhotoLibrary) -> None:
@@ -575,7 +658,7 @@ def _files(record: PhotoRecord, copies: list[Path]) -> None:
 def _similar_photos(path: Path, query: PhotoQuery, library: PhotoLibrary) -> None:
     """Up to a row of similar photos matching the filters; click one to show it.
 
-    The click goes through the gallery, which turns to the photo's page.
+    The click loads the page the photo is on, so stepping works from it.
     """
     matches = library.similar_photos(path, query)[:SIMILAR_COLUMNS]
     if not matches:
@@ -597,7 +680,7 @@ def _similar_tile(match: SimilarPhoto) -> None:
         st.button(
             f"Show {record.path.name}",
             key=similar_button_key(record.path),
-            on_click=_show_in_gallery,
+            on_click=_show_on_its_page,
             args=(record.path,),
         )
     st.caption(f"{record.path.name} · {similarity(match.distance)}")
