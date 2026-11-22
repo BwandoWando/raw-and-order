@@ -51,10 +51,14 @@ class LLMProvider(StrEnum):
 
 
 class LLMSettings(BaseModel):
-    """Which model to use and how to reach it."""
+    """Which model to use and how to reach it.
+
+    ``model`` has no default on purpose: a run must never fall back to a
+    model you did not choose, so a missing ``LLM__MODEL`` stops at startup.
+    """
 
     provider: LLMProvider = LLMProvider.OLLAMA
-    model: str = "gemma3:12b"
+    model: str = Field(min_length=1)
     base_url: str | None = None
     api_key: SecretStr | None = None
     temperature: float | None = None
@@ -124,7 +128,7 @@ class Settings(BaseSettings):
     )
     send_exif_to_llm: bool = True
     redact_gps: bool = True
-    llm: LLMSettings = Field(default_factory=LLMSettings)
+    llm: LLMSettings  # required: LLM__MODEL must be set (see LLMSettings)
 
     @field_validator("date_sources", mode="before")
     @classmethod
@@ -152,4 +156,25 @@ def load_settings() -> Settings:
     try:
         return Settings()
     except ValidationError as exc:
+        if _model_missing(exc):
+            raise ConfigurationError(MODEL_REQUIRED) from exc
         raise ConfigurationError(f"Invalid configuration:\n{exc}") from exc
+
+
+MODEL_REQUIRED = (
+    "An LLM model is required: set LLM__MODEL in .env (e.g. "
+    "LLM__MODEL=gemma3:27b), or as an environment variable. See .env.example."
+)
+
+
+def _model_missing(exc: ValidationError) -> bool:
+    """True if validation failed because no model (or no LLM section) was set.
+
+    Without any ``LLM__`` variable the whole ``llm`` section is missing; with
+    some but no ``LLM__MODEL`` (or an empty one) only ``llm.model`` is.
+    """
+    return any(
+        error["loc"] in (("llm",), ("llm", "model"))
+        and error["type"] in ("missing", "string_too_short")
+        for error in exc.errors()
+    )

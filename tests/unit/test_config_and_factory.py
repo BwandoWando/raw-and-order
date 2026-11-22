@@ -1,12 +1,17 @@
+from pathlib import Path
+
 import pytest
 from pydantic import SecretStr, ValidationError
 
 from raw_and_order.config import (
     MAX_PHOTOS_HARD_LIMIT,
+    MODEL_REQUIRED,
     LLMProvider,
     LLMSettings,
     Settings,
+    load_settings,
 )
+from raw_and_order.exceptions import ConfigurationError
 from raw_and_order.llm.factory import build_model_kwargs, create_chat_model
 from raw_and_order.schemas import DateSource
 
@@ -114,3 +119,50 @@ def test_chunk_size_outside_range_is_rejected(
 
     with pytest.raises(ValidationError, match="chunk_size"):
         Settings(_env_file=None)
+
+
+@pytest.fixture
+def no_env_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Run from an empty folder, so the real ``.env`` cannot supply a model."""
+    monkeypatch.chdir(tmp_path)
+
+
+@pytest.mark.usefixtures("no_env_file")
+@pytest.mark.parametrize(
+    "unset",
+    [
+        ["LLM__MODEL"],  # other LLM__ settings present, model missing
+        ["LLM__MODEL", "LLM__PROVIDER", "LLM__BASE_URL"],  # no LLM__ at all
+    ],
+)
+def test_a_missing_model_says_a_model_is_required(
+    monkeypatch: pytest.MonkeyPatch, unset: list[str]
+) -> None:
+    for name in unset:
+        monkeypatch.delenv(name, raising=False)
+
+    with pytest.raises(ConfigurationError) as caught:
+        load_settings()
+
+    assert str(caught.value) == MODEL_REQUIRED
+    assert "LLM__MODEL" in MODEL_REQUIRED and "required" in MODEL_REQUIRED
+
+
+@pytest.mark.usefixtures("no_env_file")
+def test_an_empty_model_is_also_missing(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("LLM__MODEL", "")
+
+    with pytest.raises(ConfigurationError, match="An LLM model is required"):
+        load_settings()
+
+
+@pytest.mark.usefixtures("no_env_file")
+def test_other_invalid_settings_keep_the_full_report(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("CHUNK_SIZE", "0")
+
+    with pytest.raises(ConfigurationError, match="Invalid configuration") as caught:
+        load_settings()
+
+    assert "chunk_size" in str(caught.value)

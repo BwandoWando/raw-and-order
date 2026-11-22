@@ -27,6 +27,7 @@ def isolate_from_real_settings(
     monkeypatch.setenv("DATABASE_URL", f"sqlite:///{base / 'app.db'}")
     monkeypatch.setenv("PREVIEW_DIR", str(base / "previews"))
     monkeypatch.setenv("LLM__PROVIDER", "ollama")
+    monkeypatch.setenv("LLM__MODEL", "test-model")  # the model has no default
     monkeypatch.setenv("LLM__BASE_URL", "http://127.0.0.1:9")
 
 
