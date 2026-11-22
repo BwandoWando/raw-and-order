@@ -5,6 +5,7 @@ services, so tests can hand them an in-memory fake. It only reads, except
 for favorites, which the photo details set.
 """
 
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Protocol
 
@@ -84,6 +85,19 @@ class PhotoLibrary(Protocol):
             top_n: How many of the most-used tags become nodes.
             min_strength: Smallest link strength (share of the photos with
                 either tag that have both) for two tags to be joined.
+        """
+        ...
+
+    def tag_samples(
+        self, filters: PhotoQuery, tags: Sequence[str], per_tag: int, seed: int
+    ) -> dict[str, list[Path]]:
+        """Return up to ``per_tag`` random previews for each of ``tags``.
+
+        Args:
+            filters: Which photos count; sort and paging are ignored.
+            tags: The tags to find example photos for.
+            per_tag: Most previews returned per tag.
+            seed: Fixes the random picks; the same seed gives the same photos.
         """
         ...
 

@@ -207,7 +207,7 @@ Stop it with Ctrl+C. In VS Code, the **Streamlit UI** debug configuration in
   whole photo fits in its tile) sized so a whole page fits on one screen, with the pager below it (or the left and right
   arrow keys). Tiles shrink as the page size grows and follow the window when
   you resize it. The page size is kept in the URL (`?g_page_size=99`), so you
-  can bookmark it. Hover a photo for its date and scene; click it to see the
+  can bookmark it. Hover a photo for its file name, description, date and scene; click it to see the
   large preview, description, tags, camera and lens settings, a map when the
   photo has GPS, its SHA-256 and pHash, exact copies of it stored elsewhere
   ("Also stored at"), and similar photos. The dialog fits one screen, with the
@@ -232,9 +232,12 @@ Stop it with Ctrl+C. In VS Code, the **Streamlit UI** debug configuration in
   cards and in a table. Click a cluster card, or any tag in the network, to
   see the cluster's photos in the Gallery: it fills the "Tags (all of)" filter
   with the tags in the cluster's name, which combine with AND like every tag
-  filter (a grey "Other" tag shows just that tag's photos). Hover to
-  highlight links, drag to rearrange, scroll to zoom. The sidebar filters
-  apply.
+  filter (a grey "Other" tag shows just that tag's photos). Hover a tag to
+  highlight its links and see its photo count over a 3×3 grid of example
+  photos; each cluster card shows one photo for each tag in its name. The
+  example photos are picked at random once per browser session (a new tab
+  or reload picks again). Drag to rearrange, scroll to zoom. The sidebar
+  filters apply, to the example photos too.
 - **Failures:** the `processing_failures` log, filterable by stage.
 - **Stats:** totals (including copies skipped) and photos by scene, lens,
   capture month and white balance.

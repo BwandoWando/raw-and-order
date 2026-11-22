@@ -80,10 +80,18 @@ def capture_label(record: PhotoRecord) -> str:
 
 
 def thumbnail_tooltip(record: PhotoRecord) -> str:
-    """Hover tooltip of a gallery thumbnail: capture day and scene."""
+    """Hover tooltip of a gallery thumbnail, as Markdown.
+
+    The file name in bold, the description, then the capture day and scene in
+    grey. The name and description are escaped, so ``_DSC0001`` stays as is.
+    """
     captured = record.exif.captured_at
     day = captured.strftime("%Y-%m-%d") if captured else "Unknown date"
-    return f"{day} · {record.annotation.scene.value}"
+    return (
+        f"**{escape_markdown(record.path.name)}**\n\n"
+        f"{escape_markdown(record.annotation.description)}\n\n"
+        f":gray[{day} · {record.annotation.scene.value}]"
+    )
 
 
 def date_source_label(source: DateSource | None) -> str:

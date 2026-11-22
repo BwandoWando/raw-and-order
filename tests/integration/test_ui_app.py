@@ -212,7 +212,9 @@ def test_page_sizes_and_tooltips_show_captions(
     app.selectbox(key=GalleryKey.PAGE_SIZE).select(99).run()
     assert "Showing 1–3 of 3 photos" in _captions(app)
     button = app.button(key=open_button_key(tmp_path / "IMG_0.ARW"))
-    assert button.help == "2026-01-11 · landscape"
+    assert button.help == (
+        "**IMG\\_0\\.ARW**\n\nSunset over the sea\\.\n\n:gray[2026-01-11 · landscape]"
+    )
 
 
 def _sidebar_filters(app: AppTest) -> dict[str, object]:

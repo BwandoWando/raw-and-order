@@ -102,7 +102,30 @@ def test_card_caption() -> None:
         processed_at=datetime(2026, 1, 1, tzinfo=UTC),
     )
 
-    assert thumbnail_tooltip(record) == "Unknown date · street"
+    assert thumbnail_tooltip(record) == (
+        "**a\\.arw**\n\nx\n\n:gray[Unknown date · street]"
+    )
+
+
+def test_thumbnail_tooltip_shows_name_description_date_and_scene() -> None:
+    record = PhotoRecord(
+        path=Path("/p/_DSC0001.ARW"),
+        exif=ExifData(captured_at=datetime(2026, 10, 28, 17, 46)),
+        annotation=Annotation(
+            description="A *busy* street.",
+            scene=SceneType.STREET,
+            contains_people=True,
+        ),
+        preview_path=Path("/p/a.jpg"),
+        annotated_by="m",
+        processed_at=datetime(2026, 1, 1, tzinfo=UTC),
+    )
+
+    name, description, facts = thumbnail_tooltip(record).split("\n\n")
+
+    assert name == r"**\_DSC0001\.ARW**"
+    assert description == r"A \*busy\* street\."
+    assert facts == ":gray[2026-10-28 · street]"
 
 
 def test_streamlit_command_binds_localhost_without_telemetry() -> None:

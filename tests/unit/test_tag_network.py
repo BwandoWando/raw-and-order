@@ -3,9 +3,11 @@ from raw_and_order.ui.charts import DARK, LIGHT
 from raw_and_order.ui.tag_network import (
     MAX_STYLED_CLUSTERS,
     OTHER,
+    TOOLTIP_PHOTOS,
     cluster_style,
     legend_names,
     network_spec,
+    tooltip_html,
 )
 
 
@@ -63,3 +65,33 @@ def test_bigger_tags_get_bigger_symbols() -> None:
 
     assert sizes == sorted(sizes)
     assert sizes[-1] == 48
+
+
+def test_tooltip_without_photos_is_just_the_count() -> None:
+    assert tooltip_html("sea", 12, []) == "<b>sea</b>: 12 photos"
+
+
+def test_tooltip_shows_at_most_a_3x3_grid_of_photos() -> None:
+    images = [f"data:image/jpeg;base64,{i}" for i in range(12)]
+
+    tooltip = tooltip_html("sea", 12, images)
+
+    assert tooltip.startswith("<b>sea</b>: 12 photos<div")
+    assert tooltip.count("<img ") == TOOLTIP_PHOTOS == 9
+    assert "repeat(3," in tooltip
+    assert images[8] in tooltip and images[9] not in tooltip
+
+
+def test_tooltip_escapes_the_tag() -> None:
+    assert tooltip_html("<b>&", 1, []).startswith("<b>&lt;b&gt;&amp;</b>")
+
+
+def test_each_tag_carries_its_own_photo_tooltip() -> None:
+    graph = _graph(2)
+
+    spec = network_spec(graph, LIGHT, {"t0": ["data:image/jpeg;base64,AAA"]})
+
+    nodes = {node["name"]: node for node in spec["series"][0]["data"]}
+    assert "data:image/jpeg;base64,AAA" in nodes["t0"]["tooltip"]["formatter"]
+    assert nodes["t1"]["tooltip"]["formatter"] == "<b>t1</b>: 11 photos"
+    assert spec["tooltip"]["confine"] is True

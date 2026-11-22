@@ -1,5 +1,6 @@
 """Render the UI against an injected in-memory library (no database)."""
 
+import json
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -18,6 +19,7 @@ from raw_and_order.schemas import (
 from raw_and_order.schemas.query import SimilarPhoto
 from raw_and_order.ui.css import PINNED_MULTISELECT_BUTTONS
 from raw_and_order.ui.detail import (
+    BACKDROP,
     FAVORITE_OFF_KEY,
     FAVORITE_ON_KEY,
     similar_button_key,
@@ -77,6 +79,15 @@ def test_gallery_pages_through_the_injected_library() -> None:
     assert "Showing 25–30 of 30 photos" in [c.value for c in app.caption]
 
 
+def test_hovering_a_thumbnail_shows_its_name_and_description() -> None:
+    app = _app(FakePhotoLibrary([_record(0)]))
+
+    tooltip = app.button(key=open_button_key(_record(0).path)).help
+
+    assert tooltip.startswith(r"**IMG\_0\.DNG**")
+    assert SAMPLE_ANNOTATION.description.replace(".", r"\.") in tooltip
+
+
 def test_details_dialog_reads_from_the_library() -> None:
     app = _app(FakePhotoLibrary([_record(0)]))
 
@@ -132,6 +143,62 @@ def test_tags_tab_draws_the_network_and_clusters() -> None:
     assert tags_tab.label == "Tags"
     assert "**city · neon · night**" in [m.value for m in tags_tab.markdown]
     assert any("5 most-used tags across 6 photos" in c.value for c in tags_tab.caption)
+
+
+def _with_previews(photos: list[PhotoRecord], folder: Path) -> list[PhotoRecord]:
+    """``photos`` with a small real preview each, so thumbnails can be made."""
+    saved = []
+    for i, photo in enumerate(photos):
+        preview = folder / f"p{i}.jpg"
+        Image.new("RGB", (40, 30), (40 * i % 255, 90, 160)).save(preview)
+        saved.append(photo.model_copy(update={"preview_path": preview}))
+    return saved
+
+
+def test_hovering_a_tag_shows_a_grid_of_its_photos(tmp_path: Path) -> None:
+    photos = [_tagged(i, "city", "night", "neon") for i in range(12)]
+    app = _app(FakePhotoLibrary(_with_previews(photos, tmp_path)))
+
+    spec = json.loads(app.tabs[1].get("echarts_chart")[0].proto.spec)
+
+    nodes = {node["name"]: node for node in spec["series"][0]["data"]}
+    tooltip = nodes["city"]["tooltip"]["formatter"]
+    assert tooltip.startswith("<b>city</b>: 12 photos")
+    assert tooltip.count("data:image/jpeg;base64,") == 9
+
+
+def test_the_tag_photos_hold_still_between_reruns(tmp_path: Path) -> None:
+    photos = [_tagged(i, "city", "night") for i in range(12)]
+    app = _app(FakePhotoLibrary(_with_previews(photos, tmp_path)))
+    first = app.tabs[1].get("echarts_chart")[0].proto.spec
+
+    app.run()
+
+    assert app.tabs[1].get("echarts_chart")[0].proto.spec == first
+
+
+def test_cluster_cards_show_a_photo_for_each_tag_in_the_name(tmp_path: Path) -> None:
+    photos = [_tagged(i, "city", "night", "neon") for i in range(3)]
+    photos += [_tagged(i + 3, "sea", "sand") for i in range(3)]
+    app = _app(FakePhotoLibrary(_with_previews(photos, tmp_path)))
+
+    alts = [image.proto.imgs[0].alt for image in app.tabs[1].get("image")]
+
+    assert alts == [
+        "A photo tagged city",
+        "A photo tagged neon",
+        "A photo tagged night",
+        "A photo tagged sand",
+        "A photo tagged sea",
+    ]
+
+
+def test_cluster_cards_without_previews_show_only_text() -> None:
+    photos = [_tagged(i, "city", "night") for i in range(3)]  # previews missing
+    app = _app(FakePhotoLibrary(photos))
+
+    assert not app.tabs[1].get("image")
+    assert "**city · night**" in [m.value for m in app.tabs[1].markdown]
 
 
 def test_tags_tab_without_tags_shows_a_hint() -> None:
@@ -268,6 +335,15 @@ def test_similar_photos_show_a_bucket_not_a_distance() -> None:
     assert "IMG_1.DNG · Identical" in captions
     assert "IMG_2.DNG · Similar" in captions
     assert app.button(key=similar_button_key(_record(1).path))
+
+
+def test_details_dim_the_app_behind_them() -> None:
+    app = _app(FakePhotoLibrary([_record(0)]))
+    assert not any(BACKDROP in h.proto.body for h in app.get("html"))
+
+    app.button(key=open_button_key(_record(0).path)).click().run()
+
+    assert any(BACKDROP in h.proto.body for h in app.get("html"))
 
 
 def test_details_show_the_file_name_first() -> None:

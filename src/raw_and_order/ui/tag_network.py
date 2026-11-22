@@ -3,6 +3,11 @@
 Node positions and clusters come from ``analysis/tag_graph.py``; this module
 only turns a :class:`TagGraph` into the chart's option dictionary.
 
+Hovering a tag shows its photo count and, when previews are passed, a 3x3
+grid of example photos. ``st.echarts_chart`` takes no JavaScript, but tooltip
+strings are HTML, so each tag carries its own tooltip with the photos
+embedded as small JPEG data URIs.
+
 Each cluster is a colour and shape pair. A network is an all-pairs chart
 (any two clusters can sit side by side), and only the first three
 categorical hues stay distinguishable all-pairs, colour-blind included, in
@@ -12,7 +17,9 @@ are grey "Other". Every tag is also labelled by name, and the clusters are
 listed in text below the chart, so colour is never the only cue.
 """
 
+import html
 import math
+from collections.abc import Mapping, Sequence
 from typing import Any
 
 from raw_and_order.schemas.tags import TagGraph, TagNode
@@ -26,6 +33,9 @@ OTHER = "Other"
 MIN_SYMBOL_PX = 10
 MAX_SYMBOL_PX = 48
 MAX_LINK_WIDTH_PX = 6
+TOOLTIP_COLUMNS = 3
+TOOLTIP_PHOTOS = TOOLTIP_COLUMNS * TOOLTIP_COLUMNS  # the 3x3 grid
+TOOLTIP_TILE_PX = 80
 
 
 def cluster_style(index: int | None, theme: ChartTheme) -> tuple[str, str]:
@@ -44,14 +54,46 @@ def legend_names(graph: TagGraph) -> list[str]:
     return names
 
 
-def network_spec(graph: TagGraph, theme: ChartTheme) -> dict[str, Any]:
-    """ECharts graph option: tags sized by photo count, links by overlap."""
+def tooltip_html(tag: str, photos: int, images: Sequence[str]) -> str:
+    """A tag's tooltip: its name and photo count above a grid of ``images``.
+
+    ``images`` are image URLs (data URIs); only the first nine are shown, as
+    square tiles. The tag is escaped, since ECharts inserts the string as HTML.
+    """
+    heading = f"<b>{html.escape(tag)}</b>: {photos} photos"
+    if not images:
+        return heading
+    tiles = "".join(
+        f'<img src="{html.escape(src, quote=True)}" alt="" width="{TOOLTIP_TILE_PX}"'
+        f' height="{TOOLTIP_TILE_PX}" style="object-fit:cover;border-radius:4px">'
+        for src in images[:TOOLTIP_PHOTOS]
+    )
+    grid = (
+        f"display:grid;gap:4px;margin-top:6px;"
+        f"grid-template-columns:repeat({TOOLTIP_COLUMNS},{TOOLTIP_TILE_PX}px)"
+    )
+    return f'{heading}<div style="{grid}">{tiles}</div>'
+
+
+def network_spec(
+    graph: TagGraph,
+    theme: ChartTheme,
+    previews: Mapping[str, Sequence[str]] | None = None,
+) -> dict[str, Any]:
+    """ECharts graph option: tags sized by photo count, links by overlap.
+
+    Args:
+        graph: The tags, links and clusters to draw.
+        theme: Light or dark colours.
+        previews: Example photo URLs per tag, shown in the tag's tooltip.
+    """
     names = legend_names(graph)
+    previews = previews or {}
     styled = min(len(graph.clusters), MAX_STYLED_CLUSTERS)
     largest = max((node.photos for node in graph.nodes), default=0)
     return {
         "legend": {"data": names, "top": 0, "textStyle": {"color": theme.text}},
-        "tooltip": {},
+        "tooltip": {"confine": True},  # keep the photo grid inside the chart
         "series": [
             {
                 "type": "graph",
@@ -65,7 +107,10 @@ def network_spec(graph: TagGraph, theme: ChartTheme) -> dict[str, Any]:
                 "categories": [
                     _category_spec(i, n, theme) for i, n in enumerate(names)
                 ],
-                "data": [_node(node, styled, largest, theme) for node in graph.nodes],
+                "data": [
+                    _node(node, styled, largest, theme, previews.get(node.tag, ()))
+                    for node in graph.nodes
+                ],
                 "links": [
                     {
                         "source": link.source,
@@ -104,10 +149,15 @@ def _category_spec(index: int, name: str, theme: ChartTheme) -> dict[str, Any]:
 
 
 def _node(
-    node: TagNode, styled: int, largest: int, theme: ChartTheme
+    node: TagNode,
+    styled: int,
+    largest: int,
+    theme: ChartTheme,
+    images: Sequence[str],
 ) -> dict[str, Any]:
     colour, shape = cluster_style(node.cluster, theme)
     return {
+        "tooltip": {"formatter": tooltip_html(node.tag, node.photos, images)},
         "name": node.tag,
         "value": node.photos,
         "x": node.x,

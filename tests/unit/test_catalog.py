@@ -388,3 +388,16 @@ def test_position_counts_only_photos_matching_the_filters(
     assert [catalog.position(r.path, people) for r in matching] == [1, 2]
     assert catalog.position(hidden.path, people) is None
     assert catalog.position(Path("/photos/not-stored.arw"), people) is None
+
+
+def test_tagged_previews_follow_the_filters_in_path_order(
+    catalog: SqlAlchemyPhotoCatalog,
+) -> None:
+    every = catalog.tagged_previews(PhotoQuery())
+    people = catalog.tagged_previews(PhotoQuery(contains_people=True))
+
+    previews = [preview for preview, _ in every]
+    assert previews == sorted(previews)
+    assert len(every) == 4 and len(people) == 2
+    stored = {r.preview_path: r.annotation.tags for r in catalog.matching(PhotoQuery())}
+    assert all(stored[preview] == tags for preview, tags in every)

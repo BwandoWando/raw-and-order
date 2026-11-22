@@ -15,6 +15,7 @@ from PIL import Image
 from pydantic import PrivateAttr
 
 from raw_and_order.analysis.tag_graph import build_tag_graph
+from raw_and_order.analysis.tag_samples import sample_by_tag
 from raw_and_order.exceptions import ExifReadError, FingerprintError
 from raw_and_order.schemas import (
     Annotation,
@@ -281,6 +282,12 @@ class FakePhotoLibrary:
             by_month=[],
             copies=sum(len(paths) for paths in self._copies.values()),
         )
+
+    def tag_samples(
+        self, filters: PhotoQuery, tags: Sequence[str], per_tag: int, seed: int
+    ) -> dict[str, list[Path]]:
+        photos = [(r.preview_path, r.annotation.tags) for r in self._matching(filters)]
+        return sample_by_tag(photos, tags, per_tag, seed)
 
     def tag_graph(
         self, filters: PhotoQuery, top_n: int, min_strength: float

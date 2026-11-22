@@ -7,12 +7,14 @@ arguments (Streamlit does not hash those) plus a hashed ``cache_key``, so two
 databases never share cached results.
 """
 
+from collections.abc import Sequence
 from datetime import datetime
 from pathlib import Path
 
 import streamlit as st
 
 from raw_and_order.analysis.tag_graph import build_tag_graph
+from raw_and_order.analysis.tag_samples import sample_by_tag
 from raw_and_order.db.catalog import PhotoCatalog
 from raw_and_order.db.failure_repository import FailureRepository
 from raw_and_order.db.favorite_repository import FavoriteStore
@@ -127,6 +129,7 @@ class CachedPhotoLibrary:
         self._favorites.set_favorite(path, favorite, when=datetime.now())
         _search.clear()
         _tag_graph.clear()
+        _tag_samples.clear()
 
     def stats(self) -> PhotoStats:
         """Return totals and breakdowns."""
@@ -152,6 +155,24 @@ class CachedPhotoLibrary:
     def failures(self) -> list[FailureRecord]:
         """Return every logged failure."""
         return _failures(self._failures, self._key)
+
+    def tag_samples(
+        self, filters: PhotoQuery, tags: Sequence[str], per_tag: int, seed: int
+    ) -> dict[str, list[Path]]:
+        """Return up to ``per_tag`` random previews for each of ``tags``.
+
+        See :meth:`PhotoLibrary.tag_samples
+        <raw_and_order.ui.library.PhotoLibrary.tag_samples>` for the arguments.
+        """
+        samples = _tag_samples(
+            self._catalog,
+            self._key,
+            filters.filters_only().model_dump_json(),
+            tuple(tags),
+            per_tag,
+            seed,
+        )
+        return {tag: [Path(p) for p in paths] for tag, paths in samples.items()}
 
     def refresh(self) -> None:
         """Forget cached results so the next read sees fresh data.
@@ -232,6 +253,20 @@ def _tag_graph(
 ) -> TagGraph:
     tag_lists = _catalog.tag_lists(PhotoQuery.model_validate_json(filters_json))
     return build_tag_graph(tag_lists, top_n, min_strength)
+
+
+@st.cache_data(ttl=CACHE_TTL_S, show_spinner=False)
+def _tag_samples(
+    _catalog: PhotoCatalog,
+    key: str,
+    filters_json: str,
+    tags: tuple[str, ...],
+    per_tag: int,
+    seed: int,
+) -> dict[str, list[str]]:
+    photos = _catalog.tagged_previews(PhotoQuery.model_validate_json(filters_json))
+    samples = sample_by_tag(photos, tags, per_tag, seed)
+    return {tag: [str(p) for p in paths] for tag, paths in samples.items()}
 
 
 @st.cache_data(ttl=CACHE_TTL_S, show_spinner=False)

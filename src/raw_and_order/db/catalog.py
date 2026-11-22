@@ -11,7 +11,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import date, datetime, time
 from pathlib import Path
-from typing import Any, Protocol
+from typing import Any, Protocol, TypeVarTuple
 
 from sqlalchemy import (
     ColumnElement,
@@ -43,6 +43,7 @@ from raw_and_order.schemas.query import (
 )
 
 LIKE_ESCAPE = "\\"
+Columns = TypeVarTuple("Columns")  # what a select returns, kept by the helpers
 
 
 class PhotoCatalog(Protocol):
@@ -83,6 +84,10 @@ class PhotoCatalog(Protocol):
 
     def matching(self, query: PhotoQuery) -> list[PhotoRecord]:
         """Return every photo matching ``query``'s filters, in its sort order."""
+        ...
+
+    def tagged_previews(self, query: PhotoQuery) -> list[tuple[Path, list[str]]]:
+        """Return ``(preview path, tags)`` of every photo matching the filters."""
         ...
 
     def copies_of(self, path: Path) -> list[Path]:
@@ -174,6 +179,23 @@ class SqlAlchemyPhotoCatalog:
         statement = apply_filters(select(PhotoRow.tags), query)
         with self._read() as session:
             return [list(tags) for tags in session.scalars(statement)]
+
+    def tagged_previews(self, query: PhotoQuery) -> list[tuple[Path, list[str]]]:
+        """Return ``(preview path, tags)`` of every photo matching the filters.
+
+        Ordered by photo path, so random picks made from it are repeatable.
+
+        Raises:
+            PersistenceError: If the query fails.
+        """
+        statement = apply_filters(
+            select(PhotoRow.preview_path, PhotoRow.tags), query
+        ).order_by(PhotoRow.path)
+        with self._read() as session:
+            return [
+                (Path(preview), list(tags))
+                for preview, tags in session.execute(statement)
+            ]
 
     def copies_of(self, path: Path) -> list[Path]:
         """Return the exact copies found of the photo at ``path``, sorted.
@@ -351,7 +373,7 @@ class SqlAlchemyPhotoCatalog:
         ]
 
 
-def apply_filters(statement: Select[Any], query: PhotoQuery) -> Select[Any]:
+def apply_filters(statement: Select[*Columns], query: PhotoQuery) -> Select[*Columns]:
     """Add a ``WHERE`` clause for every filter set in ``query``; all must hold."""
     return statement.where(*filter_conditions(query))
 
@@ -421,7 +443,7 @@ def _between(
     return conditions
 
 
-def apply_sort(statement: Select[Any], sort: SortOrder) -> Select[Any]:
+def apply_sort(statement: Select[*Columns], sort: SortOrder) -> Select[*Columns]:
     """Order results; photos without a capture date sort last."""
     return statement.order_by(*sort_order(sort))
 
