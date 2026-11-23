@@ -429,6 +429,6 @@ raw-and-order process /path/to/photos                # 4. start processing again
 Each run handles up to `MAX_PHOTOS_PER_RUN` photos (`--max-photos`, up to
 5000); run the same command again to continue.
 
-**Why I made this**
+## Why I made this
 
 I have been using my Sony a6400 and Ricoh GR camera for a few years and I have accumulated a few Terabytes worth of images. It now has come to a point that I need to catalogue and document what I've taken, and, identify favorites and those for deletion. Also, I am a software engineer by profession and rather than subscribing or paying for software that will catalogue my images, I've built one to suit my needs and requirements. This may come in handy for those that are also experiencing the problems that I am having.
