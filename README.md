@@ -219,11 +219,14 @@ Stop it with Ctrl+C. In VS Code, the **Streamlit UI** debug configuration in
   between previous and next arrows (also the left and right arrow keys).
   Tiles shrink as the page size grows and follow the window when you resize
   it. The page size is kept in the URL (`?g_page_size=99`), so you can
-  bookmark it. Hover a photo for its file name, description, date and scene;
-  click it to see the large preview (over a dimmed background), description,
-  tags, camera and lens settings, a map when the
-  photo has GPS, its SHA-256 and pHash, exact copies of it stored elsewhere
-  ("Also stored at"), and similar photos. The dialog fits one screen, with the
+  bookmark it. A gold star (top right) marks a favorite and a red bin
+  (bottom right) a photo marked for deletion, in the same corners as in the
+  photo details; in the gallery they only show the marks, which are changed
+  in the details. Hover a photo for its file name, description, date and
+  scene; click it to see the large preview (over a dimmed background),
+  description, tags, camera and lens settings, a map when the photo has GPS,
+  its SHA-256 and pHash, exact copies of it stored elsewhere ("Also stored
+  at"), and similar photos. The dialog fits one screen, with the
   file name at the top; click the photo to see it full screen, as large as the
   window allows. The star in the photo's top-right corner, or the **F**
   key, marks it as a favorite (click or press again to unmark); the time it

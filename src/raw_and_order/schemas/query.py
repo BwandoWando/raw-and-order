@@ -2,6 +2,7 @@
 
 from datetime import date
 from enum import StrEnum
+from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -77,6 +78,15 @@ class PhotoPage(BaseModel):
     def pages(self) -> int:
         """Number of pages (at least 1)."""
         return max(1, -(-self.total // self.page_size))
+
+
+class PhotoMarks(BaseModel):
+    """Which of some photos are favorites and which are marked for deletion."""
+
+    model_config = ConfigDict(frozen=True)
+
+    favorites: frozenset[Path] = frozenset()
+    trashed: frozenset[Path] = frozenset()
 
 
 class FilterOptions(BaseModel):

@@ -85,3 +85,14 @@ def test_deleting_the_photo_deletes_its_favorite(
         session.execute(delete(PhotoRow).where(PhotoRow.path == str(PHOTO)))
 
     assert _stored_times(session_factory) == []
+
+
+def test_favorites_among_checks_a_whole_page_at_once(
+    favorites: SqlAlchemyFavoriteRepository,
+) -> None:
+    favorites.set_favorite(PHOTO, True, when=MORNING)
+    unknown = Path("/photos/not-stored.arw")
+
+    assert favorites.favorites_among([PHOTO, unknown]) == {PHOTO}
+    assert favorites.favorites_among([unknown]) == set()
+    assert favorites.favorites_among([]) == set()

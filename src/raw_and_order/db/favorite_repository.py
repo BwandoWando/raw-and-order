@@ -4,6 +4,7 @@ The UI reads and sets them through its ``PhotoLibrary``; the catalog's
 ``only_favorites`` filter reads the same ``favorites`` table.
 """
 
+from collections.abc import Sequence
 from datetime import datetime
 from pathlib import Path
 from typing import Protocol
@@ -28,6 +29,10 @@ class FavoriteStore(Protocol):
 
         ``when`` is the local time it was marked; unmarking ignores it.
         """
+        ...
+
+    def favorites_among(self, paths: Sequence[Path]) -> set[Path]:
+        """Return those of ``paths`` that are favorites, in one query."""
         ...
 
 
@@ -74,6 +79,24 @@ class SqlAlchemyFavoriteRepository:
                 _add(session, photo_id, when)
             else:
                 _remove(session, photo_id)
+
+    def favorites_among(self, paths: Sequence[Path]) -> set[Path]:
+        """Return those of ``paths`` that are favorites, in one query.
+
+        For a page of gallery tiles: one query, not one per photo.
+
+        Raises:
+            PersistenceError: If the query fails.
+        """
+        if not paths:
+            return set()
+        query = (
+            select(PhotoRow.path)
+            .join(FavoriteRow, FavoriteRow.photo_id == PhotoRow.id)
+            .where(PhotoRow.path.in_([str(p) for p in paths]))
+        )
+        with database_errors("read favorites"), self._session_factory() as session:
+            return {Path(p) for p in session.scalars(query)}
 
 
 def _add(session: Session, photo_id: int, when: datetime) -> None:

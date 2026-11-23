@@ -24,6 +24,7 @@ from raw_and_order.media.protocols import Thumbnailer
 from raw_and_order.schemas import FailureRecord, PhotoRecord
 from raw_and_order.schemas.query import (
     FilterOptions,
+    PhotoMarks,
     PhotoPage,
     PhotoQuery,
     PhotoStats,
@@ -145,6 +146,16 @@ class CachedPhotoLibrary:
         """
         self._favorites.set_favorite(path, favorite, when=datetime.now())
         _forget_filtered_results()
+
+    def marks(self, paths: Sequence[Path]) -> PhotoMarks:
+        """Return which of ``paths`` are favorites or marked (not cached).
+
+        Two queries for a whole page, read fresh like the single checks.
+        """
+        return PhotoMarks(
+            favorites=frozenset(self._favorites.favorites_among(paths)),
+            trashed=frozenset(self._trash.trashed_among(paths)),
+        )
 
     def is_trashed(self, path: Path) -> bool:
         """Return True if the photo is marked for deletion (not cached)."""

@@ -83,3 +83,13 @@ def test_deleting_the_photo_row_deletes_its_mark(
         session.execute(delete(PhotoRow).where(PhotoRow.path == str(PHOTO)))
 
     assert _stored_times(session_factory) == []
+
+
+def test_trashed_among_checks_a_whole_page_at_once(
+    trash: SqlAlchemyTrashRepository,
+) -> None:
+    trash.set_trashed(PHOTO, True, when=MORNING)
+    unknown = Path("/photos/not-stored.arw")
+
+    assert trash.trashed_among([PHOTO, unknown]) == {PHOTO}
+    assert trash.trashed_among([]) == set()

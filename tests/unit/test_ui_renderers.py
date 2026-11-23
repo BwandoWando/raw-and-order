@@ -522,6 +522,34 @@ def test_the_file_name_box_finds_photos_in_any_case() -> None:
     assert "Showing 1–3 of 3 photos" in [c.value for c in app.caption]  # 1, 10, 11
 
 
+def test_the_gallery_shows_marks_but_cannot_change_them() -> None:
+    records = [_record(i) for i in range(4)]
+    library = FakePhotoLibrary(records)
+    library.favorites = {records[0].path, records[2].path}
+    library.trashed = {records[1].path, records[2].path}
+    app = _app(library)
+
+    labels = [b.label for b in app.button if (b.key or "").startswith("thumbopen-")]
+
+    assert labels == [
+        "Open details for IMG_0.DNG, favorite",
+        "Open details for IMG_1.DNG, marked for deletion",
+        "Open details for IMG_2.DNG, favorite, marked for deletion",
+        "Open details for IMG_3.DNG",
+    ]
+    html = [
+        b
+        for h in app.get("html")
+        if (b := h.proto.body).startswith('<div class="ro-tile-frame')
+    ]
+    assert len(html) == 3  # IMG_3 is neither, so no badges at all
+    # No star or bin button outside the photo details.
+    keys = {b.key for b in app.button}
+    assert not any(
+        (k or "").startswith(("detail-favorite-", "detail-trash-")) for k in keys
+    )
+
+
 def test_export_tab_counts_previews_and_offers_a_download() -> None:
     app = _app(FakePhotoLibrary([_record(i) for i in range(3)]))
 

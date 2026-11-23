@@ -5,6 +5,7 @@ reads and sets them through its ``PhotoLibrary``; the catalog's
 ``only_trashed`` filter ("Marked for deletion only") reads the same table.
 """
 
+from collections.abc import Sequence
 from datetime import datetime
 from pathlib import Path
 from typing import Protocol
@@ -29,6 +30,10 @@ class TrashStore(Protocol):
 
         ``when`` is the local time it was marked; unmarking ignores it.
         """
+        ...
+
+    def trashed_among(self, paths: Sequence[Path]) -> set[Path]:
+        """Return those of ``paths`` that are marked for deletion, in one query."""
         ...
 
 
@@ -75,6 +80,24 @@ class SqlAlchemyTrashRepository:
                 _add(session, photo_id, when)
             else:
                 _remove(session, photo_id)
+
+    def trashed_among(self, paths: Sequence[Path]) -> set[Path]:
+        """Return those of ``paths`` that are marked for deletion, in one query.
+
+        For a page of gallery tiles: one query, not one per photo.
+
+        Raises:
+            PersistenceError: If the query fails.
+        """
+        if not paths:
+            return set()
+        query = (
+            select(PhotoRow.path)
+            .join(TrashRow, TrashRow.photo_id == PhotoRow.id)
+            .where(PhotoRow.path.in_([str(p) for p in paths]))
+        )
+        with database_errors("read the trash"), self._session_factory() as session:
+            return {Path(p) for p in session.scalars(query)}
 
 
 def _add(session: Session, photo_id: int, when: datetime) -> None:

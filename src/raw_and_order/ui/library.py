@@ -12,6 +12,7 @@ from typing import Protocol
 from raw_and_order.schemas import FailureRecord, PhotoRecord
 from raw_and_order.schemas.query import (
     FilterOptions,
+    PhotoMarks,
     PhotoPage,
     PhotoQuery,
     PhotoStats,
@@ -73,6 +74,10 @@ class PhotoLibrary(Protocol):
 
     def set_favorite(self, path: Path, favorite: bool) -> None:
         """Mark (``favorite=True``) or unmark the photo at ``path`` as a favorite."""
+        ...
+
+    def marks(self, paths: Sequence[Path]) -> PhotoMarks:
+        """Return which of ``paths`` are favorites or marked for deletion."""
         ...
 
     def is_trashed(self, path: Path) -> bool:

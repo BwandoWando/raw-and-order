@@ -10,13 +10,16 @@ next full run.
 
 from enum import StrEnum
 from pathlib import Path
+from urllib.parse import quote
 
 import streamlit as st
 
 from raw_and_order.schemas import PhotoRecord
-from raw_and_order.schemas.query import PAGE_SIZES, PhotoQuery, SortOrder
+from raw_and_order.schemas.query import PAGE_SIZES, PhotoMarks, PhotoQuery, SortOrder
 from raw_and_order.ui.css import clickable_tile, keyed, keyed_prefix, visually_hidden
 from raw_and_order.ui.detail import (
+    FAVORITE_GOLD,
+    TRASH_RED,
     GalleryPage,
     details_open,
     open_details,
@@ -31,6 +34,34 @@ THUMB_KEY_PREFIX = "thumb-"  # container holding the image and the overlay
 # The overlay's prefix must not contain the tile's: the CSS selects tiles with
 # [class*="st-key-thumb-"], which would also match "thumb-open-".
 OPEN_KEY_PREFIX = "thumbopen-"  # the overlay button itself
+# Read-only badges over a tile: a star for a favorite, a bin for a photo
+# marked for deletion. Toggled only in the photo details. Must not contain
+# THUMB_KEY_PREFIX ("thumb-"), like the overlay's prefix.
+MARKS_KEY_PREFIX = "thumbmarks-"
+# Material icons (24 x 24), the same shapes as the details' star and bin.
+STAR_PATH = (
+    "M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24"
+    "l5.46 4.73L5.82 21z"
+)
+BIN_PATH = (
+    "M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"
+)
+
+
+def icon_url(path: str, colour: str) -> str:
+    """A CSS ``url()`` of a 24 x 24 icon filled with ``colour``.
+
+    Drawn from the stylesheet because ``st.html`` strips ``<svg>`` from its
+    HTML (but keeps ``<style>``). The SVG is percent-encoded: a raw ``<``
+    inside ``<style>`` makes the sanitizer drop the whole stylesheet.
+    """
+    svg = (
+        "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'>"
+        f"<path fill='{colour}' d='{path}'/></svg>"
+    )
+    return f'url("data:image/svg+xml,{quote(svg, safe="")}")'
+
+
 GRID_KEY = "gallery-grid"
 PAGER_KEY = "gallery-pager"
 PAGE_KEY_PREFIX = "g-page-"  # a page number button: g-page-<n>
@@ -107,7 +138,9 @@ def thumbnail_css(rows: int) -> str:
     letterboxed rather than cropped.
 
     Each tile is clickable through a transparent button laid over it (see
-    :func:`~raw_and_order.ui.css.clickable_tile`).
+    :func:`~raw_and_order.ui.css.clickable_tile`). Favorite and deletion
+    badges sit above that button in a square frame as wide as the image, so
+    they land on its corners; clicks pass through them to the button.
     """
     tile_height = (
         f"calc((100vh - {CHROME_REM}rem - {rows - 1} * {ROW_GAP_REM}rem) / {rows})"
@@ -128,8 +161,73 @@ def thumbnail_css(rows: int) -> str:
     transition: filter 120ms ease-in-out;
 }}
 {clickable_tile(tile, keyed_prefix(OPEN_KEY_PREFIX))}
+/* The badges' wrapper leaves the tile's flow (else the tile's gap makes it
+   taller) and lies over the image; clicks pass through to the open button. */
+{tile} > :has(> {keyed_prefix(MARKS_KEY_PREFIX)}) {{
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    pointer-events: none;  /* read-only: a click opens the details */
+}}
+/* st.image draws the photo at the tile's full width, square. */
+.ro-tile-frame {{
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1 / 1;
+}}
+.ro-tile-mark {{
+    position: absolute;
+    right: 5%;
+    width: clamp(16px, 15%, 34px);
+    aspect-ratio: 1 / 1;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}}
+.ro-tile-mark::before {{
+    content: "";
+    width: 62%;
+    height: 62%;
+    background: center / contain no-repeat;
+}}
+.ro-tile-favorite {{ top: 5%; background: rgba(0, 0, 0, 0.45); }}
+.ro-tile-favorite::before {{ background-image: {icon_url(STAR_PATH, FAVORITE_GOLD)}; }}
+.ro-tile-trash {{ bottom: 5%; background: {TRASH_RED}; }}
+.ro-tile-trash::before {{ background-image: {icon_url(BIN_PATH, "#ffffff")}; }}
 </style>
 """
+
+
+def tile_marks_html(favorite: bool, trashed: bool) -> str:
+    """The badges over a tile: a gold star, a red bin, both or neither.
+
+    An empty string when the photo is neither, so nothing is drawn.
+    """
+    badges = []
+    if favorite:
+        badges.append(_badge("ro-tile-favorite", "Favorite"))
+    if trashed:
+        badges.append(_badge("ro-tile-trash", "Marked for deletion"))
+    if not badges:
+        return ""
+    return f'<div class="ro-tile-frame">{"".join(badges)}</div>'
+
+
+def _badge(css_class: str, label: str) -> str:
+    """One round badge, named for screen readers; the CSS draws its icon."""
+    return (
+        f'<span class="ro-tile-mark {css_class}" role="img" aria-label="{label}">'
+        "</span>"
+    )
+
+
+def open_label(name: str, favorite: bool, trashed: bool) -> str:
+    """The tile button's label, which also says how the photo is marked."""
+    marks = [
+        m for m, on in (("favorite", favorite), ("marked for deletion", trashed)) if on
+    ]
+    return f"Open details for {name}" + "".join(f", {m}" for m in marks)
 
 
 SORT_LABELS = {
@@ -162,7 +260,8 @@ def render_gallery(filters: PhotoQuery, library: PhotoLibrary) -> None:
     last = first + len(result.items) - 1
     st.caption(f"Showing {first}–{last} of {result.total} photos")
     page = GalleryPage.from_result(result, query)
-    _grid(result.items, query.page_size, page, library)
+    marks = library.marks(page.paths)  # one lookup for the whole page
+    _grid(result.items, query.page_size, page, marks, library)
     show_details(library)  # one fixed place, so reruns never reopen it
     _pager(page_number, result.pages)
 
@@ -178,6 +277,11 @@ def thumbnail_key(path: Path | str) -> str:
     return f"{THUMB_KEY_PREFIX}{path_digest(path)}"
 
 
+def marks_key(path: Path | str) -> str:
+    """Stable key of the read-only badges over a photo's thumbnail."""
+    return f"{MARKS_KEY_PREFIX}{path_digest(path)}"
+
+
 def open_button_key(path: Path | str) -> str:
     """Stable key of the invisible button laid over a photo's thumbnail."""
     return f"{OPEN_KEY_PREFIX}{path_digest(path)}"
@@ -187,6 +291,7 @@ def _grid(
     items: list[PhotoRecord],
     page_size: int,
     page: GalleryPage,
+    marks: PhotoMarks,
     library: PhotoLibrary,
 ) -> None:
     """Thumbnails only, sized so a full page fits the window.
@@ -204,26 +309,37 @@ def _grid(
                 cells, items[start : start + columns], strict=False
             ):
                 with cell:
-                    _thumbnail(record, page, max_px, library)
+                    _thumbnail(record, page, max_px, marks, library)
 
 
 def _thumbnail(
-    record: PhotoRecord, page: GalleryPage, max_px: int, library: PhotoLibrary
+    record: PhotoRecord,
+    page: GalleryPage,
+    max_px: int,
+    marks: PhotoMarks,
+    library: PhotoLibrary,
 ) -> None:
     """The photo itself, clickable to open its details.
 
-    Hovering shows its file name, description, capture date and scene.
+    Hovering shows its file name, description, capture date and scene. A
+    star or bin shows if it is a favorite or marked for deletion; those are
+    changed only in the details.
 
     ``page`` holds the photos on this page, which the details can step through.
     """
+    favorite = record.path in marks.favorites
+    trashed = record.path in marks.trashed
     with st.container(key=thumbnail_key(record.path)):
         image = library.thumbnail(record.preview_path, max_px)
         if image is None:
             st.caption("Preview missing")
         else:
             st.image(image, width="stretch")
+        if badges := tile_marks_html(favorite, trashed):
+            with st.container(key=marks_key(record.path)):
+                st.html(badges)
         st.button(
-            f"Open details for {record.path.name}",
+            open_label(record.path.name, favorite, trashed),
             key=open_button_key(record.path),
             help=thumbnail_tooltip(record),
             on_click=open_details,

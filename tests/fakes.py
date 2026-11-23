@@ -27,6 +27,7 @@ from raw_and_order.schemas import (
 )
 from raw_and_order.schemas.query import (
     FilterOptions,
+    PhotoMarks,
     PhotoPage,
     PhotoQuery,
     PhotoStats,
@@ -276,6 +277,13 @@ class FakePhotoLibrary:
 
     def is_trashed(self, path: Path) -> bool:
         return path in self.trashed
+
+    def marks(self, paths: Sequence[Path]) -> PhotoMarks:
+        wanted = set(paths)
+        return PhotoMarks(
+            favorites=frozenset(self.favorites & wanted),
+            trashed=frozenset(self.trashed & wanted),
+        )
 
     def set_trashed(self, path: Path, trashed: bool) -> None:
         if trashed:

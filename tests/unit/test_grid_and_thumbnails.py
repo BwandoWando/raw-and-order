@@ -9,9 +9,11 @@ from raw_and_order.media.thumbnails import JpegThumbnailer
 from raw_and_order.schemas.query import PAGE_SIZES
 from raw_and_order.ui.gallery import (
     CURRENT_PAGE_COLOURS,
+    open_label,
     page_window,
     pager_css,
     thumbnail_css,
+    tile_marks_html,
 )
 from raw_and_order.ui.grid import THUMBNAIL_SIZES, grid_shape, thumbnail_px
 
@@ -153,3 +155,33 @@ def test_the_current_page_inverts_with_the_theme() -> None:
     assert f"background: {light_circle};" in pager_css("light")
     assert f"color: {light_number};" in pager_css(None)  # unknown: light
     assert f"background: {dark_circle};" in pager_css("dark")
+
+
+def test_unmarked_photos_get_no_badges() -> None:
+    assert tile_marks_html(favorite=False, trashed=False) == ""
+
+
+def test_badges_show_a_star_a_bin_or_both() -> None:
+    star = tile_marks_html(favorite=True, trashed=False)
+    bin_ = tile_marks_html(favorite=False, trashed=True)
+    both = tile_marks_html(favorite=True, trashed=True)
+
+    assert 'aria-label="Favorite"' in star and "Marked for deletion" not in star
+    assert 'aria-label="Marked for deletion"' in bin_ and "Favorite" not in bin_
+    assert both.count('class="ro-tile-mark') == 2
+    assert "<button" not in both  # read-only: nothing to toggle in the gallery
+
+
+def test_the_tile_label_says_how_the_photo_is_marked() -> None:
+    assert open_label("a.jpg", False, False) == "Open details for a.jpg"
+    assert open_label("a.jpg", True, True) == (
+        "Open details for a.jpg, favorite, marked for deletion"
+    )
+
+
+def test_the_tile_stylesheet_has_no_raw_angle_brackets() -> None:
+    # st.html drops a <style> whose text contains "<", e.g. an unencoded SVG.
+    body = thumbnail_css(rows=4).split("<style>")[1].split("</style>")[0]
+
+    assert "<" not in body
+    assert "data:image/svg+xml," in body  # the star and bin icons
