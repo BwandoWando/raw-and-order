@@ -20,3 +20,4 @@ def test_sort_and_paging_are_not_filters() -> None:
     assert not PhotoQuery(sort=SortOrder.CAPTURED_OLDEST, page=2).has_filters()
     assert PhotoQuery(only_favorites=True).has_filters()
     assert PhotoQuery(only_trashed=True).has_filters()
+    assert PhotoQuery(file_name="dsc").has_filters()

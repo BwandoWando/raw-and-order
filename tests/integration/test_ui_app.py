@@ -166,18 +166,6 @@ def test_empty_database_shows_hint(app_with) -> None:  # type: ignore[no-untyped
     assert any("No photos" in i.value for i in app.info)
 
 
-def test_white_balance_slider_filters(app_with, tmp_path: Path) -> None:  # type: ignore[no-untyped-def]
-    app = app_with(3)  # 5000, 5100 and 5200 K
-
-    assert app.slider(key=FilterKey.KELVIN).value == (5000, 5200)
-    app.slider(key=FilterKey.KELVIN).set_range(5100, 5200).run()
-
-    assert not app.exception
-    assert "Showing 1–2 of 2 photos" in _captions(app)
-    app.button(key=open_button_key(tmp_path / "IMG_1.ARW")).click().run()
-    assert not app.exception
-
-
 def test_clicking_the_thumbnail_opens_details(app_with, tmp_path: Path) -> None:  # type: ignore[no-untyped-def]
     app = app_with(2)
     photo = tmp_path / "IMG_0.ARW"
@@ -235,18 +223,16 @@ def test_reset_filters_restores_every_filter(app_with) -> None:  # type: ignore[
     app = app_with(6)
     untouched = _sidebar_filters(app)
     app.text_input(key=FilterKey.TEXT).input("photo").run()
+    app.text_input(key=FilterKey.FILE_NAME).input("IMG").run()
     for key, value in [
-        (FilterKey.SCENES, "street"),
         (FilterKey.TAGS, "city"),
         (FilterKey.CAMERAS, "ILCE-6400"),
         (FilterKey.LENSES, "Sigma 17-40mm F1.8 DC | A"),
         (FilterKey.ANNOTATED_BY, "ollama:gemma3:12b"),
     ]:
         app.multiselect(key=key).select(value).run()
-    app.button_group(key=FilterKey.PEOPLE).set_value("Yes").run()
     app.toggle(key=FilterKey.FAVORITES).set_value(True).run()
     app.toggle(key=FilterKey.TRASHED).set_value(True).run()
-    app.slider(key=FilterKey.KELVIN).set_range(5100, 5300).run()
     day = date(2026, 1, 11)
     app.date_input(key=FilterKey.DATES).set_value((day, day)).run()
     assert "Showing 1–6 of 6 photos" not in _captions(app)
@@ -261,15 +247,12 @@ def test_reset_filters_restores_every_filter(app_with) -> None:  # type: ignore[
 def test_reset_covers_every_sidebar_filter(app_with) -> None:  # type: ignore[no-untyped-def]
     app = app_with(3)
     options = FilterOptions(
-        scenes=[],
         tags=[],
         cameras=[],
         lenses=[],
         annotated_by=[],
         earliest=date(2026, 1, 1),
         latest=date(2026, 2, 1),
-        kelvin_min=5000,
-        kelvin_max=5200,
     )
 
     assert set(_sidebar_filters(app)) == set(filter_defaults(options))

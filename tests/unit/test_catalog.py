@@ -2,11 +2,13 @@ from datetime import UTC, date, datetime
 from pathlib import Path
 
 import pytest
+from sqlalchemy import literal, select
 from sqlalchemy.orm import Session, sessionmaker
 
 from raw_and_order.db.catalog import (
     SqlAlchemyPhotoCatalog,
     escape_like,
+    file_name_of,
     filter_conditions,
 )
 from raw_and_order.db.copy_repository import SqlAlchemyCopyRepository
@@ -131,12 +133,17 @@ def test_no_filters_returns_all_newest_capture_first_undated_last(
         ({"text": "sunset"}, ["beach.arw", "street.arw"]),  # description or tags
         ({"text": "SEA"}, ["beach.arw"]),  # case-insensitive
         ({"text": "100%"}, ["odd_100%.arw"]),  # % is literal, not a wildcard
+        ({"file_name": "STREET"}, ["street.arw"]),  # file name, any case
+        ({"file_name": ".JPG"}, ["portrait.jpg"]),
+        ({"file_name": "_100%"}, ["odd_100%.arw"]),  # _ and % are literal
+        ({"file_name": "photos"}, []),  # folders are not searched
+        (
+            {"file_name": "  "},
+            ["beach.arw", "street.arw", "odd_100%.arw", "portrait.jpg"],
+        ),
         ({"tags": ("sunset",)}, ["beach.arw"]),  # exact tag, not "sunset-ish"
         ({"tags": ("sunset", "beach")}, ["beach.arw"]),
         ({"tags": ("sunset", "city")}, []),  # must have all
-        ({"scenes": ("street", "portrait")}, ["street.arw", "portrait.jpg"]),
-        ({"contains_people": True}, ["street.arw", "portrait.jpg"]),
-        ({"contains_people": False}, ["beach.arw", "odd_100%.arw"]),
         ({"cameras": ("Pixel 8",)}, ["portrait.jpg"]),
         (
             {"lenses": ("Sigma 17-40mm F1.8 DC | A",)},
@@ -174,7 +181,6 @@ def test_pagination(catalog: SqlAlchemyPhotoCatalog) -> None:
 def test_filter_options(catalog: SqlAlchemyPhotoCatalog) -> None:
     options = catalog.filter_options()
 
-    assert options.scenes == ["landscape", "portrait", "street"]
     assert options.cameras == ["ILCE-6400", "Pixel 8"]
     assert options.lenses == ["Sigma 17-40mm F1.8 DC | A"]
     assert options.tags[0] == "sky"  # most frequent first
@@ -240,25 +246,9 @@ def test_escape_like() -> None:
     assert escape_like("50%_off\\") == "50\\%\\_off\\\\"
 
 
-@pytest.mark.parametrize(
-    ("filters", "expected"),
-    [
-        ({"kelvin_min": 5000}, ["beach.arw"]),
-        ({"kelvin_max": 3150}, ["street.arw"]),  # bounds are inclusive
-        ({"kelvin_min": 3000, "kelvin_max": 6000}, ["beach.arw", "street.arw"]),
-    ],
-)
-def test_white_balance_filter(
-    catalog: SqlAlchemyPhotoCatalog, filters: dict[str, object], expected: list[str]
-) -> None:
-    assert _names(catalog, **filters) == expected
-
-
-def test_white_balance_options_and_buckets(catalog: SqlAlchemyPhotoCatalog) -> None:
-    options = catalog.filter_options()
+def test_white_balance_buckets(catalog: SqlAlchemyPhotoCatalog) -> None:
     stats = catalog.stats()
 
-    assert (options.kelvin_min, options.kelvin_max) == (3150, 5400)
     assert [(r.label, r.count) for r in stats.by_white_balance] == [
         ("3000", 1),
         ("3500", 0),  # empty bands are kept so gaps are visible
@@ -270,11 +260,11 @@ def test_white_balance_options_and_buckets(catalog: SqlAlchemyPhotoCatalog) -> N
 
 def test_tag_lists_follow_the_filters(catalog: SqlAlchemyPhotoCatalog) -> None:
     everything = catalog.tag_lists(PhotoQuery())
-    with_people = catalog.tag_lists(PhotoQuery(contains_people=True))
+    pixel = catalog.tag_lists(PhotoQuery(cameras=("Pixel 8",)))
 
     assert ["sunset", "beach", "sky"] in everything
     assert len(everything) == len(_names(catalog))
-    assert sorted(map(tuple, with_people)) == [("city", "sunset-ish"), ("person",)]
+    assert pixel == [["person"]]
 
 
 def test_copies_of_and_stats_count(
@@ -301,10 +291,10 @@ def test_matching_returns_every_filtered_photo_unpaged(
     catalog: SqlAlchemyPhotoCatalog,
 ) -> None:
     everything = catalog.matching(PhotoQuery(page_size=1))
-    people = catalog.matching(PhotoQuery(contains_people=True))
+    sony = catalog.matching(PhotoQuery(cameras=("ILCE-6400",)))
 
     assert len(everything) == 4  # page_size does not limit it
-    assert {r.path.name for r in people} == {"street.arw", "portrait.jpg"}
+    assert {r.path.name for r in sony} == {"beach.arw", "street.arw", "odd_100%.arw"}
 
 
 def test_favorites_only_filter(
@@ -318,7 +308,9 @@ def test_favorites_only_filter(
         )
 
     assert _names(catalog, only_favorites=True) == ["street.arw", "portrait.jpg"]
-    assert _names(catalog, only_favorites=True, contains_people=False) == []
+    assert _names(catalog, only_favorites=True, cameras=("Pixel 8",)) == [
+        "portrait.jpg"
+    ]
     assert sorted(catalog.tag_lists(PhotoQuery(only_favorites=True))) == [
         ["city", "sunset-ish"],
         ["person"],
@@ -334,7 +326,7 @@ def test_marked_for_deletion_only_filter(
         trash.set_trashed(Path("/photos") / name, True, when=datetime(2026, 11, 23, 9))
 
     assert _names(catalog, only_trashed=True) == ["beach.arw", "portrait.jpg"]
-    assert _names(catalog, only_trashed=True, contains_people=False) == ["beach.arw"]
+    assert _names(catalog, only_trashed=True, cameras=("Pixel 8",)) == ["portrait.jpg"]
     assert (
         catalog.position(Path("/photos/portrait.jpg"), PhotoQuery(only_trashed=True))
         == 2
@@ -351,37 +343,31 @@ def test_filter_conditions_add_one_condition_per_filter_set() -> None:
     query = PhotoQuery(
         text="sea",
         tags=("sunset", "sky"),  # one condition per tag (all of them)
-        scenes=("landscape",),
         cameras=("ILCE-6400",),
-        contains_people=False,
         date_from=date(2026, 1, 1),  # a range: one condition per bound
         date_to=date(2026, 2, 1),
         only_favorites=True,
         only_trashed=True,
-        kelvin_min=4000,
+        file_name="DSC",
     )
 
-    assert len(filter_conditions(query)) == 11
+    assert len(filter_conditions(query)) == 9
 
 
 def test_similar_photos_follow_the_filters(
     session_factory: sessionmaker[Session], repository: SqlAlchemyPhotoRepository
 ) -> None:
-    repository.upsert(_photo("target.arw"))
-    repository.upsert(_photo("same-scene.arw"))
-    repository.upsert(_photo("other-scene.arw", scene=SceneType.STREET))
+    for name in ("target.arw", "kept.arw", "hidden.arw"):
+        repository.upsert(_photo(name))
     catalog = SqlAlchemyPhotoCatalog(session_factory)
     target = catalog.get(Path("/photos/target.arw"))
     assert target is not None
 
     unfiltered = catalog.similar_photos(target)
-    filtered = catalog.similar_photos(target, PhotoQuery(scenes=("landscape",)))
+    filtered = catalog.similar_photos(target, PhotoQuery(file_name="kept"))
 
-    assert {m.record.path.name for m in unfiltered} == {
-        "same-scene.arw",
-        "other-scene.arw",
-    }
-    assert [m.record.path.name for m in filtered] == ["same-scene.arw"]
+    assert {m.record.path.name for m in unfiltered} == {"kept.arw", "hidden.arw"}
+    assert [m.record.path.name for m in filtered] == ["kept.arw"]
 
 
 def test_position_counts_in_sort_order_across_pages(
@@ -400,25 +386,38 @@ def test_position_counts_in_sort_order_across_pages(
 def test_position_counts_only_photos_matching_the_filters(
     catalog: SqlAlchemyPhotoCatalog,
 ) -> None:
-    people = PhotoQuery(contains_people=True)
-    matching = catalog.matching(people)
-    hidden = next(
-        r for r in catalog.matching(PhotoQuery()) if not r.annotation.contains_people
-    )
+    sony = PhotoQuery(cameras=("ILCE-6400",))
+    matching = catalog.matching(sony)
+    hidden = Path("/photos/portrait.jpg")  # taken with a Pixel 8
 
-    assert [catalog.position(r.path, people) for r in matching] == [1, 2]
-    assert catalog.position(hidden.path, people) is None
-    assert catalog.position(Path("/photos/not-stored.arw"), people) is None
+    assert [catalog.position(r.path, sony) for r in matching] == [1, 2, 3]
+    assert catalog.position(hidden, sony) is None
+    assert catalog.position(Path("/photos/not-stored.arw"), sony) is None
 
 
 def test_tagged_previews_follow_the_filters_in_path_order(
     catalog: SqlAlchemyPhotoCatalog,
 ) -> None:
     every = catalog.tagged_previews(PhotoQuery())
-    people = catalog.tagged_previews(PhotoQuery(contains_people=True))
+    sony = catalog.tagged_previews(PhotoQuery(cameras=("ILCE-6400",)))
 
     previews = [preview for preview, _ in every]
     assert previews == sorted(previews)
-    assert len(every) == 4 and len(people) == 2
+    assert len(every) == 4 and len(sony) == 3
     stored = {r.preview_path: r.annotation.tags for r in catalog.matching(PhotoQuery())}
     assert all(stored[preview] == tags for preview, tags in every)
+
+
+@pytest.mark.parametrize(
+    ("path", "name"),
+    [
+        ("/photos/2026/DONE/_DSC0812.ARW", "_DSC0812.ARW"),
+        ("C:\\Photos\\2026\\IMG_1.JPG", "IMG_1.JPG"),  # Windows separators
+        ("relative.jpg", "relative.jpg"),  # no folder at all
+    ],
+)
+def test_file_name_of_takes_the_last_part_of_a_path(
+    session_factory: sessionmaker[Session], path: str, name: str
+) -> None:
+    with session_factory() as session:
+        assert session.scalar(select(file_name_of(literal(path)))) == name

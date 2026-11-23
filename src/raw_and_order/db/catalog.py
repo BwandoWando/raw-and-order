@@ -151,14 +151,7 @@ class SqlAlchemyPhotoCatalog:
             earliest, latest = session.execute(
                 select(func.min(PhotoRow.captured_at), func.max(PhotoRow.captured_at))
             ).one()
-            kelvin_min, kelvin_max = session.execute(
-                select(
-                    func.min(PhotoRow.white_balance_k),
-                    func.max(PhotoRow.white_balance_k),
-                )
-            ).one()
             return FilterOptions(
-                scenes=self._distinct(session, PhotoRow.scene),
                 tags=[tag for tag, _ in tags.most_common()],
                 tag_counts=dict(tags),
                 cameras=self._distinct(session, PhotoRow.model),
@@ -166,8 +159,6 @@ class SqlAlchemyPhotoCatalog:
                 annotated_by=self._distinct(session, PhotoRow.annotated_by),
                 earliest=earliest.date() if earliest else None,
                 latest=latest.date() if latest else None,
-                kelvin_min=kelvin_min,
-                kelvin_max=kelvin_max,
             )
 
     def tag_lists(self, query: PhotoQuery) -> list[list[str]]:
@@ -385,18 +376,14 @@ def filter_conditions(query: PhotoQuery) -> list[ColumnElement[bool]]:
     the result to see exactly what a query asks the database.
     """
     conditions = _text_conditions(query.text)
+    conditions.extend(_file_name_conditions(query.file_name))
     if query.only_favorites:
         conditions.append(PhotoRow.id.in_(select(FavoriteRow.photo_id)))
     if query.only_trashed:
         conditions.append(PhotoRow.id.in_(select(TrashRow.photo_id)))
     conditions.extend(_tag_condition(tag) for tag in query.tags)
     conditions.extend(_one_of_conditions(query))
-    if query.contains_people is not None:
-        conditions.append(PhotoRow.contains_people.is_(query.contains_people))
     conditions.extend(_date_conditions(query.date_from, query.date_to))
-    conditions.extend(
-        _between(PhotoRow.white_balance_k, query.kelvin_min, query.kelvin_max)
-    )
     return conditions
 
 
@@ -413,10 +400,29 @@ def _text_conditions(text: str | None) -> list[ColumnElement[bool]]:
     ]
 
 
+def _file_name_conditions(part: str | None) -> list[ColumnElement[bool]]:
+    """``part`` appears in the file name (any case), not in its folders."""
+    if not part or not part.strip():
+        return []
+    pattern = f"%{escape_like(part.strip())}%"
+    return [file_name_of(PhotoRow.path).ilike(pattern, escape=LIKE_ESCAPE)]
+
+
+def file_name_of(path: ColumnElement[str] | InstrumentedAttribute[str]) -> Any:
+    """SQL for the last part of ``path``, after its last slash or backslash.
+
+    SQLite has no basename function. ``rtrim`` with every character of the
+    path except ``/`` as the set to strip leaves the folder part, which is
+    then removed from the path.
+    """
+    slashed = func.replace(path, "\\", "/")
+    folder = func.rtrim(slashed, func.replace(slashed, "/", ""))
+    return func.replace(slashed, folder, "")
+
+
 def _one_of_conditions(query: PhotoQuery) -> list[ColumnElement[bool]]:
-    """Scene, camera, lens, annotating model: the value is one of those picked."""
+    """Camera, lens, annotating model: the value is one of those picked."""
     picked: list[tuple[InstrumentedAttribute[Any], tuple[str, ...]]] = [
-        (PhotoRow.scene, query.scenes),
         (PhotoRow.model, query.cameras),
         (PhotoRow.lens_model, query.lenses),
         (PhotoRow.annotated_by, query.annotated_by),

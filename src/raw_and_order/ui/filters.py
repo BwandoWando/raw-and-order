@@ -13,8 +13,6 @@ import streamlit as st
 
 from raw_and_order.schemas.query import FilterOptions, PhotoQuery
 
-PEOPLE_CHOICES = {"Any": None, "Yes": True, "No": False}
-KELVIN_STEP = 50
 RESET_KEY = "f_reset"
 
 
@@ -27,15 +25,13 @@ class FilterKey(StrEnum):
     """
 
     TEXT = "f_text"
+    FILE_NAME = "f_file_name"
     FAVORITES = "f_favorites"
     TRASHED = "f_trashed"
-    SCENES = "f_scenes"
     TAGS = "f_tags"
-    PEOPLE = "f_people"
     CAMERAS = "f_cameras"
     LENSES = "f_lenses"
     DATES = "f_dates"
-    KELVIN = "f_kelvin"
     ANNOTATED_BY = "f_annotated_by"
 
 
@@ -59,6 +55,13 @@ def render_filters(options: FilterOptions) -> PhotoQuery:
     text = sidebar.text_input(
         "Search", key=FilterKey.TEXT, placeholder="description or tag"
     )
+    file_name = sidebar.text_input(
+        "File name",
+        key=FilterKey.FILE_NAME,
+        placeholder="e.g. DSC0812 or .jpg",
+        help="Photos whose file name contains this, in any case. Folders are "
+        "not searched.",
+    )
     only_favorites = sidebar.toggle("Favorites only", key=FilterKey.FAVORITES)
     only_trashed = sidebar.toggle(
         "Marked for deletion only",
@@ -66,7 +69,6 @@ def render_filters(options: FilterOptions) -> PhotoQuery:
         help="Photos marked with the bin (or the Delete key) in the photo "
         "details. Nothing is deleted.",
     )
-    scenes = sidebar.multiselect("Scene", options.scenes, key=FilterKey.SCENES)
     tags = sidebar.multiselect(
         "Tags (all of)",
         options.tags,
@@ -76,13 +78,9 @@ def render_filters(options: FilterOptions) -> PhotoQuery:
         help="Photos with every one of these tags. Clicking a cluster on the "
         "Tags tab fills this in.",
     )
-    people = sidebar.segmented_control(
-        "People", list(PEOPLE_CHOICES), key=FilterKey.PEOPLE
-    )
     cameras = sidebar.multiselect("Camera", options.cameras, key=FilterKey.CAMERAS)
     lenses = sidebar.multiselect("Lens", options.lenses, key=FilterKey.LENSES)
     date_from, date_to = _date_range(options)
-    kelvin_min, kelvin_max = _kelvin_range(options)
     annotators = sidebar.multiselect(
         "Annotated by", options.annotated_by, key=FilterKey.ANNOTATED_BY
     )
@@ -95,17 +93,14 @@ def render_filters(options: FilterOptions) -> PhotoQuery:
     )
     return PhotoQuery(
         text=text or None,
-        scenes=tuple(scenes),
+        file_name=file_name or None,
         tags=tuple(tags),
-        contains_people=PEOPLE_CHOICES.get(people or "Any"),
         cameras=tuple(cameras),
         lenses=tuple(lenses),
         date_from=date_from,
         date_to=date_to,
         only_favorites=only_favorites,
         only_trashed=only_trashed,
-        kelvin_min=kelvin_min,
-        kelvin_max=kelvin_max,
         annotated_by=tuple(annotators),
     )
 
@@ -113,24 +108,21 @@ def render_filters(options: FilterOptions) -> PhotoQuery:
 def filter_defaults(options: FilterOptions) -> dict[str, object]:
     """Each sidebar filter's key and the value that means "no filter".
 
-    The date and white balance filters exist only when the photos have a
-    range of those values to choose from.
+    The date filter exists only when the photos have capture dates to
+    choose from.
     """
     defaults: dict[str, object] = {
         FilterKey.TEXT: "",
+        FilterKey.FILE_NAME: "",
         FilterKey.FAVORITES: False,
         FilterKey.TRASHED: False,
-        FilterKey.SCENES: [],
         FilterKey.TAGS: [],
-        FilterKey.PEOPLE: "Any",
         FilterKey.CAMERAS: [],
         FilterKey.LENSES: [],
         FilterKey.ANNOTATED_BY: [],
     }
     if (dates := _date_bounds(options)) is not None:
         defaults[FilterKey.DATES] = dates
-    if (kelvin := _kelvin_bounds(options)) is not None:
-        defaults[FilterKey.KELVIN] = kelvin
     return defaults
 
 
@@ -139,14 +131,6 @@ def _date_bounds(options: FilterOptions) -> tuple[date, date] | None:
     if options.earliest is None or options.latest is None:
         return None
     return options.earliest, options.latest
-
-
-def _kelvin_bounds(options: FilterOptions) -> tuple[int, int] | None:
-    """Lowest and highest white balance, or ``None`` if there is no range."""
-    low, high = options.kelvin_min, options.kelvin_max
-    if low is None or high is None or low == high:
-        return None
-    return low, high
 
 
 def _date_range(options: FilterOptions) -> tuple[date | None, date | None]:
@@ -165,24 +149,6 @@ def _date_range(options: FilterOptions) -> tuple[date | None, date | None]:
         start, end = picked
         return (None, None) if (start, end) == bounds else (start, end)
     return None, None  # mid-selection: only a start date picked so far
-
-
-def _kelvin_range(options: FilterOptions) -> tuple[int | None, int | None]:
-    """The white balance filter; ``(None, None)`` when it does not narrow."""
-    bounds = _kelvin_bounds(options)
-    if bounds is None:
-        return None, None  # nothing to choose between
-    picked: Any = st.sidebar.slider(  # a range: Session State holds (low, high)
-        "White balance (K)",
-        min_value=bounds[0],
-        max_value=bounds[1],
-        step=KELVIN_STEP,
-        key=FilterKey.KELVIN,
-        help="Colour temperature; most values are estimated from the camera's "
-        "Auto white balance.",
-    )
-    start, end = picked
-    return (None, None) if (start, end) == bounds else (start, end)
 
 
 def show_tags(tags: list[str]) -> None:

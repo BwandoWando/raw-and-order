@@ -12,10 +12,10 @@ one loads the page it is on and shows it here, so stepping carries on from
 there. The dialog loads those pages itself, so it stays open (no flicker), with
 a spinner if loading takes a moment; the gallery behind follows on the next
 full run, e.g. when the dialog closes. A star in the photo's corner marks it as
-a favorite, and a bin in the bottom-right corner (or the Delete key) marks it
-for deletion; click or press again to unmark. Clicking the photo shows its
-preview full screen, on a layer over the dialog (Streamlit allows only one
-dialog at a time).
+a favorite (or the F key), and a bin in the bottom-right corner (or the Delete
+key) marks it for deletion; click or press again to unmark. Clicking the photo
+shows its preview full screen, on a layer over the dialog (Streamlit allows
+only one dialog at a time).
 """
 
 from collections.abc import Sequence
@@ -72,6 +72,7 @@ FAVORITE_PREFIX = "detail-favorite-"
 FAVORITE_ON_KEY = f"{FAVORITE_PREFIX}on"
 FAVORITE_OFF_KEY = f"{FAVORITE_PREFIX}off"
 FAVORITE_GOLD = "#f5c518"
+FAVORITE_SHORTCUT = "F"  # F for Favorite presses the star; again, unstars
 # The bin in the photo's bottom-right corner marks it for deletion (only a
 # mark; nothing is deleted). One key per state, for the CSS.
 TRASH_PREFIX = "detail-trash-"
@@ -107,6 +108,7 @@ _ICON_ONLY_BUTTONS = visually_hidden(
     f"{keyed(NEXT_KEY)} kbd",
     f"{keyed(CLOSE_FULL_SCREEN_KEY)} {_LABEL}",
     f"{keyed_prefix(FAVORITE_PREFIX)} {_LABEL}",
+    f"{keyed_prefix(FAVORITE_PREFIX)} kbd",
     f"{keyed_prefix(TRASH_PREFIX)} {_LABEL}",
     f"{keyed_prefix(TRASH_PREFIX)} kbd",
 )
@@ -572,6 +574,8 @@ def _photo(record: PhotoRecord | None, library: PhotoLibrary) -> None:
 def _favorite_star(path: Path, library: PhotoLibrary) -> None:
     """A star that marks the photo as a favorite, or unmarks it, on click.
 
+    The F key (for Favorite) does the same, so pressing it twice stars and
+    then unstars.
     Filled and gold for a favorite, outlined otherwise (drawn by the CSS);
     the label (read by screen readers, shown as a tooltip) says what a click
     will do.
@@ -581,7 +585,8 @@ def _favorite_star(path: Path, library: PhotoLibrary) -> None:
     st.button(
         label,
         key=FAVORITE_ON_KEY if favorite else FAVORITE_OFF_KEY,
-        help=label,
+        help=f"{label} (F key)",
+        shortcut=FAVORITE_SHORTCUT,
         on_click=library.set_favorite,
         args=(path, not favorite),
     )

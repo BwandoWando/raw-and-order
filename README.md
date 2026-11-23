@@ -206,10 +206,11 @@ raw-and-order ui --port 8600 --no-open-browser
 Stop it with Ctrl+C. In VS Code, the **Streamlit UI** debug configuration in
 `.vscode/launch.json` runs it with breakpoints.
 
-- **Filters** (sidebar): text search over descriptions and tags, favorites
-  only, marked for deletion only, scene, tags (all of; each listed with its
-  number of photos, e.g. `urban (431)`), people, camera, lens, capture-date
-  range, white balance (K) range, annotating model. They apply to the
+- **Filters** (sidebar): text search over descriptions and tags, file name
+  (any part, any case; folders are not searched), favorites only, marked for
+  deletion only, tags (all of; each listed with its number of photos, e.g.
+  `urban (431)`), camera, lens, capture-date range and annotating model.
+  Scene, people and colour are covered by the tags. They apply to the
   Gallery, Tags and Export tabs.
 
 - **Gallery:** a grid of square thumbnails (24 / 48 / 72 / 99 per page; the
@@ -224,14 +225,14 @@ Stop it with Ctrl+C. In VS Code, the **Streamlit UI** debug configuration in
   photo has GPS, its SHA-256 and pHash, exact copies of it stored elsewhere
   ("Also stored at"), and similar photos. The dialog fits one screen, with the
   file name at the top; click the photo to see it full screen, as large as the
-  window allows. The star in the photo's top-right corner marks it as a
-  favorite (click again to unmark); the time it was starred is kept in the
-  `favorites` table, in this computer's local time. The bin in the
-  bottom-right corner, or the **Delete** key, marks the photo for deletion
-  (red); click or press again to unmark, so pressing Delete twice leaves it
-  as it was. Marks go in the `trash` table, also with the local time; they
-  are only marks, and no file or photo row is deleted; the "Marked for
-  deletion only" filter lists them. Step to the previous or
+  window allows. The star in the photo's top-right corner, or the **F**
+  key, marks it as a favorite (click or press again to unmark); the time it
+  was starred is kept in the `favorites` table, in this computer's local
+  time. The bin in the bottom-right corner, or the **Delete** key, marks the
+  photo for deletion (red); click or press again to unmark, so pressing
+  Delete twice leaves it as it was. Marks go in the `trash` table, also with
+  the local time; they are only marks, and no file or photo row is deleted;
+  the "Marked for deletion only" filter lists them. Step to the previous or
   next photo on the gallery page with the buttons beside the photo (shown on
   hover) or the arrow keys. Stepping on from the last photo of a page loads
   the next page and shows its first photo; stepping back from the first

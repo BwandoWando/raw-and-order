@@ -366,8 +366,7 @@ def test_the_open_dialog_survives_a_full_rerun_and_closing_ends_it() -> None:
 
 
 def test_similar_photos_hidden_by_the_filters_are_not_offered() -> None:
-    street = SAMPLE_ANNOTATION.model_copy(update={"scene": SceneType.STREET})
-    records = [_record(0), _record(1), _record(2, street)]
+    records = [_record(10), _record(11), _record(2)]  # "IMG_1" hides IMG_2
     similar = {
         records[0].path: [
             SimilarPhoto(record=records[1], distance=1),
@@ -375,7 +374,7 @@ def test_similar_photos_hidden_by_the_filters_are_not_offered() -> None:
         ]
     }
     app = _app(FakePhotoLibrary(records, similar=similar))
-    app.multiselect(key=FilterKey.SCENES).select(SAMPLE_ANNOTATION.scene.value).run()
+    app.text_input(key=FilterKey.FILE_NAME).input("IMG_1").run()
 
     app.button(key=open_button_key(records[0].path)).click().run()
 
@@ -463,11 +462,14 @@ def test_the_star_marks_and_unmarks_a_favorite(tmp_path: Path) -> None:
 
     app.button(key=open_button_key(record.path)).click().run()
     assert app.button(key=FAVORITE_OFF_KEY).label == "Add to favorites"
+    assert app.button(key=FAVORITE_OFF_KEY).proto.shortcut.lower() == "f"
     app.button(key=FAVORITE_OFF_KEY).click().run()
     assert library.favorites == {record.path}
 
-    # The dialog stays open across the rerun, now showing the filled star.
+    # The dialog stays open across the rerun, now showing the filled star,
+    # and the F key still presses it (so a second press unstars).
     assert app.button(key=FAVORITE_ON_KEY).label == "Remove from favorites"
+    assert app.button(key=FAVORITE_ON_KEY).proto.shortcut.lower() == "f"
     app.button(key=FAVORITE_ON_KEY).click().run()
     assert library.favorites == set()
 
@@ -509,6 +511,15 @@ def test_marked_for_deletion_only_lists_the_marked_photos(tmp_path: Path) -> Non
     assert not app.exception, app.exception
     assert "Showing 1–1 of 1 photos" in [c.value for c in app.caption]
     assert app.button(key=open_button_key(_record(3).path))
+
+
+def test_the_file_name_box_finds_photos_in_any_case() -> None:
+    app = _app(FakePhotoLibrary([_record(i) for i in range(12)]))  # IMG_0 ... 11
+
+    app.text_input(key=FilterKey.FILE_NAME).input("img_1").run()
+
+    assert not app.exception, app.exception
+    assert "Showing 1–3 of 3 photos" in [c.value for c in app.caption]  # 1, 10, 11
 
 
 def test_export_tab_counts_previews_and_offers_a_download() -> None:

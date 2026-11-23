@@ -187,8 +187,8 @@ class FakePhotoLibrary:
     """In-memory :class:`~raw_and_order.ui.library.PhotoLibrary` for UI tests.
 
     Search ignores sort and most filters; it pages through ``records``.
-    Search, similar photos and positions follow ``scenes``, "Favorites only"
-    and "Marked for deletion only", so tests can hide a photo.
+    Search, similar photos and positions follow ``file_name``, "Favorites
+    only" and "Marked for deletion only", so tests can hide a photo.
     """
 
     def __init__(
@@ -227,7 +227,10 @@ class FakePhotoLibrary:
         return [
             r
             for r in self._records
-            if (not query.scenes or r.annotation.scene in query.scenes)
+            if (
+                not query.file_name
+                or query.file_name.strip().lower() in r.path.name.lower()
+            )
             and (not query.only_favorites or r.path in self.favorites)
             and (not query.only_trashed or r.path in self.trashed)
         ]
@@ -237,7 +240,6 @@ class FakePhotoLibrary:
             tag for record in self._records for tag in set(record.annotation.tags)
         )
         return FilterOptions(
-            scenes=sorted({r.annotation.scene.value for r in self._records}),
             tags=[tag for tag, _ in counts.most_common()],
             tag_counts=dict(counts),
             cameras=[],

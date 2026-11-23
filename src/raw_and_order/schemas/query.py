@@ -27,9 +27,10 @@ class PhotoQuery(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     text: str | None = Field(default=None, description="Matches description or tags.")
-    scenes: tuple[str, ...] = ()
+    file_name: str | None = Field(
+        default=None, description="Part of the file name, any case (not folders)."
+    )
     tags: tuple[str, ...] = Field(default=(), description="Photo must have all.")
-    contains_people: bool | None = None
     cameras: tuple[str, ...] = ()
     lenses: tuple[str, ...] = ()
     date_from: date | None = None
@@ -40,8 +41,6 @@ class PhotoQuery(BaseModel):
     only_trashed: bool = Field(
         default=False, description="Only photos marked for deletion in the details."
     )
-    kelvin_min: int | None = Field(default=None, description="White balance, K.")
-    kelvin_max: int | None = None
     annotated_by: tuple[str, ...] = ()
     sort: SortOrder = SortOrder.CAPTURED_NEWEST
     page: int = Field(default=1, ge=1)
@@ -83,7 +82,6 @@ class PhotoPage(BaseModel):
 class FilterOptions(BaseModel):
     """Values available for each filter, from the stored photos."""
 
-    scenes: list[str]
     tags: list[str] = Field(description="Most frequent first.")
     tag_counts: dict[str, int] = Field(
         default_factory=dict, description="Photos per tag."
@@ -93,8 +91,6 @@ class FilterOptions(BaseModel):
     annotated_by: list[str]
     earliest: date | None
     latest: date | None
-    kelvin_min: int | None = None
-    kelvin_max: int | None = None
 
 
 class LabelCount(BaseModel):
