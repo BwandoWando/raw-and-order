@@ -28,6 +28,7 @@ from raw_and_order.ui.detail import (
     similar_button_key,
 )
 from raw_and_order.ui.filters import FilterKey
+from raw_and_order.ui.formatting import escape_markdown
 from raw_and_order.ui.gallery import (
     CURRENT_PAGE_KEY,
     GalleryKey,
@@ -134,7 +135,8 @@ def test_details_dialog_reads_from_the_library() -> None:
     app.button(key=open_button_key(Path("/photos/IMG_0.DNG"))).click().run()
 
     assert not app.exception
-    assert f"**{SAMPLE_ANNOTATION.description}**" in [m.value for m in app.markdown]
+    description = escape_markdown(SAMPLE_ANNOTATION.description)
+    assert f"**{description}**" in [m.value for m in app.markdown]
 
 
 def test_details_put_long_sections_in_tabs() -> None:
@@ -406,6 +408,19 @@ def test_details_dim_the_app_behind_them() -> None:
     app.button(key=open_button_key(_record(0).path)).click().run()
 
     assert any(BACKDROP in h.proto.body for h in app.get("html"))
+
+
+def test_a_description_with_stray_spaces_and_stars_is_still_bold() -> None:
+    # A real model answer ended with a space, which left "**" showing.
+    messy = SAMPLE_ANNOTATION.model_copy(
+        update={"description": "A *big* wheel at 17:04. "}
+    )
+    app = _app(FakePhotoLibrary([_record(0, messy)]))
+
+    app.button(key=open_button_key(_record(0).path)).click().run()
+
+    bold = [m.value for m in app.markdown if m.value.startswith("**A ")]
+    assert bold == [r"**A \*big\* wheel at 17\:04\.**"]  # no space before **
 
 
 def test_details_show_the_file_name_first() -> None:

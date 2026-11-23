@@ -29,9 +29,14 @@ class SceneType(StrEnum):
 
 
 class Annotation(BaseModel):
-    """Structured description of a photo."""
+    """Structured description of a photo.
 
-    model_config = ConfigDict(frozen=True)
+    Leading and trailing whitespace is stripped from the description and each
+    tag, both from the model's answer and from stored rows read back: models
+    sometimes end a description with a space, which breaks Markdown bold.
+    """
+
+    model_config = ConfigDict(frozen=True, str_strip_whitespace=True)
 
     description: str = Field(
         min_length=1,

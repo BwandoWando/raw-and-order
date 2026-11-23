@@ -147,7 +147,7 @@ def test_details_dialog_opens(app_with, tmp_path: Path) -> None:  # type: ignore
     app.button(key=open_button_key(tmp_path / "IMG_0.ARW")).click().run()
 
     assert not app.exception
-    assert "**Sunset over the sea.**" in [m.value for m in app.markdown]
+    assert r"**Sunset over the sea\.**" in [m.value for m in app.markdown]
     assert "No similar photos found." in _captions(app)  # same pHash, other tags
 
 
@@ -185,7 +185,7 @@ def test_clicking_the_thumbnail_opens_details(app_with, tmp_path: Path) -> None:
     app.button(key=open_button_key(photo)).click().run()
 
     assert not app.exception
-    assert "**Sunset over the sea.**" in [m.value for m in app.markdown]
+    assert r"**Sunset over the sea\.**" in [m.value for m in app.markdown]
 
 
 def test_thumbnail_button_is_labelled_for_screen_readers(

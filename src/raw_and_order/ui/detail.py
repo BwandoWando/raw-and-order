@@ -634,7 +634,9 @@ def _zoom(full_screen: bool) -> None:
 def _summary(record: PhotoRecord, position: int | None, count: int) -> None:
     """Description, tags and one caption line of facts about the photo."""
     annotation = record.annotation
-    st.markdown(f"**{annotation.description}**")
+    # Trimmed (a space before the closing ** stops it being bold) and escaped,
+    # so a * or _ in the text cannot end the bold early.
+    st.markdown(f"**{escape_markdown(annotation.description.strip())}**")
     st.markdown(" ".join(f"`{tag}`" for tag in annotation.tags) or "_No tags_")
     people = "yes" if annotation.contains_people else "no"
     source = date_source_label(record.exif.date_source)
