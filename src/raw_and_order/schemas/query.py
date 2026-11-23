@@ -37,6 +37,9 @@ class PhotoQuery(BaseModel):
     only_favorites: bool = Field(
         default=False, description="Only photos starred in the photo details."
     )
+    only_trashed: bool = Field(
+        default=False, description="Only photos marked for deletion in the details."
+    )
     kelvin_min: int | None = Field(default=None, description="White balance, K.")
     kelvin_max: int | None = None
     annotated_by: tuple[str, ...] = ()

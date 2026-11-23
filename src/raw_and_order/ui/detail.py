@@ -12,8 +12,10 @@ one loads the page it is on and shows it here, so stepping carries on from
 there. The dialog loads those pages itself, so it stays open (no flicker), with
 a spinner if loading takes a moment; the gallery behind follows on the next
 full run, e.g. when the dialog closes. A star in the photo's corner marks it as
-a favorite. Clicking the photo shows its preview full screen, on a layer over
-the dialog (Streamlit allows only one dialog at a time).
+a favorite, and a bin in the bottom-right corner (or the Delete key) marks it
+for deletion; click or press again to unmark. Clicking the photo shows its
+preview full screen, on a layer over the dialog (Streamlit allows only one
+dialog at a time).
 """
 
 from collections.abc import Sequence
@@ -70,6 +72,13 @@ FAVORITE_PREFIX = "detail-favorite-"
 FAVORITE_ON_KEY = f"{FAVORITE_PREFIX}on"
 FAVORITE_OFF_KEY = f"{FAVORITE_PREFIX}off"
 FAVORITE_GOLD = "#f5c518"
+# The bin in the photo's bottom-right corner marks it for deletion (only a
+# mark; nothing is deleted). One key per state, for the CSS.
+TRASH_PREFIX = "detail-trash-"
+TRASH_ON_KEY = f"{TRASH_PREFIX}on"
+TRASH_OFF_KEY = f"{TRASH_PREFIX}off"
+TRASH_RED = "#d93025"  # white bin on it: 4.6:1 contrast
+TRASH_SHORTCUT = "Delete"  # the keyboard's Delete key; pressed again, it unmarks
 ZOOM_IN_KEY = "detail-zoom-in"
 FULL_SCREEN_KEY = "detail-full-screen"
 ZOOM_OUT_KEY = "detail-zoom-out"  # click anywhere on the full-screen photo
@@ -98,6 +107,8 @@ _ICON_ONLY_BUTTONS = visually_hidden(
     f"{keyed(NEXT_KEY)} kbd",
     f"{keyed(CLOSE_FULL_SCREEN_KEY)} {_LABEL}",
     f"{keyed_prefix(FAVORITE_PREFIX)} {_LABEL}",
+    f"{keyed_prefix(TRASH_PREFIX)} {_LABEL}",
+    f"{keyed_prefix(TRASH_PREFIX)} kbd",
 )
 _SIMILAR_TILES = clickable_tile(
     keyed_prefix(SIMILAR_TILE_PREFIX), keyed_prefix(SIMILAR_OPEN_PREFIX)
@@ -187,6 +198,29 @@ DETAIL_CSS = f"""
 .st-key-{FAVORITE_ON_KEY} button::before {{
     content: "★";
     color: {FAVORITE_GOLD};
+}}
+/* The deletion mark: a bin over the photo's bottom-right corner, styled like
+   the star; solid red while the photo is marked. */
+{keyed_prefix(TRASH_PREFIX)} {{
+    position: absolute;
+    bottom: 0.5rem;
+    right: 0.5rem;
+    z-index: 2;
+    width: auto;
+}}
+{keyed_prefix(TRASH_PREFIX)} button {{
+    width: {STEP_BUTTON_PX}px;
+    height: {STEP_BUTTON_PX}px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(0, 0, 0, 0.45);
+    color: #fff;
+}}
+{keyed_prefix(TRASH_PREFIX)} button:hover {{ background: rgba(0, 0, 0, 0.65); }}
+.st-key-{TRASH_ON_KEY} button,
+.st-key-{TRASH_ON_KEY} button:hover {{
+    background: {TRASH_RED};
+    color: #fff;
 }}
 .st-key-{FULL_SCREEN_KEY} {{
     position: fixed;
@@ -518,7 +552,7 @@ def _show_on_its_page(path: Path) -> None:
 
 
 def _photo(record: PhotoRecord | None, library: PhotoLibrary) -> None:
-    """The preview with its favorite star; clicking the photo shows it full screen.
+    """The preview with its star and bin; clicking the photo shows it full screen.
 
     Nothing is drawn for a photo no longer in the database: ``_details``
     says so below, and a second message here would only repeat it.
@@ -532,6 +566,7 @@ def _photo(record: PhotoRecord | None, library: PhotoLibrary) -> None:
         st.image(str(record.preview_path), width="content")
         st.button("Show full screen", key=ZOOM_IN_KEY, on_click=_zoom, args=(True,))
         _favorite_star(record.path, library)
+        _trash_button(record.path, library)
 
 
 def _favorite_star(path: Path, library: PhotoLibrary) -> None:
@@ -549,6 +584,27 @@ def _favorite_star(path: Path, library: PhotoLibrary) -> None:
         help=label,
         on_click=library.set_favorite,
         args=(path, not favorite),
+    )
+
+
+def _trash_button(path: Path, library: PhotoLibrary) -> None:
+    """A bin that marks the photo for deletion, or unmarks it, on click.
+
+    The Delete key does the same, so pressing it twice marks and then
+    unmarks. Red while marked (drawn by the CSS); the label (read by screen
+    readers, shown as a tooltip) says what a click will do. It is only a
+    mark: no file or database row is deleted.
+    """
+    trashed = library.is_trashed(path)
+    label = "Unmark for deletion" if trashed else "Mark for deletion"
+    st.button(
+        label,
+        key=TRASH_ON_KEY if trashed else TRASH_OFF_KEY,
+        icon=":material/delete:",
+        help=f"{label} (Delete key)",
+        shortcut=TRASH_SHORTCUT,
+        on_click=library.set_trashed,
+        args=(path, not trashed),
     )
 
 

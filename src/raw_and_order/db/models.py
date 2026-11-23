@@ -97,3 +97,20 @@ class FavoriteRow(Base):
     )
     # Wall-clock time of this computer when the star was set; no time zone.
     favorited_at: Mapped[datetime] = mapped_column(DateTime)
+
+
+class TrashRow(Base):
+    """A photo marked for deletion in the photo details.
+
+    Only a mark: no file or row is deleted. Linked by the photo's row id, as
+    :class:`FavoriteRow` is, for the same reasons.
+    """
+
+    __tablename__ = "trash"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    photo_id: Mapped[int] = mapped_column(
+        ForeignKey("photos.id", ondelete="CASCADE"), unique=True, index=True
+    )
+    # Wall-clock time of this computer when it was marked; no time zone.
+    trashed_at: Mapped[datetime] = mapped_column(DateTime)

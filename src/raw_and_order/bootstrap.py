@@ -20,6 +20,7 @@ from raw_and_order.db.failure_repository import SqlAlchemyFailureRepository
 from raw_and_order.db.favorite_repository import SqlAlchemyFavoriteRepository
 from raw_and_order.db.repository import SqlAlchemyPhotoRepository
 from raw_and_order.db.session import create_db_engine, create_session_factory
+from raw_and_order.db.trash_repository import SqlAlchemyTrashRepository
 from raw_and_order.llm.annotator import LLMAnnotator
 from raw_and_order.llm.capabilities import (
     DEFAULT_OLLAMA_URL,
@@ -216,9 +217,10 @@ def check_model(llm: LLMSettings) -> None:
 def build_ui_library(settings: Settings) -> PhotoLibrary:
     """Build the UI's cached photo library from settings.
 
-    It reads photos, the failure log and favorites, and writes only
-    favorites. The engine lives as long as the UI process; the UI caches the
-    result.
+    It reads photos, the failure log, favorites and deletion marks, and
+    writes only favorites and deletion marks. The engine lives as long as
+    the UI process; the UI caches the result.
+
     Streamlit is imported here, not at module level, so the CLI runs
     without the ``ui`` extra installed.
     """
@@ -229,6 +231,7 @@ def build_ui_library(settings: Settings) -> PhotoLibrary:
         catalog=SqlAlchemyPhotoCatalog(session_factory),
         failures=SqlAlchemyFailureRepository(session_factory),
         favorites=SqlAlchemyFavoriteRepository(session_factory),
+        trash=SqlAlchemyTrashRepository(session_factory),
         thumbnailer=JpegThumbnailer(),
         cache_key=settings.database_url,
     )

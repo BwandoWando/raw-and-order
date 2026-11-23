@@ -207,10 +207,10 @@ Stop it with Ctrl+C. In VS Code, the **Streamlit UI** debug configuration in
 `.vscode/launch.json` runs it with breakpoints.
 
 - **Filters** (sidebar): text search over descriptions and tags, favorites
-  only, scene, tags (all of; each listed with its number of photos, e.g.
-  `urban (431)`), people, camera, lens, capture-date range, white balance (K)
-  range, annotating model. They apply to the Gallery, Tags and
-  Export tabs.
+  only, marked for deletion only, scene, tags (all of; each listed with its
+  number of photos, e.g. `urban (431)`), people, camera, lens, capture-date
+  range, white balance (K) range, annotating model. They apply to the
+  Gallery, Tags and Export tabs.
 
 - **Gallery:** a grid of square thumbnails (24 / 48 / 72 / 99 per page; the
   whole photo fits in its tile) sized so a whole page fits on one screen.
@@ -226,7 +226,12 @@ Stop it with Ctrl+C. In VS Code, the **Streamlit UI** debug configuration in
   file name at the top; click the photo to see it full screen, as large as the
   window allows. The star in the photo's top-right corner marks it as a
   favorite (click again to unmark); the time it was starred is kept in the
-  `favorites` table, in this computer's local time. Step to the previous or
+  `favorites` table, in this computer's local time. The bin in the
+  bottom-right corner, or the **Delete** key, marks the photo for deletion
+  (red); click or press again to unmark, so pressing Delete twice leaves it
+  as it was. Marks go in the `trash` table, also with the local time; they
+  are only marks, and no file or photo row is deleted; the "Marked for
+  deletion only" filter lists them. Step to the previous or
   next photo on the gallery page with the buttons beside the photo (shown on
   hover) or the arrow keys. Stepping on from the last photo of a page loads
   the next page and shows its first photo; stepping back from the first
@@ -265,9 +270,9 @@ Stop it with Ctrl+C. In VS Code, the **Streamlit UI** debug configuration in
   neutral graphite, as in photo editors, so photos keep their true colours.
   Both themes are defined in `src/raw_and_order/ui/theme.toml`.
 
-The UI only reads photos (its one write is the favorite star, in its own
-table), so it is safe to keep open during a processing run (press **Refresh
-data** to see new photos). It listens on `localhost` only
+The UI only reads photos (its only writes are the favorite star and the
+deletion mark, each in its own table), so it is safe to keep open during a
+processing run (press **Refresh data** to see new photos). It listens on `localhost` only
 and Streamlit's usage statistics are turned off (see `.streamlit/config.toml`).
 
 ## Configuration
@@ -321,7 +326,7 @@ src/raw_and_order/
 ├── llm/              provider factory, capability check, annotator, prompts
 ├── schemas/          Pydantic models shared across layers
 ├── db/               SQLAlchemy models, session, repositories (photos, copies,
-│                     failures, favorites), the read-only catalog for the UI
+│                     failures, favorites, trash), the read-only catalog for the UI
 ├── analysis/         pure computations (tag network, clusters, similarity,
 │                     example photos per tag)
 ├── export/           export rows and Excel / CSV / JSON encoding
@@ -409,9 +414,9 @@ The Gallery, Tags and Export tabs and the Reset button then follow it.
 
 ## Resetting and starting from scratch
 
-This deletes every annotation, tag, hash, favorite and logged failure; your
-photo files are not touched. Stop the UI (Ctrl+C) and any running `process`
-first, since both keep the database open.
+This deletes every annotation, tag, hash, favorite, deletion mark and logged
+failure; your photo files are not touched. Stop the UI (Ctrl+C) and any
+running `process` first, since both keep the database open.
 
 ```bash
 cp data/app.db data/app.db.bak                       # optional: keep a copy
@@ -423,3 +428,6 @@ raw-and-order process /path/to/photos                # 4. start processing again
 
 Each run handles up to `MAX_PHOTOS_PER_RUN` photos (`--max-photos`, up to
 5000); run the same command again to continue.
+
+**Why I made this**
+I have been using my Sony a6400 and Ricoh GR camera for a few years and I have accumulated a few Terabytes worth of images. It now has come to a point that I need to catalogue and document what I've taken, and, identify favorites and those for deletion. Also, I am a software engineer by profession and rather than subscribing or paying for software that will catalogue my images, I've built one to suit my needs and requirements. This may come in handy for those that are also experiencing the problems that I am having.

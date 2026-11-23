@@ -23,6 +23,8 @@ from raw_and_order.ui.detail import (
     BACKDROP,
     FAVORITE_OFF_KEY,
     FAVORITE_ON_KEY,
+    TRASH_OFF_KEY,
+    TRASH_ON_KEY,
     similar_button_key,
 )
 from raw_and_order.ui.filters import FilterKey
@@ -453,6 +455,45 @@ def test_the_star_marks_and_unmarks_a_favorite(tmp_path: Path) -> None:
     assert app.button(key=FAVORITE_ON_KEY).label == "Remove from favorites"
     app.button(key=FAVORITE_ON_KEY).click().run()
     assert library.favorites == set()
+
+
+def test_the_bin_and_the_delete_key_mark_and_unmark_for_deletion(
+    tmp_path: Path,
+) -> None:
+    preview = tmp_path / "p0.jpg"
+    Image.new("RGB", (40, 30), (60, 120, 200)).save(preview)
+    record = _record(0).model_copy(update={"preview_path": preview})
+    library = FakePhotoLibrary([record])
+    app = _app(library)
+    app.button(key=open_button_key(record.path)).click().run()
+
+    bin_button = app.button(key=TRASH_OFF_KEY)
+    assert bin_button.label == "Mark for deletion"
+    assert bin_button.proto.shortcut.lower() == "delete"  # the key presses it
+
+    bin_button.click().run()  # first press: marked
+    assert library.trashed == {record.path}
+    marked = app.button(key=TRASH_ON_KEY)
+    assert marked.label == "Unmark for deletion"
+    assert marked.proto.shortcut.lower() == "delete"
+
+    marked.click().run()  # second press: back to normal
+    assert library.trashed == set()
+    assert app.button(key=TRASH_OFF_KEY).label == "Mark for deletion"
+    assert library.favorites == set()  # the star is untouched
+
+
+def test_marked_for_deletion_only_lists_the_marked_photos(tmp_path: Path) -> None:
+    library = FakePhotoLibrary(_with_previews([_record(i) for i in range(5)], tmp_path))
+    app = _app(library)
+    app.button(key=open_button_key(_record(3).path)).click().run()
+    app.button(key=TRASH_OFF_KEY).click().run()
+
+    app.toggle(key=FilterKey.TRASHED).set_value(True).run()
+
+    assert not app.exception, app.exception
+    assert "Showing 1–1 of 1 photos" in [c.value for c in app.caption]
+    assert app.button(key=open_button_key(_record(3).path))
 
 
 def test_export_tab_counts_previews_and_offers_a_download() -> None:

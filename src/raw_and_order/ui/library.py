@@ -2,7 +2,7 @@
 
 Renderers receive a :class:`PhotoLibrary` instead of reaching for global
 services, so tests can hand them an in-memory fake. It only reads, except
-for favorites, which the photo details set.
+for favorites and deletion marks, which the photo details set.
 """
 
 from collections.abc import Sequence
@@ -73,6 +73,14 @@ class PhotoLibrary(Protocol):
 
     def set_favorite(self, path: Path, favorite: bool) -> None:
         """Mark (``favorite=True``) or unmark the photo at ``path`` as a favorite."""
+        ...
+
+    def is_trashed(self, path: Path) -> bool:
+        """Return True if the photo at ``path`` is marked for deletion."""
+        ...
+
+    def set_trashed(self, path: Path, trashed: bool) -> None:
+        """Mark (``trashed=True``) or unmark the photo at ``path`` for deletion."""
         ...
 
     def stats(self) -> PhotoStats:

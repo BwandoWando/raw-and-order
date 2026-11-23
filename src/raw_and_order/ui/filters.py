@@ -28,6 +28,7 @@ class FilterKey(StrEnum):
 
     TEXT = "f_text"
     FAVORITES = "f_favorites"
+    TRASHED = "f_trashed"
     SCENES = "f_scenes"
     TAGS = "f_tags"
     PEOPLE = "f_people"
@@ -59,6 +60,12 @@ def render_filters(options: FilterOptions) -> PhotoQuery:
         "Search", key=FilterKey.TEXT, placeholder="description or tag"
     )
     only_favorites = sidebar.toggle("Favorites only", key=FilterKey.FAVORITES)
+    only_trashed = sidebar.toggle(
+        "Marked for deletion only",
+        key=FilterKey.TRASHED,
+        help="Photos marked with the bin (or the Delete key) in the photo "
+        "details. Nothing is deleted.",
+    )
     scenes = sidebar.multiselect("Scene", options.scenes, key=FilterKey.SCENES)
     tags = sidebar.multiselect(
         "Tags (all of)",
@@ -96,6 +103,7 @@ def render_filters(options: FilterOptions) -> PhotoQuery:
         date_from=date_from,
         date_to=date_to,
         only_favorites=only_favorites,
+        only_trashed=only_trashed,
         kelvin_min=kelvin_min,
         kelvin_max=kelvin_max,
         annotated_by=tuple(annotators),
@@ -111,6 +119,7 @@ def filter_defaults(options: FilterOptions) -> dict[str, object]:
     defaults: dict[str, object] = {
         FilterKey.TEXT: "",
         FilterKey.FAVORITES: False,
+        FilterKey.TRASHED: False,
         FilterKey.SCENES: [],
         FilterKey.TAGS: [],
         FilterKey.PEOPLE: "Any",

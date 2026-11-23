@@ -27,7 +27,7 @@ from sqlalchemy.orm import InstrumentedAttribute, Session, sessionmaker
 from raw_and_order.analysis.similarity import SIMILAR_MAX_DISTANCE, shares_tags
 from raw_and_order.db.errors import database_errors
 from raw_and_order.db.mappers import to_record
-from raw_and_order.db.models import CopyRow, FavoriteRow, PhotoRow
+from raw_and_order.db.models import CopyRow, FavoriteRow, PhotoRow, TrashRow
 from raw_and_order.media.hashing import hamming_distance
 from raw_and_order.schemas import PhotoRecord
 from raw_and_order.schemas.query import (
@@ -387,6 +387,8 @@ def filter_conditions(query: PhotoQuery) -> list[ColumnElement[bool]]:
     conditions = _text_conditions(query.text)
     if query.only_favorites:
         conditions.append(PhotoRow.id.in_(select(FavoriteRow.photo_id)))
+    if query.only_trashed:
+        conditions.append(PhotoRow.id.in_(select(TrashRow.photo_id)))
     conditions.extend(_tag_condition(tag) for tag in query.tags)
     conditions.extend(_one_of_conditions(query))
     if query.contains_people is not None:

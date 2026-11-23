@@ -18,6 +18,7 @@ from raw_and_order.analysis.tag_samples import sample_by_tag
 from raw_and_order.db.catalog import PhotoCatalog
 from raw_and_order.db.failure_repository import FailureRepository
 from raw_and_order.db.favorite_repository import FavoriteStore
+from raw_and_order.db.trash_repository import TrashStore
 from raw_and_order.exceptions import PreviewError
 from raw_and_order.media.protocols import Thumbnailer
 from raw_and_order.schemas import FailureRecord, PhotoRecord
@@ -37,14 +38,16 @@ THUMBNAIL_CACHE_ENTRIES = 3000  # about 30 full pages of 99
 class CachedPhotoLibrary:
     """Reads from a catalog and a failure log, caching each answer briefly.
 
-    Favorites are read fresh every time, so a star shows the moment it is set.
+    Favorites and deletion marks are read fresh every time, so a click shows
+    the moment it is made.
     Thumbnails, square crops and preview sizes have no expiry; they are keyed
     by the preview's modification time instead.
 
     Args:
         catalog: Read-only photo queries.
         failures: The processing-failure log.
-        favorites: Which photos are favorites; the only thing the UI writes.
+        favorites: Which photos are favorites (the UI writes these).
+        trash: Which photos are marked for deletion (the UI writes these).
         thumbnailer: Shrinks previews for the gallery grid.
         cache_key: Identifies the data source (e.g. the database URL).
     """
@@ -54,12 +57,14 @@ class CachedPhotoLibrary:
         catalog: PhotoCatalog,
         failures: FailureRepository,
         favorites: FavoriteStore,
+        trash: TrashStore,
         thumbnailer: Thumbnailer,
         cache_key: str,
     ) -> None:
         self._catalog = catalog
         self._failures = failures
         self._favorites = favorites
+        self._trash = trash
         self._thumbnailer = thumbnailer
         self._key = cache_key
 
@@ -135,13 +140,24 @@ class CachedPhotoLibrary:
     def set_favorite(self, path: Path, favorite: bool) -> None:
         """Mark or unmark the photo, stamped with this computer's local time.
 
-        Cached searches, tag networks and tag example photos are dropped,
-        since the "Favorites only" filter changes what they contain.
+        Cached results that follow the filters are dropped, since the
+        "Favorites only" filter changes what they contain.
         """
         self._favorites.set_favorite(path, favorite, when=datetime.now())
-        _search.clear()
-        _tag_graph.clear()
-        _tag_samples.clear()
+        _forget_filtered_results()
+
+    def is_trashed(self, path: Path) -> bool:
+        """Return True if the photo is marked for deletion (not cached)."""
+        return self._trash.is_trashed(path)
+
+    def set_trashed(self, path: Path, trashed: bool) -> None:
+        """Mark or unmark the photo for deletion, stamped with local time.
+
+        Cached results that follow the filters are dropped, since the
+        "Marked for deletion only" filter changes what they contain.
+        """
+        self._trash.set_trashed(path, trashed, when=datetime.now())
+        _forget_filtered_results()
 
     def stats(self) -> PhotoStats:
         """Return totals and breakdowns."""
@@ -193,6 +209,16 @@ class CachedPhotoLibrary:
         included, for all browser sessions.
         """
         st.cache_data.clear()
+
+
+def _forget_filtered_results() -> None:
+    """Drop every cached answer that depends on the sidebar filters.
+
+    Called after a favorite or deletion mark changes, since the "Favorites
+    only" and "Marked for deletion only" filters read those marks.
+    """
+    for cached in (_search, _tag_graph, _tag_samples, _similar_photos, _position):
+        cached.clear()
 
 
 # The query travels as JSON so it hashes reliably as a cache key. In all the

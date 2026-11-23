@@ -186,9 +186,9 @@ class ScriptedChatModel(BaseChatModel):
 class FakePhotoLibrary:
     """In-memory :class:`~raw_and_order.ui.library.PhotoLibrary` for UI tests.
 
-    Search ignores filters and sort; it only pages through ``records``.
-    Similar photos and positions follow one filter, ``scenes``, so tests can
-    hide a photo from the gallery.
+    Search ignores sort and most filters; it pages through ``records``.
+    Search, similar photos and positions follow ``scenes``, "Favorites only"
+    and "Marked for deletion only", so tests can hide a photo.
     """
 
     def __init__(
@@ -203,6 +203,7 @@ class FakePhotoLibrary:
         self._copies = copies or {}
         self._similar = similar or {}
         self.favorites: set[Path] = set()
+        self.trashed: set[Path] = set()
         self.refreshes = 0
 
     def export_records(self, query: PhotoQuery) -> list[PhotoRecord]:
@@ -223,9 +224,13 @@ class FakePhotoLibrary:
         return paths.index(path) + 1 if path in paths else None
 
     def _matching(self, query: PhotoQuery) -> list[PhotoRecord]:
-        if not query.scenes:
-            return list(self._records)
-        return [r for r in self._records if r.annotation.scene in query.scenes]
+        return [
+            r
+            for r in self._records
+            if (not query.scenes or r.annotation.scene in query.scenes)
+            and (not query.only_favorites or r.path in self.favorites)
+            and (not query.only_trashed or r.path in self.trashed)
+        ]
 
     def filter_options(self) -> FilterOptions:
         counts = Counter(
@@ -266,6 +271,15 @@ class FakePhotoLibrary:
             self.favorites.add(path)
         else:
             self.favorites.discard(path)
+
+    def is_trashed(self, path: Path) -> bool:
+        return path in self.trashed
+
+    def set_trashed(self, path: Path, trashed: bool) -> None:
+        if trashed:
+            self.trashed.add(path)
+        else:
+            self.trashed.discard(path)
 
     def preview_size(self, preview_path: Path) -> tuple[int, int] | None:
         if not preview_path.is_file():

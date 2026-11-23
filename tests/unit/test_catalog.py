@@ -12,6 +12,7 @@ from raw_and_order.db.catalog import (
 from raw_and_order.db.copy_repository import SqlAlchemyCopyRepository
 from raw_and_order.db.favorite_repository import SqlAlchemyFavoriteRepository
 from raw_and_order.db.repository import SqlAlchemyPhotoRepository
+from raw_and_order.db.trash_repository import SqlAlchemyTrashRepository
 from raw_and_order.schemas import (
     Annotation,
     ExifData,
@@ -324,6 +325,25 @@ def test_favorites_only_filter(
     ]
 
 
+def test_marked_for_deletion_only_filter(
+    catalog: SqlAlchemyPhotoCatalog, session_factory: sessionmaker[Session]
+) -> None:
+    assert _names(catalog, only_trashed=True) == []
+    trash = SqlAlchemyTrashRepository(session_factory)
+    for name in ("beach.arw", "portrait.jpg"):
+        trash.set_trashed(Path("/photos") / name, True, when=datetime(2026, 11, 23, 9))
+
+    assert _names(catalog, only_trashed=True) == ["beach.arw", "portrait.jpg"]
+    assert _names(catalog, only_trashed=True, contains_people=False) == ["beach.arw"]
+    assert (
+        catalog.position(Path("/photos/portrait.jpg"), PhotoQuery(only_trashed=True))
+        == 2
+    )
+
+    trash.set_trashed(Path("/photos/beach.arw"), False, when=datetime(2026, 11, 23))
+    assert _names(catalog, only_trashed=True) == ["portrait.jpg"]
+
+
 def test_filter_conditions_add_one_condition_per_filter_set() -> None:
     assert filter_conditions(PhotoQuery()) == []
     assert filter_conditions(PhotoQuery(text="   ")) == []  # blank search: no filter
@@ -337,10 +357,11 @@ def test_filter_conditions_add_one_condition_per_filter_set() -> None:
         date_from=date(2026, 1, 1),  # a range: one condition per bound
         date_to=date(2026, 2, 1),
         only_favorites=True,
+        only_trashed=True,
         kelvin_min=4000,
     )
 
-    assert len(filter_conditions(query)) == 10
+    assert len(filter_conditions(query)) == 11
 
 
 def test_similar_photos_follow_the_filters(
